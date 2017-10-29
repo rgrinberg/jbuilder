@@ -618,9 +618,8 @@ let create ~contexts ~file_tree ~rules =
   in
   let all_copy_targets =
     List.fold_left contexts ~init:Pset.empty ~f:(fun acc (ctx : Context.t) ->
-      Pset.union acc (Pset.elements all_source_files
-                      |> List.map ~f:(Path.append ctx.build_dir)
-                      |> Pset.of_list))
+      Pset.union acc (Pset.map all_source_files
+                      ~f:(Path.append ctx.build_dir)))
   in
   let all_other_targets =
     List.fold_left rules ~init:Pset.empty ~f:(fun acc { Pre_rule.targets; _ } ->
