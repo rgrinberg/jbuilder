@@ -994,16 +994,6 @@ Add it to your jbuild file to remove this warning.
       | Normal | Ppx_deriver -> []
       | Ppx_rewriter ->
         let pps = [Pp.of_string lib.name] in
-        let pps =
-          (* This is a temporary hack until we get a standard driver *)
-          let deps = List.concat_map lib.buildable.libraries ~f:Lib_dep.to_lib_names in
-          if List.exists deps ~f:(function
-            | "ppx_driver" | "ppx_type_conv" -> true
-            | _ -> false) then
-            pps @ [Pp.of_string "ppx_driver.runner"]
-          else
-            pps
-        in
         let ppx_exe =
           SC.PP.get_ppx_driver sctx pps
             ~dir ~dep_kind:(if lib.optional then Build.Optional else Required)
