@@ -12,4 +12,7 @@ val gen
   -> ppx_runtime_deps:(dir:Path.t
                        -> Jbuild.Stanza.t
                        -> (Meta.entry list, string list) Build.t)
+  -> test_runner_runtime_deps:(dir:Path.t
+                               -> Jbuild.Stanza.t
+                               -> (Meta.entry list, string list) Build.t)
   -> (unit, Meta.t) Build.t

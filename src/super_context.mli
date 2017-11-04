@@ -80,6 +80,11 @@ module Libs : sig
 
   val load_requires     : t -> dir:Path.t -> item:string -> (unit, Lib.t list) Build.t
   val load_runtime_deps : t -> dir:Path.t -> item:string -> (unit, Lib.t list) Build.t
+  val load_test_runner_runtime_deps
+    : t
+    -> dir:Path.t
+    -> item:string
+    -> (unit, Lib.t list) Build.t
 
   val lib_is_available : t -> from:Path.t -> string -> bool
 
@@ -109,6 +114,14 @@ module Libs : sig
     -> item:string (* Library name or first exe name *)
     -> libraries:Lib_deps.t
     -> ppx_runtime_libraries:string list
+    -> unit
+
+  val setup_test_runner_runtime_deps
+    :  t
+    -> dir:Path.t
+    -> dep_kind:Build.lib_dep_kind
+    -> item:string (* Library name or first exe name *)
+    -> runner:string
     -> unit
 
   (** [file_deps ~ext] is an arrow that record dependencies on all the files with

@@ -267,8 +267,15 @@ module Libs = struct
     let fn = Path.relative dir (item ^ ".runtime-deps.sexp") in
     Build.Vspec.T (fn, t.libs_vfile)
 
+  let vruntime_test_runner_deps t ~dir ~item =
+    let fn = Path.relative dir (item ^ ".runtime-test-runner-deps.sexp") in
+    Build.Vspec.T (fn, t.libs_vfile)
+
   let load_runtime_deps t ~dir ~item =
     Build.vpath (vruntime_deps t ~dir ~item)
+
+  let load_test_runner_runtime_deps t ~dir ~item =
+    Build.vpath (vruntime_test_runner_deps t ~dir ~item)
 
   let with_fail ~fail build =
     match fail with
@@ -375,6 +382,14 @@ module Libs = struct
          Lib.remove_dups_preserve_order (rt_deps @ rt_deps_of_deps))
        >>>
        Build.store_vfile vruntime_deps)
+
+  let setup_test_runner_runtime_deps t ~dir ~dep_kind ~item ~runner =
+    let vruntime_deps = vruntime_test_runner_deps t ~dir ~item in
+    add_rule t (
+      closure t ~dir ~dep_kind [Lib_dep.direct runner]
+      >>^ Lib.remove_dups_preserve_order
+      >>> Build.store_vfile vruntime_deps
+    )
 
   let lib_files_alias ((dir, lib) : Lib.Internal.t) ~ext =
     Alias.make (sprintf "lib-%s%s-all" lib.name ext) ~dir

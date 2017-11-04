@@ -524,6 +524,38 @@ module Library = struct
         ]
   end
 
+  module Ppx_runner = struct
+    module Kind = struct
+      type t = Bench | Test
+    end
+
+    type t = Kind.t * string
+
+    let t =
+      sum
+        [ cstr "bench" (string @> nil) (fun lib -> Kind.Bench, lib)
+        ; cstr "test" (string @> nil) (fun lib -> Kind.Test, lib)
+        ]
+  end
+
+  module Inline_tests = struct
+    type t =
+      { deps: string list
+      }
+
+    let empty =
+      { deps = []
+      }
+
+    let t =
+      record
+        (field "deps" (list string) ~default:[] >>= fun deps ->
+         return
+           { deps
+           }
+        )
+  end
+
   type t =
     { name                     : string
     ; public                   : Public_lib.t option
@@ -544,6 +576,8 @@ module Library = struct
     ; optional                 : bool
     ; buildable                : Buildable.t
     ; dynlink                  : bool
+    ; ppx_runner_library       : Ppx_runner.t option
+    ; inline_tests             : Inline_tests.t
     }
 
   let v1 pkgs =
@@ -567,6 +601,8 @@ module Library = struct
        field_b    "optional"                                                 >>= fun optional                 ->
        field      "self_build_stubs_archive" (option string) ~default:None   >>= fun self_build_stubs_archive ->
        field_b    "no_dynlink"                                               >>= fun no_dynlink               ->
+       field_o    "ppx_runner_library" Ppx_runner.t                          >>= fun ppx_runner_library       ->
+       field      "inline_tests" Inline_tests.t ~default:Inline_tests.empty  >>= fun inline_tests             ->
        return
          { name
          ; public
@@ -587,6 +623,8 @@ module Library = struct
          ; optional
          ; buildable
          ; dynlink = not no_dynlink
+         ; ppx_runner_library
+         ; inline_tests
          })
 
   let has_stubs t =

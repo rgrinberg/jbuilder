@@ -101,3 +101,11 @@ let remove_dups_preserve_order libs =
   in
   loop String_set.empty libs []
 ;;
+
+let test_runner = function
+  | Internal (_, { Jbuild.Library.ppx_runner_library = Some (_, p) ; _ }) ->
+    [p]
+  | Internal (_, { Jbuild.Library.ppx_runner_library = None ; _ }) ->
+    []
+  | External { Findlib.test_runner_runtime_deps = libs ; _ } ->
+    List.map ~f:(fun f -> f.Findlib.name) libs
