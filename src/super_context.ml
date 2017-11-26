@@ -77,16 +77,16 @@ let get_external_dir t ~dir =
 
 let expand_vars t ~scope ~dir s =
   String_with_vars.expand s ~f:(fun _loc -> function
-  | "ROOT" -> Some (Path.reach ~from:dir t.context.build_dir)
-  | "SCOPE_ROOT" ->
-    Some (Path.reach ~from:dir (Path.append t.context.build_dir scope.Scope.root))
-  | var ->
-     let open Action.Var_expansion in
-     find_var_no_root t var
-     |> Option.map ~f:(function
-            | Paths(p,_) -> let p = List.map p ~f:Path.to_string in
-                            String.concat ~sep:" " p
-            | Strings(s,_) -> String.concat ~sep:" " s))
+    | "ROOT" -> Some (Path.reach ~from:dir t.context.build_dir)
+    | "SCOPE_ROOT" ->
+      Some (Path.reach ~from:dir (Path.append t.context.build_dir scope.Scope.root))
+    | var ->
+      let open Action.Var_expansion in
+      find_var_no_root t var
+      |> Option.map ~f:(function
+        | Paths(p,_) -> let p = List.map p ~f:Path.to_string in
+          String.concat ~sep:" " p
+        | Strings(s,_) -> String.concat ~sep:" " s))
 
 let resolve_program t ?hint bin =
   Artifacts.binary ?hint t.artifacts bin
