@@ -1,0 +1,11 @@
+(jbuild_version 1)
+
+(library
+ ((name foobar)
+  (public_name foobar)
+  (synopsis "quotes are \"present\"")))
+
+(alias
+ ((name runtest)
+  (deps (META.foobar))
+  (action (cat ${<}))))
