@@ -39,6 +39,128 @@ module Gen(P : Params) = struct
     end
 
   (* +-----------------------------------------------------------------+
+     | User rules                                                      |
+     +-----------------------------------------------------------------+ *)
+
+  let interpret_locks ~dir ~scope locks =
+    List.map locks ~f:(fun s ->
+      Path.relative dir (SC.expand_vars sctx ~dir ~scope s))
+
+  let user_rule (rule : Rule.t) ~dir ~scope =
+    let targets : SC.Action.targets =
+      match rule.targets with
+      | Infer -> Infer
+      | Static fns -> Static (List.map fns ~f:(Path.relative dir))
+    in
+    SC.add_rule sctx ~fallback:rule.fallback ~loc:rule.loc
+      ~locks:(interpret_locks ~dir ~scope rule.locks)
+      (SC.Deps.interpret sctx ~scope ~dir rule.deps
+       >>>
+       SC.Action.run
+         sctx
+         rule.action
+         ~dir
+         ~dep_kind:Required
+         ~targets
+         ~scope)
+
+  let alias_rules (alias_conf : Alias_conf.t) ~dir ~scope =
+    let digest =
+      Alias.digest
+        ?action:(Option.map alias_conf.action ~f:Action.Unexpanded.sexp_of_t)
+        alias_conf.deps in
+    let alias = Alias.make alias_conf.name ~dir in
+    let digest_path = Alias.file_with_digest_suffix alias ~digest in
+    Alias.add_deps (SC.aliases sctx) alias [digest_path];
+    let deps = SC.Deps.interpret sctx ~scope ~dir alias_conf.deps in
+    SC.add_rule sctx
+      ~locks:(interpret_locks ~dir ~scope alias_conf.locks)
+      (match alias_conf.action with
+       | None ->
+         deps
+         >>>
+         Build.create_file digest_path
+       | Some action ->
+         deps
+         >>>
+         Build.progn
+           [ SC.Action.run
+               sctx
+               action
+               ~dir
+               ~dep_kind:Required
+               ~targets:(Static [])
+               ~scope
+           ; Build.create_file digest_path
+           ])
+
+  let lint_rules ~dir ~modules ~package ~lint ~scope =
+    String_map.iter modules ~f:(fun ~key:_ ~data:(m : Module.t) ->
+      match Preprocess_map.find m.name lint with
+       | No_preprocessing -> ()
+       | Action action ->
+         Module.iter m ~f:(fun src ->
+           let action = Action.Unexpanded.Chdir (SC.PP.root_var, action) in
+           alias_rules (
+             { Alias_conf. name = "lint"
+             ; deps = [Dep_conf.File (String_with_vars.virt __POS__ src.name)]
+             ; action = Some action
+             ; locks = []
+             ; package
+             }
+           ) ~dir ~scope)
+         |> ignore
+       | Pps { pps = _; flags = _ } ->
+         failwith "TODO"
+    )
+
+  let copy_files_rules (def: Copy_files.t) ~src_dir ~dir ~scope =
+    let loc = String_with_vars.loc def.glob in
+    let glob_in_src =
+      let src_glob = SC.expand_vars sctx ~dir def.glob ~scope in
+      Path.relative src_dir src_glob ~error_loc:loc
+    in
+    (* The following condition is required for merlin to work.
+       Additionally, the order in which the rules are evaluated only
+       ensures that [sources_and_targets_known_so_far] returns the
+       right answer for sub-directories only. *)
+    if not (Path.is_descendant glob_in_src ~of_:src_dir) then
+      Loc.fail loc "%s is not a sub-directory of %s"
+        (Path.to_string_maybe_quoted glob_in_src) (Path.to_string_maybe_quoted src_dir);
+    let glob = Path.basename glob_in_src in
+    let src_in_src = Path.parent glob_in_src in
+    let re =
+      match Glob_lexer.parse_string glob with
+      | Ok re ->
+        Re.compile re
+      | Error (_pos, msg) ->
+        Loc.fail (String_with_vars.loc def.glob) "invalid glob: %s" msg
+    in
+    (* add rules *)
+    let files = SC.sources_and_targets_known_so_far sctx ~src_path:src_in_src in
+    let src_in_build = Path.append ctx.build_dir src_in_src in
+    String_set.iter files ~f:(fun basename ->
+      let matches = Re.execp re basename in
+      if matches then
+        let file_src = Path.relative src_in_build basename in
+        let file_dst = Path.relative dir basename in
+        SC.add_rule sctx
+          ((if def.add_line_directive
+            then Build.copy_and_add_line_directive
+            else Build.copy)
+             ~src:file_src
+             ~dst:file_dst)
+    );
+    { Merlin.requires = Build.return []
+    ; flags           = Build.return []
+    ; preprocess      = Jbuild.Preprocess.No_preprocessing
+    ; libname         = None
+    ; source_dirs     = Path.Set.singleton src_in_src
+    }
+
+
+
+  (* +-----------------------------------------------------------------+
      | Library stuff                                                   |
      +-----------------------------------------------------------------+ *)
 
@@ -248,6 +370,12 @@ module Gen(P : Params) = struct
                                else
                                  None)
     in
+
+    lint_rules ~dir ~modules ~package:(
+      match lib.public with
+      | None -> None
+      | Some (p : Public_lib.t) ->  Some p.package
+    ) ~lint:lib.buildable.lint ~scope;
 
     Option.iter alias_module ~f:(fun m ->
       SC.add_rule sctx
@@ -542,108 +670,6 @@ module Gen(P : Params) = struct
     ; libname    = None
     ; source_dirs = Path.Set.empty
     }
-
-  (* +-----------------------------------------------------------------+
-     | User rules                                                      |
-     +-----------------------------------------------------------------+ *)
-
-  let interpret_locks ~dir ~scope locks =
-    List.map locks ~f:(fun s ->
-      Path.relative dir (SC.expand_vars sctx ~dir ~scope s))
-
-  let user_rule (rule : Rule.t) ~dir ~scope =
-    let targets : SC.Action.targets =
-      match rule.targets with
-      | Infer -> Infer
-      | Static fns -> Static (List.map fns ~f:(Path.relative dir))
-    in
-    SC.add_rule sctx ~fallback:rule.fallback ~loc:rule.loc
-      ~locks:(interpret_locks ~dir ~scope rule.locks)
-      (SC.Deps.interpret sctx ~scope ~dir rule.deps
-       >>>
-       SC.Action.run
-         sctx
-         rule.action
-         ~dir
-         ~dep_kind:Required
-         ~targets
-         ~scope)
-
-  let alias_rules (alias_conf : Alias_conf.t) ~dir ~scope =
-    let digest =
-      Alias.digest
-        ?action:(Option.map alias_conf.action ~f:Action.Unexpanded.sexp_of_t)
-        alias_conf.deps in
-    let alias = Alias.make alias_conf.name ~dir in
-    let digest_path = Alias.file_with_digest_suffix alias ~digest in
-    Alias.add_deps (SC.aliases sctx) alias [digest_path];
-    let deps = SC.Deps.interpret sctx ~scope ~dir alias_conf.deps in
-    SC.add_rule sctx
-      ~locks:(interpret_locks ~dir ~scope alias_conf.locks)
-      (match alias_conf.action with
-       | None ->
-         deps
-         >>>
-         Build.create_file digest_path
-       | Some action ->
-         deps
-         >>>
-         Build.progn
-           [ SC.Action.run
-               sctx
-               action
-               ~dir
-               ~dep_kind:Required
-               ~targets:(Static [])
-               ~scope
-           ; Build.create_file digest_path
-           ])
-
-  let copy_files_rules (def: Copy_files.t) ~src_dir ~dir ~scope =
-    let loc = String_with_vars.loc def.glob in
-    let glob_in_src =
-      let src_glob = SC.expand_vars sctx ~dir def.glob ~scope in
-      Path.relative src_dir src_glob ~error_loc:loc
-    in
-    (* The following condition is required for merlin to work.
-       Additionally, the order in which the rules are evaluated only
-       ensures that [sources_and_targets_known_so_far] returns the
-       right answer for sub-directories only. *)
-    if not (Path.is_descendant glob_in_src ~of_:src_dir) then
-      Loc.fail loc "%s is not a sub-directory of %s"
-        (Path.to_string_maybe_quoted glob_in_src) (Path.to_string_maybe_quoted src_dir);
-    let glob = Path.basename glob_in_src in
-    let src_in_src = Path.parent glob_in_src in
-    let re =
-      match Glob_lexer.parse_string glob with
-      | Ok re ->
-        Re.compile re
-      | Error (_pos, msg) ->
-        Loc.fail (String_with_vars.loc def.glob) "invalid glob: %s" msg
-    in
-    (* add rules *)
-    let files = SC.sources_and_targets_known_so_far sctx ~src_path:src_in_src in
-    let src_in_build = Path.append ctx.build_dir src_in_src in
-    String_set.iter files ~f:(fun basename ->
-      let matches = Re.execp re basename in
-      if matches then
-        let file_src = Path.relative src_in_build basename in
-        let file_dst = Path.relative dir basename in
-        SC.add_rule sctx
-          ((if def.add_line_directive
-            then Build.copy_and_add_line_directive
-            else Build.copy)
-             ~src:file_src
-             ~dst:file_dst)
-    );
-    { Merlin.requires = Build.return []
-    ; flags           = Build.return []
-    ; preprocess      = Jbuild.Preprocess.No_preprocessing
-    ; libname         = None
-    ; source_dirs     = Path.Set.singleton src_in_src
-    }
-
-
   (* +-----------------------------------------------------------------+
      | Modules listing                                                 |
      +-----------------------------------------------------------------+ *)
