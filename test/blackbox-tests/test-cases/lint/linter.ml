@@ -1,1 +1,3 @@
-let () = exit 1
+let () =
+  Format.eprintf "Linting successfully failed.@.%!";
+  exit 1

@@ -1,8 +1,10 @@
 (jbuild_version 1)
 
 (executable
- ((name linter)))
+ ((modules (linter))
+  (name linter)))
 
 (library
  ((name linted)
-  (lint (pps (action linter.exe)))))
+  (modules (linted))
+  (lint (action (run ${exe:linter.exe} ${<})))))
