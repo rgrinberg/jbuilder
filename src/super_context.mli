@@ -154,6 +154,9 @@ end
 
 (** Preprocessing stuff *)
 module PP : sig
+
+  val root_var : String_with_vars.t
+
   (** Setup pre-processing rules and return the list of pre-processed modules *)
   val pped_modules
     :  t
