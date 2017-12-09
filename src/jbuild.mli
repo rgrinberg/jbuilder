@@ -45,6 +45,12 @@ module Preprocess : sig
     | Pps    of pps
 end
 
+module Lint : sig
+  type t
+
+  val no_lint : t
+end
+
 module Preprocess_map : sig
   type t
 
@@ -108,6 +114,7 @@ module Buildable : sig
     ; libraries                : Lib_dep.t list
     ; preprocess               : Preprocess_map.t
     ; preprocessor_deps        : Dep_conf.t list
+    ; lint                     : Lint.t
     ; flags                    : Ordered_set_lang.Unexpanded.t
     ; ocamlc_flags             : Ordered_set_lang.Unexpanded.t
     ; ocamlopt_flags           : Ordered_set_lang.Unexpanded.t
