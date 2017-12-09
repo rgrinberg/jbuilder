@@ -235,8 +235,6 @@ module Alias_conf : sig
     ; locks   : String_with_vars.t list
     ; package : Package.t option
     }
-
-  val digest : t -> string
 end
 
 module Copy_files : sig

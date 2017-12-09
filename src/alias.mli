@@ -38,6 +38,8 @@ val dep_rec : loc:Loc.t -> file_tree:File_tree.t -> t -> (unit, unit) Build.t
     [_build/.aliases]. *)
 val file : t -> Path.t
 
+val digest : ?action:Sexp.t -> Jbuild.Dep_conf.t list -> Digest.t
+
 (** Same as [file t], except that it sets the digest suffix to [digest]. Files
     representing aliases ends with a hex-encoded md5sum of some data. It is usually filled
     with zeros except for files that represent the running of an action associated to an

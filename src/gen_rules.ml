@@ -570,7 +570,10 @@ module Gen(P : Params) = struct
          ~scope)
 
   let alias_rules (alias_conf : Alias_conf.t) ~dir ~scope =
-    let digest = Alias_conf.digest alias_conf in
+    let digest =
+      Alias.digest
+        ?action:(Option.map alias_conf.action ~f:Action.Unexpanded.sexp_of_t)
+        alias_conf.deps in
     let alias = Alias.make alias_conf.name ~dir in
     let digest_path = Alias.file_with_digest_suffix alias ~digest in
     Alias.add_deps (SC.aliases sctx) alias [digest_path];
