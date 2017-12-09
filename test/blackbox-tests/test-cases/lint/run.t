@@ -1,0 +1,1 @@
+  $ $JBUILDER build @lint -j1 --root .

@@ -1,0 +1,8 @@
+(jbuild_version 1)
+
+(executable
+ ((name linter)))
+
+(library
+ ((name linted)
+  (lint (pps (action linter.exe)))))
