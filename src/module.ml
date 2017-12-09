@@ -54,3 +54,7 @@ let cmti_file t ~dir =
   match t.intf with
   | None   -> Path.relative dir (t.obj_name ^ ".cmt")
   | Some _ -> Path.relative dir (t.obj_name ^ ".cmti")
+
+let iter t ~f =
+  f t.impl;
+  Option.iter t.intf ~f
