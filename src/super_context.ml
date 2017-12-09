@@ -910,6 +910,42 @@ module PP = struct
                ])
         )
     )
+
+  let lint_modules sctx ~dir ~dep_kind ~modules ~lint ~lib_name ~scope =
+    let preprocess = lint in
+    String_map.iter modules ~f:(fun ~key:_ ~data:(m : Module.t) ->
+      let m = setup_reason_rules sctx ~dir m in
+      ignore @@
+      (match Preprocess_map.find m.name preprocess with
+       | No_preprocessing -> m
+       | Action action ->
+         pped_module m ~dir ~f:(fun _kind src dst ->
+           add_rule sctx
+             (Build.path src
+              >>^ (fun _ -> [src])
+              >>>
+              Action.run sctx
+                (Redirect
+                   (Stdout,
+                    target_var,
+                    Chdir (root_var,
+                           action)))
+                ~dir
+                ~dep_kind
+                ~targets:(Static [dst])
+                ~scope))
+       | Pps { pps; flags } ->
+         let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
+         pped_module m ~dir ~f:(fun kind src _ ->
+           add_rule sctx
+             (Build.run ~context:sctx.context
+                (Ok ppx_exe)
+                [ As flags
+                ; As (cookie_library_name lib_name)
+                ; Ml_kind.ppx_driver_flag kind; Dep src
+                ])
+         ))
+    )
 end
 
 let expand_and_eval_set t ~scope ~dir set ~standard =
