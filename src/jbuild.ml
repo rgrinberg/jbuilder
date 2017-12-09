@@ -902,6 +902,17 @@ module Alias_conf = struct
          ; package
          ; locks
          })
+
+  let digest t =
+    let deps = Sexp.To_sexp.list Dep_conf.sexp_of_t t.deps in
+    let action =
+      match t.action with
+      | None -> Sexp.Atom "none"
+      | Some a -> List [Atom "some"; Action.Unexpanded.sexp_of_t a]
+    in
+    Sexp.List [deps ; action]
+    |> Sexp.to_string
+    |> Digest.string
 end
 
 module Copy_files = struct
