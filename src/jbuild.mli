@@ -45,12 +45,6 @@ module Preprocess : sig
     | Pps    of pps
 end
 
-module Lint : sig
-  type t
-
-  val no_lint : t
-end
-
 module Preprocess_map : sig
   type t
 
@@ -62,6 +56,13 @@ module Preprocess_map : sig
 
   val pps : t -> Pp.t list
 end
+
+module Lint : sig
+  type t = Preprocess_map.t
+
+  val no_lint : t
+end
+
 
 module Js_of_ocaml : sig
   type t =
