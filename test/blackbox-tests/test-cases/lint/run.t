@@ -12,3 +12,5 @@
   (cd _build/default && ./linter.exe exe/lintedbin.ml)
   Linting exe/lintedbin.ml successfully failed.
   [1]
+  $ $JBUILDER build @exe-pass/lint -j1 --root .
+        linter alias exe-pass/lint
