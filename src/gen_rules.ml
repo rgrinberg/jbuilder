@@ -351,6 +351,8 @@ module Gen(P : Params) = struct
                                  None)
     in
 
+    SC.PP.lint_modules sctx ~dir ~dep_kind ~modules ~scope
+      ~lint:lib.buildable.lint ~lib_name:(Some lib.name);
 
     Option.iter alias_module ~f:(fun m ->
       SC.add_rule sctx
@@ -611,6 +613,10 @@ module Gen(P : Params) = struct
         ~lib_name:None
         ~scope
     in
+
+    SC.PP.lint_modules sctx ~dir ~dep_kind ~modules ~scope
+      ~lint:exes.buildable.lint ~lib_name:None;
+
     let item = List.hd exes.names in
     let dep_graph =
       Ocamldep.rules sctx ~dir ~item ~modules ~alias_module:None
