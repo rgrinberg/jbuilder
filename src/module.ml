@@ -56,5 +56,5 @@ let cmti_file t ~dir =
   | Some _ -> Path.relative dir (t.obj_name ^ ".cmti")
 
 let iter t ~f =
-  f t.impl;
-  Option.iter t.intf ~f
+  f Ml_kind.Impl t.impl;
+  Option.iter t.intf ~f:(f Ml_kind.Intf)
