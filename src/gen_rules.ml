@@ -94,26 +94,6 @@ module Gen(P : Params) = struct
            ; Build.create_file digest_path
            ])
 
-  let lint_rules ~dir ~modules ~package ~lint ~scope =
-    String_map.iter modules ~f:(fun ~key:_ ~data:(m : Module.t) ->
-      match Preprocess_map.find m.name lint with
-       | No_preprocessing -> ()
-       | Action action ->
-         Module.iter m ~f:(fun src ->
-           let action = Action.Unexpanded.Chdir (SC.PP.root_var, action) in
-           alias_rules (
-             { Alias_conf. name = "lint"
-             ; deps = [Dep_conf.File (String_with_vars.virt __POS__ src.name)]
-             ; action = Some action
-             ; locks = []
-             ; package
-             }
-           ) ~dir ~scope)
-         |> ignore
-       | Pps { pps = _; flags = _ } ->
-         failwith "TODO"
-    )
-
   let copy_files_rules (def: Copy_files.t) ~src_dir ~dir ~scope =
     let loc = String_with_vars.loc def.glob in
     let glob_in_src =
@@ -371,11 +351,6 @@ module Gen(P : Params) = struct
                                  None)
     in
 
-    lint_rules ~dir ~modules ~package:(
-      match lib.public with
-      | None -> None
-      | Some (p : Public_lib.t) ->  Some p.package
-    ) ~lint:lib.buildable.lint ~scope;
 
     Option.iter alias_module ~f:(fun m ->
       SC.add_rule sctx
