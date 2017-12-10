@@ -1,3 +1,3 @@
 let () =
-  Format.eprintf "Linting successfully failed.@.%!";
+  Format.eprintf "Linting %s successfully failed.@.%!" Sys.argv.(1);
   exit 1
