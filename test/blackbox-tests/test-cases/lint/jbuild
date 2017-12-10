@@ -1,4 +1,11 @@
 (jbuild_version 1)
 
 (executable
- ((name linter)))
+ ((modules (linter))
+  (name linter)))
+
+(library
+ ((name linterppx)
+  (libraries (ocaml-migrate-parsetree))
+  (modules (linterppx))
+  (kind ppx_rewriter)))

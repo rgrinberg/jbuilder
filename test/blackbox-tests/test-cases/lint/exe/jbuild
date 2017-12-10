@@ -2,4 +2,4 @@
 
 (executable
  ((name lintedbin)
-  (lint (action (run ${exe:../linter.exe} ${<})))))
+  (lint (pps (linterppx)))))
