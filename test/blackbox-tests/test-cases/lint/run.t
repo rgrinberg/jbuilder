@@ -8,9 +8,14 @@
   Linting lib/linted.ml successfully failed.
   [1]
   $ $JBUILDER build @exe/lint -j1 --root .
-        linter alias exe/lint (exit 1)
-  (cd _build/default && ./linter.exe exe/lintedbin.ml)
-  Linting exe/lintedbin.ml successfully failed.
+      ocamldep linterppx.depends.ocamldep-output
+        ocamlc linterppx.{cmi,cmo,cmt}
+      ocamlopt linterppx.{cmx,o}
+      ocamlopt linterppx.{a,cmxa}
+      ocamlopt .ppx/linterppx/ppx.exe
+           ppx alias exe/lint (exit 1)
+  (cd _build/default && ./.ppx/linterppx/ppx.exe --impl exe/lintedbin.ml)
+  Linting failed
   [1]
   $ $JBUILDER build @exe-pass/lint -j1 --root .
         linter alias exe-pass/lint
