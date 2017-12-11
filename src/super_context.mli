@@ -169,6 +169,16 @@ module PP : sig
     -> scope:Scope.t
     -> Module.t String_map.t
 
+  val lint_modules
+    : t
+    -> dir:Path.t
+    -> dep_kind:Build.lib_dep_kind
+    -> modules:Module.t String_map.t
+    -> lint:Preprocess_map.t
+    -> lib_name:string option
+    -> scope:Scope.t
+    -> unit
+
   (** Get a path to a cached ppx driver *)
   val get_ppx_driver
     :  t

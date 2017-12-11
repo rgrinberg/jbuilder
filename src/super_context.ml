@@ -912,6 +912,62 @@ module PP = struct
                ])
         )
     )
+
+  let lint_modules sctx ~dir ~dep_kind ~modules ~lint ~lib_name ~scope =
+    let preprocess = lint in
+    String_map.iter modules ~f:(fun ~key:_ ~data:(m : Module.t) ->
+      match Preprocess_map.find m.name preprocess with
+      | No_preprocessing -> ()
+      | Action action ->
+        Module.iter m ~f:(fun _ src ->
+          let digest =
+            Alias.digest ~action:(Action.U.sexp_of_t action)
+              [Dep_conf.File (String_with_vars.virt __POS__ src.name)] in
+          let src = Path.relative dir src.name in
+          let action = Action.U.Chdir (root_var, action) in
+          let alias = Alias.lint ~dir in
+          let digest_path = Alias.file_with_digest_suffix alias ~digest in
+          add_rule sctx
+            (Build.path src
+             >>^ (fun _ -> [src])
+             >>>
+             Build.progn
+               [ Action.run sctx
+                   action
+                   ~dir
+                   ~dep_kind:Required
+                   ~targets:(Static [])
+                   ~scope
+               ; Build.create_file digest_path
+               ]);
+          Alias.add_deps (aliases sctx) alias [digest_path]
+        )
+      | Pps { pps; flags } ->
+        let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
+        Module.iter m ~f:(fun kind src ->
+          let src_path = Path.relative dir src.name in
+          let args =
+            [ Arg_spec.As flags
+            ; As (cookie_library_name lib_name)
+            ; Ml_kind.ppx_driver_flag kind
+            ; Dep src_path
+            ] in
+          let digest =
+            Alias.digest ~action:(
+              let (args, paths) = Arg_spec.expand ~dir args () in
+              Sexp.To_sexp.(triple Path.sexp_of_t (list string) Path.Set.sexp_of_t)
+                (ppx_exe, args, paths)
+            ) [Dep_conf.File (String_with_vars.virt __POS__ src.name)] in
+          let alias = Alias.lint ~dir in
+          let digest_path = Alias.file_with_digest_suffix alias ~digest in
+          add_rule sctx
+            (Build.progn
+               [ Build.run ~context:sctx.context (Ok ppx_exe) args
+               ; Build.create_file digest_path
+               ]);
+          Alias.add_deps (aliases sctx) alias [digest_path]
+        )
+    )
 end
 
 let expand_and_eval_set t ~scope ~dir set ~standard =
