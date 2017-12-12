@@ -1,6 +1,6 @@
 (jbuild_version 1)
 
 (library
- ((name jbuilder.libmain)
-  (public_name jbuilder.libmain)
+ ((name libmain)
+  (public_name libmain)
   (wrapped false)))
