@@ -25,6 +25,7 @@
     # This is what jbuilder uses to find out the runtime dependencies of
     # a preprocessor
     ppx_runtime_deps = "bytes foobar.baz"
+    ppx_runtime_deps(test_runner) = ""
     # This line makes things transparent for people mixing preprocessors
     # and normal dependencies
     requires(-ppx_driver) = "bytes foobar.baz"
