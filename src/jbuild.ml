@@ -540,6 +540,7 @@ module Library = struct
     ; c_library_flags          : Ordered_set_lang.Unexpanded.t
     ; self_build_stubs_archive : string option
     ; virtual_deps             : string list
+    ; virtual_modules          : string list
     ; wrapped                  : bool
     ; optional                 : bool
     ; buildable                : Buildable.t
@@ -561,6 +562,7 @@ module Library = struct
        field_oslu "library_flags"                                            >>= fun library_flags            ->
        field_oslu "c_library_flags"                                          >>= fun c_library_flags          ->
        field      "virtual_deps" (list string) ~default:[]                   >>= fun virtual_deps             ->
+       field      "virtual_modules" (list string) ~default:[]                >>= fun virtual_modules          ->
        field      "modes" Mode.Dict.Set.t ~default:Mode.Dict.Set.all         >>= fun modes                    ->
        field      "kind" Kind.t ~default:Kind.Normal                         >>= fun kind                     ->
        field      "wrapped" bool ~default:true                               >>= fun wrapped                  ->
@@ -583,6 +585,7 @@ module Library = struct
          ; c_library_flags
          ; self_build_stubs_archive
          ; virtual_deps
+         ; virtual_modules
          ; wrapped
          ; optional
          ; buildable
