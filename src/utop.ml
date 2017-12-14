@@ -56,6 +56,7 @@ let utop_of_libs (libs : Library.t list) =
       ; js_of_ocaml = Js_of_ocaml.default
       ; gen_dot_merlin = false
       }
+  ; variants = []
   }
 
 let exe_stanzas stanzas =
