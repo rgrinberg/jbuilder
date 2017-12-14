@@ -609,6 +609,23 @@ module Library = struct
     | Some p -> p.name
 end
 
+module Implementation = struct
+  type t =
+    { implements: string
+    ; variant: string
+    }
+
+  let v1 =
+    record (
+      field "implements" string >>= fun implements ->
+      field "variant"    string >>= fun variant ->
+      return
+        { implements
+        ; variant
+        }
+    )
+end
+
 module Install_conf = struct
   type file =
     { src : string
@@ -648,12 +665,14 @@ module Executables = struct
     ; link_executables : bool
     ; link_flags       : Ordered_set_lang.Unexpanded.t
     ; modes            : Mode.Dict.Set.t
+    ; variants         : string list
     ; buildable        : Buildable.t
     }
 
   let common_v1 pkgs names public_names ~multi =
     Buildable.v1 >>= fun buildable ->
     field      "link_executables"   bool ~default:true >>= fun link_executables ->
+    field      "variants" (list string)  ~default:[]   >>= fun variants ->
     field_oslu "link_flags"                            >>= fun link_flags ->
     map_validate (field "modes" Mode.Dict.Set.t ~default:Mode.Dict.Set.all)
       ~f:(fun modes ->
@@ -668,6 +687,7 @@ module Executables = struct
       ; link_flags
       ; modes
       ; buildable
+      ; variants
       }
     in
     let to_install =
@@ -929,6 +949,7 @@ module Stanza = struct
     | Install     of Install_conf.t
     | Alias       of Alias_conf.t
     | Copy_files  of Copy_files.t
+    | Implementation of Implementation.t
 
   let rules l = List.map l ~f:(fun x -> Rule x)
 
@@ -954,6 +975,7 @@ module Stanza = struct
           (fun glob -> [Copy_files {add_line_directive = true; glob}])
       (* Just for validation and error messages *)
       ; cstr "jbuild_version" (Jbuild_version.t @> nil) (fun _ -> [])
+      ; cstr "implementation" (Implementation.v1 @> nil) (fun x -> [Implementation x])
       ]
 
   let select : Jbuild_version.t -> Scope.t -> t list Sexp.Of_sexp.t = function

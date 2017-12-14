@@ -166,6 +166,13 @@ module Library : sig
   val best_name : t -> string
 end
 
+module Implementation : sig
+  type t =
+    { implements: string
+    ; variant: string
+    }
+end
+
 module Install_conf : sig
   type file =
     { src : string
@@ -185,6 +192,7 @@ module Executables : sig
     ; link_executables : bool
     ; link_flags       : Ordered_set_lang.Unexpanded.t
     ; modes            : Mode.Dict.Set.t
+    ; variants         : string list
     ; buildable        : Buildable.t
     }
 end
@@ -248,6 +256,7 @@ module Stanza : sig
     | Install     of Install_conf.t
     | Alias       of Alias_conf.t
     | Copy_files  of Copy_files.t
+    | Implementation of Implementation.t
 end
 
 module Stanzas : sig
