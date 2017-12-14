@@ -1,0 +1,22 @@
+(jbuild_version 1)
+
+(library
+ ((name varies)
+  (wrapped false)
+  (modules (varies))
+  (virtual_modules (varies))))
+
+(executable
+ ((name main)
+  (modules (main))
+  (variants (foo bar))))
+
+(alias
+ ((name runtest)
+  (deps (main.foo.exe))
+  (action (run ${<}))))
+
+(alias
+ ((name runtest)
+  (deps (main.bar.exe))
+  (action (run ${<}))))
