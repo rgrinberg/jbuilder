@@ -7,6 +7,7 @@
 
 (library
  ((name foo_rewriter)
+  (public_name foo_rewriter)
   (wrapped false)
   (modules (foo_rewriter))
   (kind ppx_rewriter)
