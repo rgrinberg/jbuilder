@@ -3,4 +3,12 @@
 (library
  ((name libmain)
   (public_name libmain)
+  (modules (libmain))
+  (wrapped false)))
+
+(library
+ ((name libmain_main)
+  (public_name libmain.main)
+  (modules (libmain_main))
+  (libraries (libmain))
   (wrapped false)))
