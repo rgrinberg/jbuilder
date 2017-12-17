@@ -47,12 +47,17 @@ let setup ?(log=Log.no_log) ?unlink_aliases
   >>= fun contexts ->
   List.iter contexts ~f:(fun ctx ->
     Log.infof log "@[<1>Jbuilder context:@,%a@]@." Sexp.pp (Context.sexp_of_t ctx));
-  Gen_rules.gen conf ~contexts
+  let build_system =
+    Build_system.create ~contexts ~file_tree:conf.file_tree
+      ~gen_rules:(fun _ -> die "gen_rules called too early")
+  in
+  Gen_rules.gen conf
+    ~build_system
+    ~contexts
     ?unlink_aliases
     ?only_packages
     ?filter_out_optional_stanzas_with_missing_deps
-  >>= fun (rules, stanzas) ->
-  let build_system = Build_system.create ~contexts ~file_tree:conf.file_tree ~rules in
+  >>= fun stanzas ->
   return { build_system
          ; stanzas
          ; contexts

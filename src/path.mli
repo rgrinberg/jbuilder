@@ -39,8 +39,14 @@ val sexp_of_t : t Sexp.To_sexp.t
 val compare : t -> t -> int
 (** a directory is smaller than its descendants *)
 
-module Set : Set.S with type elt = t
+module Set : sig
+  include Set.S with type elt = t
+
+  val of_string_set : f:(string -> elt) -> String_set.t -> t
+end
+
 module Map : Map.S with type key = t
+
 
 val kind : t -> Kind.t
 
@@ -96,6 +102,9 @@ val extract_build_context_dir : t -> (t * t) option
 
 (** Drop the "_build/blah" prefix *)
 val drop_build_context : t -> t
+
+val explode : t -> string list option
+val explode_exn : t -> string list
 
 val is_in_build_dir : t -> bool
 
