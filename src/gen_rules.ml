@@ -186,10 +186,6 @@ module Gen(P : Params) = struct
 
   let rec runner_rule runner ~dir ~(lib : Library.t) ~scope =
     let name = lib.name ^ "_test_runner" in
-    let module_name = String.capitalize_ascii name in
-    let module_filename = name ^ ".ml" in
-    let module_path = Path.relative dir module_filename in
-    SC.add_rule sctx (Build.write_file module_path "");
     executables_rules
       ~last_lib:"libmain.main"
       ({ Executables.names = [name]
@@ -200,7 +196,7 @@ module Gen(P : Params) = struct
        ; modes = Mode.Dict.Set.all
        ; buildable =
            { Buildable.modules = Ordered_set_lang.t (
-               Sexp.add_loc ~loc:Loc.none (List [Atom module_name])
+               Sexp.add_loc ~loc:Loc.none (List [])
              )
            ; libraries =
                (Lib_dep.direct lib.name)
@@ -218,15 +214,7 @@ module Gen(P : Params) = struct
       ~dir
       ~all_modules:(
         String_map.of_alist_exn
-          [ module_name
-          , { Module.
-              name = module_name
-            ; impl = { Module.File.
-                       name = module_filename
-                     ; syntax = Module.Syntax.OCaml
-                     }
-            ; intf = None
-            ; obj_name = "" }
+          [
           ]
       )
       ~scope
@@ -532,14 +520,18 @@ module Gen(P : Params) = struct
       Build.fanout
         (requires
          >>> Build.dyn_paths (Build.arr (Lib.archive_files ~mode ~ext_lib:ctx.ext_lib)))
-        (dep_graph
-         >>> Build.arr (fun dep_graph ->
-           Ocamldep.names_to_top_closed_cm_files
-             ~dir
-             ~dep_graph
-             ~modules
-             ~mode
-             [String.capitalize_ascii name]))
+        (if String_map.is_empty modules then (
+           Build.arr (fun _ -> [])
+         ) else (
+           dep_graph
+           >>> Build.arr (fun dep_graph ->
+             Ocamldep.names_to_top_closed_cm_files
+               ~dir
+               ~dep_graph
+               ~modules
+               ~mode
+               [String.capitalize_ascii name])
+         ))
     in
     let objs (libs, cm) =
       if mode = Mode.Byte then
@@ -588,11 +580,14 @@ module Gen(P : Params) = struct
       String_map.map modules ~f:(fun (m : Module.t) ->
         { m with obj_name = Utils.obj_name_of_basename m.impl.name })
     in
-    List.iter exes.names ~f:(fun name ->
-      if not (String_map.mem (String.capitalize_ascii name) modules) then
-        die "executable %s in %s doesn't have a corresponding .ml file"
-          name (Path.to_string dir));
-
+    begin match last_lib with
+    | Some _ -> ()
+    | None ->
+      List.iter exes.names ~f:(fun name ->
+        if not (String_map.mem (String.capitalize_ascii name) modules) then
+          die "executable %s in %s doesn't have a corresponding .ml file"
+            name (Path.to_string dir))
+    end;
     let modules =
       SC.PP.pp_and_lint_modules sctx ~dir ~dep_kind ~modules ~scope
         ~preprocess:exes.buildable.preprocess
