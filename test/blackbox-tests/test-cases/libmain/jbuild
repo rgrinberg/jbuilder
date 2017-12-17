@@ -2,7 +2,7 @@
 
 (library
  ((name foo_runner)
-  (libraries (libmain))
+  (libraries (libmain foo))
   (modules (foo_runner))))
 
 (library
