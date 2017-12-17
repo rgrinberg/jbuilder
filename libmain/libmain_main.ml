@@ -1,1 +1,1 @@
-Libmain.main ();
+Libmain.run_main ();
