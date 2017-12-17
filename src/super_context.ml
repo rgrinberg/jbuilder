@@ -914,9 +914,13 @@ module PP = struct
     )
 
   let lint_modules sctx ~dir ~dep_kind ~modules ~lint ~lib_name ~scope =
-    let preprocess = lint in
+    let make_alias digest =
+      let alias = Alias.lint ~dir in
+      let digest_path = Alias.file_with_digest_suffix alias ~digest in
+      Alias.add_deps (aliases sctx) alias [digest_path];
+      digest_path in
     String_map.iter modules ~f:(fun ~key:_ ~data:(m : Module.t) ->
-      match Preprocess_map.find m.name preprocess with
+      match Preprocess_map.find m.name lint with
       | No_preprocessing -> ()
       | Action action ->
         Module.iter m ~f:(fun _ src ->
@@ -925,8 +929,7 @@ module PP = struct
               [Dep_conf.File (String_with_vars.virt __POS__ src.name)] in
           let src = Path.relative dir src.name in
           let action = Action.U.Chdir (root_var, action) in
-          let alias = Alias.lint ~dir in
-          let digest_path = Alias.file_with_digest_suffix alias ~digest in
+          let digest_path = make_alias digest in
           add_rule sctx
             (Build.path src
              >>^ (fun _ -> [src])
@@ -939,8 +942,7 @@ module PP = struct
                    ~targets:(Static [])
                    ~scope
                ; Build.create_file digest_path
-               ]);
-          Alias.add_deps (aliases sctx) alias [digest_path]
+               ])
         )
       | Pps { pps; flags } ->
         let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
@@ -958,14 +960,12 @@ module PP = struct
               Sexp.To_sexp.(triple Path.sexp_of_t (list string) Path.Set.sexp_of_t)
                 (ppx_exe, args, paths)
             ) [Dep_conf.File (String_with_vars.virt __POS__ src.name)] in
-          let alias = Alias.lint ~dir in
-          let digest_path = Alias.file_with_digest_suffix alias ~digest in
+          let digest_path = make_alias digest in
           add_rule sctx
             (Build.progn
                [ Build.run ~context:sctx.context (Ok ppx_exe) args
                ; Build.create_file digest_path
-               ]);
-          Alias.add_deps (aliases sctx) alias [digest_path]
+               ])
         )
     )
 end
