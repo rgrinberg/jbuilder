@@ -953,6 +953,7 @@ module PP = struct
             ; As (cookie_library_name lib_name)
             ; Ml_kind.ppx_driver_flag kind
             ; Dep src_path
+            (* ; A "--null" *)
             ] in
           let digest =
             Alias.digest ~action:(
