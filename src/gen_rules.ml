@@ -189,8 +189,9 @@ module Gen(P : Params) = struct
     let module_name = String.capitalize_ascii name in
     let module_filename = name ^ ".ml" in
     let module_path = Path.relative dir module_filename in
-    SC.add_rule sctx (Build.write_file module_path "Libmain.run_main ()");
+    SC.add_rule sctx (Build.write_file module_path "");
     executables_rules
+      ~last_lib:"libmain.main"
       ({ Executables.names = [name]
        ; link_executables = true
        ; link_flags = Ordered_set_lang.Unexpanded.t (
@@ -577,7 +578,7 @@ module Gen(P : Params) = struct
       SC.add_rules sctx (List.map rules ~f:(fun r -> libs_and_cm_and_flags >>> r))
 
 
-  and executables_rules (exes : Executables.t) ~dir ~all_modules ~scope =
+  and executables_rules ?last_lib (exes : Executables.t) ~dir ~all_modules ~scope =
     let dep_kind = Build.Required in
     let flags = Ocaml_flags.make exes.buildable sctx ~scope ~dir in
     let modules =
@@ -612,6 +613,23 @@ module Gen(P : Params) = struct
         ~preprocess:exes.buildable.preprocess
         ~virtual_deps:[]
         ~has_dot_merlin:exes.buildable.gen_dot_merlin
+    in
+
+    let requires =
+      match last_lib with
+      | None -> requires
+      | Some lib ->
+        begin match SC.Libs.find sctx ~from:dir lib with
+        | None ->
+          Build.fail { fail = fun () ->
+            die "@{<error>Error@}: I couldn't find '%s'.\n\
+                 Hint: opam install libmain" lib
+          }
+          >>>
+          requires
+        | Some lib ->
+          requires >>^ (fun libs -> libs @ [lib])
+        end
     in
 
     SC.Libs.add_select_rules sctx ~dir exes.buildable.libraries;
