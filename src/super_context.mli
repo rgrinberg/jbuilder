@@ -177,7 +177,7 @@ module PP : sig
     -> lint:Preprocess_map.t
     -> lib_name:string option
     -> scope:Scope.t
-    -> unit
+    -> Module.t String_map.t
 
   (** Get a path to a cached ppx driver *)
   val get_ppx_driver

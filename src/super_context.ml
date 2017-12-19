@@ -897,7 +897,6 @@ module PP = struct
         |> setup_reason_rules sctx ~dir
       | Pps { pps; flags } ->
         let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
-        let m = setup_reason_rules sctx ~dir m in
         pped_module m ~dir ~f:(fun kind src dst ->
           add_rule sctx
             (preprocessor_deps
@@ -919,9 +918,9 @@ module PP = struct
       let digest_path = Alias.file_with_digest_suffix alias ~digest in
       Alias.add_deps (aliases sctx) alias [digest_path];
       digest_path in
-    String_map.iter modules ~f:(fun ~key:_ ~data:(m : Module.t) ->
+    String_map.map modules ~f:(fun (m : Module.t) ->
       match Preprocess_map.find m.name lint with
-      | No_preprocessing -> ()
+      | No_preprocessing -> m
       | Action action ->
         Module.iter m ~f:(fun _ src ->
           let digest =
@@ -943,9 +942,11 @@ module PP = struct
                    ~scope
                ; Build.create_file digest_path
                ])
-        )
+        );
+        m
       | Pps { pps; flags } ->
         let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
+        let m = setup_reason_rules sctx ~dir m in
         Module.iter m ~f:(fun kind src ->
           let src_path = Path.relative dir src.name in
           let args =
@@ -967,7 +968,8 @@ module PP = struct
                [ Build.run ~context:sctx.context (Ok ppx_exe) args
                ; Build.create_file digest_path
                ])
-        )
+        );
+        m
     )
 end
 

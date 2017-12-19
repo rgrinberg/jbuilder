@@ -228,6 +228,10 @@ module Gen(P : Params) = struct
           | Some m -> String_map.add modules ~key:m.name ~data:m
         in
         String_map.values modules);
+
+    let modules = SC.PP.lint_modules sctx ~dir ~dep_kind ~modules ~scope
+      ~lint:lib.buildable.lint ~lib_name:(Some lib.name) in
+
     (* Preprocess before adding the alias module as it doesn't need preprocessing *)
     let modules =
       SC.PP.pped_modules sctx ~dir ~dep_kind ~modules ~preprocess:lib.buildable.preprocess
@@ -248,9 +252,6 @@ module Gen(P : Params) = struct
                                else
                                  None)
     in
-
-    SC.PP.lint_modules sctx ~dir ~dep_kind ~modules ~scope
-      ~lint:lib.buildable.lint ~lib_name:(Some lib.name);
 
     Option.iter alias_module ~f:(fun m ->
       SC.add_rule sctx
@@ -504,6 +505,10 @@ module Gen(P : Params) = struct
       if not (String_map.mem (String.capitalize_ascii name) modules) then
         die "executable %s in %s doesn't have a corresponding .ml file"
           name (Path.to_string dir));
+
+    let modules = SC.PP.lint_modules sctx ~dir ~dep_kind ~modules ~scope
+      ~lint:exes.buildable.lint ~lib_name:None in
+
     let modules =
       SC.PP.pped_modules sctx ~dir ~dep_kind ~modules
         ~preprocess:exes.buildable.preprocess
@@ -511,9 +516,6 @@ module Gen(P : Params) = struct
         ~lib_name:None
         ~scope
     in
-
-    SC.PP.lint_modules sctx ~dir ~dep_kind ~modules ~scope
-      ~lint:exes.buildable.lint ~lib_name:None;
 
     let item = List.hd exes.names in
     let dep_graph =
