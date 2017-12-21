@@ -869,21 +869,18 @@ module PP = struct
      reason file with action but linting with ppx. *)
   let lint_module sctx ~(source : Module.t) ~(ast : Module.t Lazy.t) ~dir
         ~dep_kind ~lint ~lib_name ~scope =
-    let make_alias digest =
-      let alias = Alias.lint ~dir in
-      let digest_path = Alias.file_with_digest_suffix alias ~digest in
-      Alias.add_deps (aliases sctx) alias [digest_path];
-      digest_path in
+    let alias = Alias.lint ~dir in
     match Preprocess_map.find source.name lint with
     | No_preprocessing -> ()
     | Action action ->
-      Module.iter source ~f:(fun _ src ->
-        let digest =
-          Alias.digest ~action:(Action.U.sexp_of_t action)
-            [Dep_conf.File (String_with_vars.virt __POS__ src.name)] in
+      let action = Action.U.Chdir (root_var, action) in
+      Module.iter source ~f:(fun _ (src : Module.File.t) ->
+        let digest_path =
+          Alias.add_action_dep
+            ~action:(Some action)
+            ~action_deps:[Dep_conf.File (String_with_vars.virt __POS__ src.name)]
+            (aliases sctx) alias in
         let src = Path.relative dir src.name in
-        let action = Action.U.Chdir (root_var, action) in
-        let digest_path = make_alias digest in
         add_rule sctx
           (Build.path src
            >>^ (fun _ -> [src])
@@ -909,13 +906,17 @@ module PP = struct
           ; Dep src_path
             (* ; A "--null" *)
           ] in
-        let digest =
-          Alias.digest ~action:(
-            let (args, paths) = Arg_spec.expand ~dir args () in
-            Sexp.To_sexp.(triple Path.sexp_of_t (list string) Path.Set.sexp_of_t)
-              (ppx_exe, args, paths)
-          ) [Dep_conf.File (String_with_vars.virt __POS__ src.name)] in
-        let digest_path = make_alias digest in
+        let digest_path =
+          Alias.add_action_dep (aliases sctx) alias
+            ~action_deps:[Dep_conf.File (String_with_vars.virt __POS__ src.name)]
+            ~action:(
+              let (args, paths) = Arg_spec.expand ~dir args () in
+              Some (Action.U.Run (
+                String_with_vars.virt __POS__ (Path.to_string ppx_exe),
+                List.map ~f:(String_with_vars.virt __POS__)
+                  (args @ (List.map ~f:Path.to_string (Pset.elements paths)))
+              ))
+            ) in
         add_rule sctx
           (Build.progn
              [ Build.run ~context:sctx.context (Ok ppx_exe) args

@@ -38,8 +38,6 @@ val dep_rec : loc:Loc.t -> file_tree:File_tree.t -> t -> (unit, unit) Build.t
     [_build/.aliases]. *)
 val file : t -> Path.t
 
-val digest : ?action:Sexp.t -> Jbuild.Dep_conf.t list -> Digest.t
-
 (** Same as [file t], except that it sets the digest suffix to [digest]. Files
     representing aliases ends with a hex-encoded md5sum of some data. It is usually filled
     with zeros except for files that represent the running of an action associated to an
@@ -72,3 +70,12 @@ end
 val add_deps : Store.t -> t -> Path.t list -> unit
 
 val rules : Store.t -> Build_interpret.Rule.t list
+
+(** Create a dependency for an alias on an action and return the path of the
+    file the action is supposed to build when ran. *)
+val add_action_dep
+  : Store.t
+  -> t
+  -> action:Action.Unexpanded.t option
+  -> action_deps:Jbuild.Dep_conf.t list
+  -> Path.t
