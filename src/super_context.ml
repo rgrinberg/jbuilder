@@ -865,8 +865,10 @@ module PP = struct
           mli) in
     { m with impl ; intf }
 
-  let lint_module sctx ~(source : Module.t) ~(ast : Module.t) ~dir ~dep_kind
-        ~lint ~lib_name ~scope =
+  (* laziness is needed to support the case where a user is preprocessing a
+     reason file with action but linting with ppx. *)
+  let lint_module sctx ~(source : Module.t) ~(ast : Module.t Lazy.t) ~dir
+        ~dep_kind ~lint ~lib_name ~scope =
     let make_alias digest =
       let alias = Alias.lint ~dir in
       let digest_path = Alias.file_with_digest_suffix alias ~digest in
@@ -898,7 +900,7 @@ module PP = struct
       )
     | Pps { pps; flags } ->
       let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
-      Module.iter ast ~f:(fun kind src ->
+      Module.iter (Lazy.force ast) ~f:(fun kind src ->
         let src_path = Path.relative dir src.name in
         let args =
           [ Arg_spec.As flags
@@ -929,51 +931,51 @@ module PP = struct
       Build.memoize "preprocessor deps"
         (Deps.interpret sctx ~scope ~dir preprocessor_deps)
     in
+    let lint_module = lint_module sctx ~dir ~dep_kind ~lint ~lib_name ~scope in
     String_map.map modules ~f:(fun (m : Module.t) ->
-      let (ast, pped) =
-        let same_reason_pped m = (m, m) in
         match Preprocess_map.find m.name preprocess with
         | No_preprocessing ->
-          same_reason_pped (setup_reason_rules sctx ~dir m)
+          let ast = setup_reason_rules sctx ~dir m in
+          lint_module ~ast:(lazy ast) ~source:m;
+          ast
         | Action action ->
-          pped_module m ~dir ~f:(fun _kind src dst ->
+          let ast =
+            pped_module m ~dir ~f:(fun _kind src dst ->
+              add_rule sctx
+                (preprocessor_deps
+                >>>
+                Build.path src
+                >>^ (fun _ -> [src])
+                >>>
+                Action.run sctx
+                  (Redirect
+                      (Stdout,
+                      target_var,
+                      Chdir (root_var,
+                              action)))
+                  ~dir
+                  ~dep_kind
+                  ~targets:(Static [dst])
+                  ~scope))
+            |> setup_reason_rules sctx ~dir in
+          lint_module ~ast:(lazy (setup_reason_rules sctx ~dir m)) ~source:m;
+          ast
+        | Pps { pps; flags } ->
+          let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
+          let ast = setup_reason_rules sctx ~dir m in
+          lint_module ~ast:(lazy ast) ~source:m;
+          pped_module ast ~dir ~f:(fun kind src dst ->
             add_rule sctx
               (preprocessor_deps
                >>>
-               Build.path src
-               >>^ (fun _ -> [src])
-               >>>
-               Action.run sctx
-                 (Redirect
-                    (Stdout,
-                     target_var,
-                     Chdir (root_var,
-                            action)))
-                 ~dir
-                 ~dep_kind
-                 ~targets:(Static [dst])
-                 ~scope))
-          |> setup_reason_rules sctx ~dir
-          |> same_reason_pped
-        | Pps { pps; flags } ->
-          let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
-          let no_reason = setup_reason_rules sctx ~dir m in
-          ( no_reason
-          , pped_module no_reason ~dir ~f:(fun kind src dst ->
-              add_rule sctx
-                (preprocessor_deps
-                 >>>
-                 Build.run ~context:sctx.context
-                   (Ok ppx_exe)
-                   [ As flags
-                   ; A "--dump-ast"
-                   ; As (cookie_library_name lib_name)
-                   ; A "-o"; Target dst
-                   ; Ml_kind.ppx_driver_flag kind; Dep src
-                   ]))
-          ) in
-      lint_module sctx ~source:m ~ast ~dir ~dep_kind ~lint ~lib_name ~scope;
-      pped
+               Build.run ~context:sctx.context
+                 (Ok ppx_exe)
+                 [ As flags
+                 ; A "--dump-ast"
+                 ; As (cookie_library_name lib_name)
+                 ; A "-o"; Target dst
+                 ; Ml_kind.ppx_driver_flag kind; Dep src
+                 ]))
     )
 
 end
