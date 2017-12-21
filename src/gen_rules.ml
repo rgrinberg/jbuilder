@@ -229,16 +229,14 @@ module Gen(P : Params) = struct
         in
         String_map.values modules);
 
-    let modules = SC.PP.lint_modules sctx ~dir ~dep_kind ~modules ~scope
-      ~lint:lib.buildable.lint ~lib_name:(Some lib.name) in
-
     (* Preprocess before adding the alias module as it doesn't need preprocessing *)
     let modules =
-      SC.PP.pped_modules sctx ~dir ~dep_kind ~modules ~preprocess:lib.buildable.preprocess
+      SC.PP.pped_linted_modules sctx ~dir ~dep_kind ~modules ~scope
+        ~preprocess:lib.buildable.preprocess
         ~preprocessor_deps:lib.buildable.preprocessor_deps
-        ~lib_name:(Some lib.name)
-        ~scope
-    in
+        ~lint:lib.buildable.lint
+        ~lib_name:(Some lib.name) in
+
     let modules =
       match alias_module with
       | None -> modules
@@ -506,15 +504,12 @@ module Gen(P : Params) = struct
         die "executable %s in %s doesn't have a corresponding .ml file"
           name (Path.to_string dir));
 
-    let modules = SC.PP.lint_modules sctx ~dir ~dep_kind ~modules ~scope
-      ~lint:exes.buildable.lint ~lib_name:None in
-
     let modules =
-      SC.PP.pped_modules sctx ~dir ~dep_kind ~modules
+      SC.PP.pped_linted_modules sctx ~dir ~dep_kind ~modules ~scope
         ~preprocess:exes.buildable.preprocess
         ~preprocessor_deps:exes.buildable.preprocessor_deps
+        ~lint:exes.buildable.lint
         ~lib_name:None
-        ~scope
     in
 
     let item = List.hd exes.names in

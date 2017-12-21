@@ -865,112 +865,117 @@ module PP = struct
           mli) in
     { m with impl ; intf }
 
-  (* Generate rules to build the .pp files and return a new module map where all filenames
-     point to the .pp files *)
-  let pped_modules sctx ~dir ~dep_kind ~modules ~preprocess ~preprocessor_deps ~lib_name
-        ~scope =
-    let preprocessor_deps =
-      Build.memoize "preprocessor deps"
-        (Deps.interpret sctx ~scope ~dir preprocessor_deps)
-    in
-    String_map.map modules ~f:(fun (m : Module.t) ->
-      match Preprocess_map.find m.name preprocess with
-      | No_preprocessing -> setup_reason_rules sctx ~dir m
-      | Action action ->
-        pped_module m ~dir ~f:(fun _kind src dst ->
-          add_rule sctx
-            (preprocessor_deps
-             >>>
-             Build.path src
-             >>^ (fun _ -> [src])
-             >>>
-             Action.run sctx
-               (Redirect
-                  (Stdout,
-                   target_var,
-                   Chdir (root_var,
-                          action)))
-               ~dir
-               ~dep_kind
-               ~targets:(Static [dst])
-               ~scope))
-        |> setup_reason_rules sctx ~dir
-      | Pps { pps; flags } ->
-        let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
-        pped_module m ~dir ~f:(fun kind src dst ->
-          add_rule sctx
-            (preprocessor_deps
-             >>>
-             Build.run ~context:sctx.context
-               (Ok ppx_exe)
-               [ As flags
-               ; A "--dump-ast"
-               ; As (cookie_library_name lib_name)
-               ; A "-o"; Target dst
-               ; Ml_kind.ppx_driver_flag kind; Dep src
-               ])
-        )
-    )
-
-  let lint_modules sctx ~dir ~dep_kind ~modules ~lint ~lib_name ~scope =
+  let lint_module sctx ~(source : Module.t) ~(ast : Module.t) ~dir ~dep_kind
+        ~lint ~lib_name ~scope =
     let make_alias digest =
       let alias = Alias.lint ~dir in
       let digest_path = Alias.file_with_digest_suffix alias ~digest in
       Alias.add_deps (aliases sctx) alias [digest_path];
       digest_path in
-    String_map.map modules ~f:(fun (m : Module.t) ->
-      match Preprocess_map.find m.name lint with
-      | No_preprocessing -> m
-      | Action action ->
-        Module.iter m ~f:(fun _ src ->
-          let digest =
-            Alias.digest ~action:(Action.U.sexp_of_t action)
-              [Dep_conf.File (String_with_vars.virt __POS__ src.name)] in
-          let src = Path.relative dir src.name in
-          let action = Action.U.Chdir (root_var, action) in
-          let digest_path = make_alias digest in
-          add_rule sctx
-            (Build.path src
-             >>^ (fun _ -> [src])
-             >>>
-             Build.progn
-               [ Action.run sctx
-                   action
-                   ~dir
-                   ~dep_kind:Required
-                   ~targets:(Static [])
-                   ~scope
-               ; Build.create_file digest_path
-               ])
-        );
-        m
-      | Pps { pps; flags } ->
-        let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
-        let m = setup_reason_rules sctx ~dir m in
-        Module.iter m ~f:(fun kind src ->
-          let src_path = Path.relative dir src.name in
-          let args =
-            [ Arg_spec.As flags
-            ; As (cookie_library_name lib_name)
-            ; Ml_kind.ppx_driver_flag kind
-            ; Dep src_path
+    match Preprocess_map.find source.name lint with
+    | No_preprocessing -> ()
+    | Action action ->
+      Module.iter source ~f:(fun _ src ->
+        let digest =
+          Alias.digest ~action:(Action.U.sexp_of_t action)
+            [Dep_conf.File (String_with_vars.virt __POS__ src.name)] in
+        let src = Path.relative dir src.name in
+        let action = Action.U.Chdir (root_var, action) in
+        let digest_path = make_alias digest in
+        add_rule sctx
+          (Build.path src
+           >>^ (fun _ -> [src])
+           >>>
+           Build.progn
+             [ Action.run sctx
+                 action
+                 ~dir
+                 ~dep_kind:Required
+                 ~targets:(Static [])
+                 ~scope
+             ; Build.create_file digest_path
+             ])
+      )
+    | Pps { pps; flags } ->
+      let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
+      Module.iter ast ~f:(fun kind src ->
+        let src_path = Path.relative dir src.name in
+        let args =
+          [ Arg_spec.As flags
+          ; As (cookie_library_name lib_name)
+          ; Ml_kind.ppx_driver_flag kind
+          ; Dep src_path
             (* ; A "--null" *)
-            ] in
-          let digest =
-            Alias.digest ~action:(
-              let (args, paths) = Arg_spec.expand ~dir args () in
-              Sexp.To_sexp.(triple Path.sexp_of_t (list string) Path.Set.sexp_of_t)
-                (ppx_exe, args, paths)
-            ) [Dep_conf.File (String_with_vars.virt __POS__ src.name)] in
-          let digest_path = make_alias digest in
-          add_rule sctx
-            (Build.progn
-               [ Build.run ~context:sctx.context (Ok ppx_exe) args
-               ; Build.create_file digest_path
-               ])
-        );
-        m
+          ] in
+        let digest =
+          Alias.digest ~action:(
+            let (args, paths) = Arg_spec.expand ~dir args () in
+            Sexp.To_sexp.(triple Path.sexp_of_t (list string) Path.Set.sexp_of_t)
+              (ppx_exe, args, paths)
+          ) [Dep_conf.File (String_with_vars.virt __POS__ src.name)] in
+        let digest_path = make_alias digest in
+        add_rule sctx
+          (Build.progn
+             [ Build.run ~context:sctx.context (Ok ppx_exe) args
+             ; Build.create_file digest_path
+             ])
+      )
+
+  (* Generate rules to build the .pp files and return a new module map where all filenames
+     point to the .pp files *)
+  let pped_linted_modules sctx ~dir ~dep_kind ~modules ~lint ~preprocess
+        ~preprocessor_deps ~lib_name ~scope =
+    let preprocessor_deps =
+      Build.memoize "preprocessor deps"
+        (Deps.interpret sctx ~scope ~dir preprocessor_deps)
+    in
+    String_map.map modules ~f:(fun (m : Module.t) ->
+      let (ast, pped) =
+        let same_reason_pped m = (m, m) in
+        match Preprocess_map.find m.name preprocess with
+        | No_preprocessing ->
+          same_reason_pped (setup_reason_rules sctx ~dir m)
+        | Action action ->
+          pped_module m ~dir ~f:(fun _kind src dst ->
+            add_rule sctx
+              (preprocessor_deps
+               >>>
+               Build.path src
+               >>^ (fun _ -> [src])
+               >>>
+               Action.run sctx
+                 (Redirect
+                    (Stdout,
+                     target_var,
+                     Chdir (root_var,
+                            action)))
+                 ~dir
+                 ~dep_kind
+                 ~targets:(Static [dst])
+                 ~scope))
+          |> setup_reason_rules sctx ~dir
+          |> same_reason_pped
+        | Pps { pps; flags } ->
+          let ppx_exe = get_ppx_driver sctx pps ~dir ~dep_kind in
+          let no_reason = setup_reason_rules sctx ~dir m in
+          ( no_reason
+          , pped_module no_reason ~dir ~f:(fun kind src dst ->
+              add_rule sctx
+                (preprocessor_deps
+                 >>>
+                 Build.run ~context:sctx.context
+                   (Ok ppx_exe)
+                   [ As flags
+                   ; A "--dump-ast"
+                   ; As (cookie_library_name lib_name)
+                   ; A "-o"; Target dst
+                   ; Ml_kind.ppx_driver_flag kind; Dep src
+                   ]))
+          ) in
+      lint_module sctx ~source:m ~ast ~dir ~dep_kind ~lint ~lib_name ~scope;
+      pped
     )
+
 end
 
 let expand_and_eval_set t ~scope ~dir set ~standard =
