@@ -231,7 +231,7 @@ module Gen(P : Params) = struct
 
     (* Preprocess before adding the alias module as it doesn't need preprocessing *)
     let modules =
-      SC.PP.pped_linted_modules sctx ~dir ~dep_kind ~modules ~scope
+      SC.PP.pp_and_lint_modules sctx ~dir ~dep_kind ~modules ~scope
         ~preprocess:lib.buildable.preprocess
         ~preprocessor_deps:lib.buildable.preprocessor_deps
         ~lint:lib.buildable.lint
@@ -505,7 +505,7 @@ module Gen(P : Params) = struct
           name (Path.to_string dir));
 
     let modules =
-      SC.PP.pped_linted_modules sctx ~dir ~dep_kind ~modules ~scope
+      SC.PP.pp_and_lint_modules sctx ~dir ~dep_kind ~modules ~scope
         ~preprocess:exes.buildable.preprocess
         ~preprocessor_deps:exes.buildable.preprocessor_deps
         ~lint:exes.buildable.lint

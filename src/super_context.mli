@@ -159,7 +159,7 @@ end
 module PP : sig
   (** Setup pre-processing and linting rules and return the list of
       pre-processed modules *)
-  val pped_linted_modules
+  val pp_and_lint_modules
     :  t
     -> dir:Path.t
     -> dep_kind:Build.lib_dep_kind

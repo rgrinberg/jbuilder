@@ -926,7 +926,7 @@ module PP = struct
 
   (* Generate rules to build the .pp files and return a new module map where all filenames
      point to the .pp files *)
-  let pped_linted_modules sctx ~dir ~dep_kind ~modules ~lint ~preprocess
+  let pp_and_lint_modules sctx ~dir ~dep_kind ~modules ~lint ~preprocess
         ~preprocessor_deps ~lib_name ~scope =
     let preprocessor_deps =
       Build.memoize "preprocessor deps"
