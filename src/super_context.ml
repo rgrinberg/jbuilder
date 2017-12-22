@@ -889,7 +889,7 @@ module PP = struct
              [ Action.run sctx
                  action
                  ~dir
-                 ~dep_kind:Required
+                 ~dep_kind
                  ~targets:(Static [])
                  ~scope
              ; Build.create_file digest_path
