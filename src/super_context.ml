@@ -907,15 +907,11 @@ module PP = struct
             (* ; A "--null" *)
           ] in
         let digest_path =
-          Alias.add_action_dep (aliases sctx) alias
-            ~action_deps:[Dep_conf.File (String_with_vars.virt __POS__ src.name)]
-            ~action:(
-              let (args, paths) = Arg_spec.expand ~dir args () in
-              Some (Action.U.Run (
-                String_with_vars.virt __POS__ (Path.to_string ppx_exe),
-                List.map ~f:(String_with_vars.virt __POS__)
-                  (args @ (List.map ~f:Path.to_string (Pset.elements paths)))
-              ))
+          Alias.add_stamp_dep (aliases sctx) alias
+            ~data:(
+              Sexp.To_sexp.(
+                triple Path.sexp_of_t string (pair (list string) Path.Set.sexp_of_t)
+              ) (ppx_exe, src.name, Arg_spec.expand ~dir args ())
             ) in
         add_rule sctx
           (Build.progn
