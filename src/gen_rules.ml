@@ -212,11 +212,7 @@ module Gen(P : Params) = struct
            }
        })
       ~dir
-      ~all_modules:(
-        String_map.of_alist_exn
-          [
-          ]
-      )
+      ~all_modules:String_map.empty
       ~scope
     |> ignore;
     alias_rules ~dir ~scope (
