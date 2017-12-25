@@ -184,8 +184,16 @@ module Gen(P : Params) = struct
   let alias_module_build_sandbox = Scanf.sscanf ctx.version "%u.%u"
      (fun a b -> a, b) <= (4, 02)
 
-  let rec runner_rule runner ~dir ~(lib : Library.t) ~scope =
-    let name = lib.name ^ "_test_runner" in
+  let rec runner_rule ((runner : Jbuild.Library.Ppx_runner.Kind.t), deps) ~dir
+            ~(lib : Library.t) ~scope =
+    let name =
+      match runner with
+      | Bench -> lib.name ^ "_bench_runner"
+      | Test -> lib.name ^ "_test_runner" in
+    let alias_name =
+      match runner with
+      | Bench -> "bench"
+      | Test -> "runtest" in
     executables_rules
       ~last_lib:"libmain.main"
       ({ Executables.names = [name]
@@ -199,8 +207,7 @@ module Gen(P : Params) = struct
                Sexp.add_loc ~loc:Loc.none (List [])
              )
            ; libraries =
-               (Lib_dep.direct lib.name)
-               :: (List.map ~f:Lib_dep.direct (Lib.test_runner runner))
+               (Lib_dep.direct lib.name) :: (List.map ~f:Lib_dep.direct deps)
            ; preprocess = lib.buildable.preprocess
            ; preprocessor_deps = lib.buildable.preprocessor_deps
            ; flags = Ordered_set_lang.Unexpanded.standard
@@ -216,7 +223,7 @@ module Gen(P : Params) = struct
       ~scope
     |> ignore;
     alias_rules ~dir ~scope (
-      { Alias_conf.name = "runtest"
+      { Alias_conf.name = alias_name
       ; package = Option.map lib.public ~f:(fun x -> x.Public_lib.package)
       ; deps = [Dep_conf.File (
           Sexp.Atom (name ^ ".exe")
@@ -234,17 +241,11 @@ module Gen(P : Params) = struct
     )
 
   and runner_rules ~dir ~(lib : Library.t) ~scope =
-    let pps =
-      Preprocess_map.pps lib.buildable.preprocess
-      |> List.rev_map ~f:Pp.to_string in
-    let pp_runners =
-      List.filter_map pps ~f:(fun lib ->
-        match SC.Libs.find sctx ~from:dir lib with
-        | Some lib when not (List.is_empty (Lib.test_runner lib)) -> Some lib
-        | Some _
-        | None -> None
-      ) in
-    List.iter pp_runners ~f:(runner_rule ~dir ~lib ~scope)
+    Preprocess_map.pps lib.buildable.preprocess
+    |> List.rev_map ~f:Pp.to_string
+    |> List.filter_map ~f:(SC.Libs.find sctx ~from:dir)
+    |> List.concat_map ~f:Lib.pp_runners
+    |> List.iter ~f:(runner_rule ~dir ~lib ~scope)
 
   and library_rules (lib : Library.t) ~dir ~all_modules ~files ~scope =
     let dep_kind = if lib.optional then Build.Optional else Required in

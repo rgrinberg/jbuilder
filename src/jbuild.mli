@@ -148,6 +148,8 @@ module Library : sig
   module Ppx_runner : sig
     module Kind : sig
       type t = Bench | Test
+
+      val all : t list
     end
 
     type t = Kind.t * string

@@ -527,6 +527,8 @@ module Library = struct
   module Ppx_runner = struct
     module Kind = struct
       type t = Bench | Test
+
+      let all = [ Bench; Test ]
     end
 
     type t = Kind.t * string
