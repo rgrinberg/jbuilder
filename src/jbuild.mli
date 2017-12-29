@@ -153,7 +153,7 @@ module Library : sig
     ; c_library_flags          : Ordered_set_lang.Unexpanded.t
     ; self_build_stubs_archive : string option
     ; virtual_deps             : string list
-    ; virtual_modules          : string list
+    ; virtual_modules          : Ordered_set_lang.t
     ; wrapped                  : bool
     ; optional                 : bool
     ; buildable                : Buildable.t
@@ -168,8 +168,9 @@ end
 
 module Implementation : sig
   type t =
-    { implements: string
-    ; variant: string
+    { implements : string
+    ; variant    : string
+    ; buildable  : Buildable.t
     }
 end
 

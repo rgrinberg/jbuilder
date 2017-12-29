@@ -540,7 +540,7 @@ module Library = struct
     ; c_library_flags          : Ordered_set_lang.Unexpanded.t
     ; self_build_stubs_archive : string option
     ; virtual_deps             : string list
-    ; virtual_modules          : string list
+    ; virtual_modules          : Ordered_set_lang.t
     ; wrapped                  : bool
     ; optional                 : bool
     ; buildable                : Buildable.t
@@ -562,8 +562,9 @@ module Library = struct
        field_oslu "library_flags"                                            >>= fun library_flags            ->
        field_oslu "c_library_flags"                                          >>= fun c_library_flags          ->
        field      "virtual_deps" (list string) ~default:[]                   >>= fun virtual_deps             ->
-       field      "virtual_modules" (list string) ~default:[]                >>= fun virtual_modules          ->
        field      "modes" Mode.Dict.Set.t ~default:Mode.Dict.Set.all         >>= fun modes                    ->
+       field "virtual_modules" (fun s -> Ordered_set_lang.(map (t s)) ~f:String.capitalize_ascii) ~default:Ordered_set_lang.standard
+       >>= fun virtual_modules ->
        field      "kind" Kind.t ~default:Kind.Normal                         >>= fun kind                     ->
        field      "wrapped" bool ~default:true                               >>= fun wrapped                  ->
        field_b    "optional"                                                 >>= fun optional                 ->
@@ -611,17 +612,20 @@ end
 
 module Implementation = struct
   type t =
-    { implements: string
-    ; variant: string
+    { implements : string
+    ; variant    : string
+    ; buildable  : Buildable.t
     }
 
   let v1 =
     record (
+      Buildable.v1 >>= fun buildable ->
       field "implements" string >>= fun implements ->
       field "variant"    string >>= fun variant ->
       return
         { implements
         ; variant
+        ; buildable
         }
     )
 end
