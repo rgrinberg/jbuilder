@@ -3,20 +3,14 @@
 (library
  ((name varies)
   (wrapped false)
-  (modules (varies))
   (virtual_modules (varies))))
-
-(executable
- ((name main)
-  (modules (main))
-  (variants (foo bar))))
 
 (alias
  ((name runtest)
-  (deps (main.foo.exe))
+  (deps (./fooexe/mainfoo.exe))
   (action (run ${<}))))
 
 (alias
  ((name runtest)
-  (deps (main.bar.exe))
+  (deps (./bar/mainbar.exe))
   (action (run ${<}))))

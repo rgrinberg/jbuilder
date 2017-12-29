@@ -2,4 +2,11 @@
 
 (implementation
  ((implements varies)
+  (modules (varies))
   (variant bar)))
+
+(executable
+ ((name mainbar)
+  (modules (mainbar))
+  (libraries (varies))
+  (variants (bar))))
