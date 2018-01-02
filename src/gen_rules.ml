@@ -194,7 +194,7 @@ module Gen(P : Params) = struct
     let modules =
       String_map.map modules ~f:(fun (m : Module.t) ->
         if not lib.wrapped || m.name = main_module_name then
-          { m with obj_name = Utils.obj_name_of_basename m.impl.name }
+          { m with obj_name = Utils.obj_name_of_basename (Module.name m) }
         else
           { m with obj_name = sprintf "%s__%s" lib.name m.name })
     in
@@ -259,7 +259,7 @@ module Gen(P : Params) = struct
                 main_module_name m.name
                 m.name (Module.real_unit_name m))
             |> String.concat ~sep:"\n")
-         >>> Build.write_file_dyn (Path.relative dir m.impl.name)));
+         >>> Build.write_file_dyn (Path.relative dir (Module.name m))));
 
     let requires, real_requires =
       SC.Libs.requires sctx ~dir ~dep_kind ~item:lib.name
@@ -495,7 +495,7 @@ module Gen(P : Params) = struct
     in
     let modules =
       String_map.map modules ~f:(fun (m : Module.t) ->
-        { m with obj_name = Utils.obj_name_of_basename m.impl.name })
+        { m with obj_name = Utils.obj_name_of_basename (Module.name m) })
     in
     List.iter exes.names ~f:(fun name ->
       if not (String_map.mem (String.capitalize_ascii name) modules) then
@@ -766,7 +766,8 @@ Add it to your jbuild file to remove this warning.
         | Alias        alias -> alias_rules alias ~dir ~scope; None
         | Copy_files def ->
           Some (copy_files_rules def ~src_dir ~dir ~scope)
-        | Library _ | Executables _ | Provides _ | Install _ -> None)
+        | Library _ | Executables _ | Provides _ | Install _
+        | Implementation _ -> None)
     in
     let files = lazy (
       let files = SC.sources_and_targets_known_so_far sctx ~src_path:src_dir in
@@ -968,7 +969,7 @@ Add it to your jbuild file to remove this warning.
               ; List.filter_map Ml_kind.all ~f:(Module.cmt_file m ~dir)
               ; [ match Module.file m ~dir Intf with
                   | Some fn -> fn
-                  | None    -> Path.relative dir m.impl.name ]
+                  | None    -> Path.relative dir (Module.name m) ]
               ])
         ; if_ byte [ lib_archive ~dir lib ~ext:".cma" ]
         ; if_ (Library.has_stubs lib) [ stubs_archive ~dir lib ]

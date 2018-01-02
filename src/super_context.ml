@@ -740,8 +740,8 @@ module PP = struct
     fn ^ ".pp" ^ ext
 
   let pped_module ~dir (m : Module.t) ~f =
-    let ml_pp_fname = pp_fname m.impl.name in
-    f Ml_kind.Impl (Path.relative dir m.impl.name) (Path.relative dir ml_pp_fname);
+    let ml_pp_fname = pp_fname (Module.name m) in
+    f Ml_kind.Impl (Path.relative dir (Module.name m)) (Path.relative dir ml_pp_fname);
     let intf =
       Option.map m.intf ~f:(fun intf ->
         let pp_fname = pp_fname intf.name in
@@ -875,7 +875,7 @@ module PP = struct
       | OCaml -> m.impl
       | Reason ->
         let ml = Module.File.to_ocaml m.impl in
-        add_rule sctx (rule m.impl.name ml.name);
+        add_rule sctx (rule (Module.name m) ml.name);
         ml in
     let intf =
       Option.map m.intf ~f:(fun f ->
