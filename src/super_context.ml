@@ -740,18 +740,18 @@ module PP = struct
     fn ^ ".pp" ^ ext
 
   let pped_module ~dir (m : Module.t) ~f =
-    let ml_pp_fname = pp_fname (Module.name m) in
-    f Ml_kind.Impl (Path.relative dir (Module.name m)) (Path.relative dir ml_pp_fname);
     let intf =
       Option.map m.intf ~f:(fun intf ->
         let pp_fname = pp_fname intf.name in
-        f Intf (Path.relative dir intf.name) (Path.relative dir pp_fname);
-        {intf with name = pp_fname})
+        f Ml_kind.Intf (Path.relative dir intf.name) (Path.relative dir pp_fname);
+        {intf with name = pp_fname}) in
+    let impl =
+      Option.map m.impl ~f:(fun impl ->
+        let pp_fname = pp_fname impl.name in
+        f Impl (Path.relative dir impl.name) (Path.relative dir pp_fname);
+        {impl with name = pp_fname})
     in
-    { m with
-      impl = { m.impl with name = ml_pp_fname }
-    ; intf
-    }
+    { m with impl; intf }
 
   let migrate_driver_main = "ocaml-migrate-parsetree.driver-main"
 
@@ -871,12 +871,13 @@ module PP = struct
         ; Dep src_path ]
         ~stdout_to:(Path.relative dir target) in
     let impl =
-      match m.impl.syntax with
-      | OCaml -> m.impl
-      | Reason ->
-        let ml = Module.File.to_ocaml m.impl in
-        add_rule sctx (rule (Module.name m) ml.name);
-        ml in
+      Option.map m.impl ~f:(fun f ->
+        match f.syntax with
+        | OCaml -> f
+        | Reason ->
+          let ml = Module.File.to_ocaml f in
+          add_rule sctx (rule f.name ml.name);
+          ml) in
     let intf =
       Option.map m.intf ~f:(fun f ->
         match f.syntax with
