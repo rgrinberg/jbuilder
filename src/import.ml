@@ -554,6 +554,11 @@ end
 module Fmt = struct
   type 'a t = Format.formatter -> 'a -> unit
 
+  let opt f fmt o =
+    match o with
+    | None -> Format.pp_print_string fmt "None"
+    | Some o -> f fmt o
+
   let kstrf f fmt =
     let buf = Buffer.create 17 in
     let f fmt = Format.pp_print_flush fmt () ; f (Buffer.contents buf) in

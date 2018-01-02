@@ -2,6 +2,10 @@ open Import
 
 module Syntax = struct
   type t = OCaml | Reason
+
+  let pp fmt = function
+    | OCaml -> Format.pp_print_string fmt "OCaml"
+    | Reason -> Format.pp_print_string fmt "Reason"
 end
 
 module File = struct
@@ -23,6 +27,13 @@ module File = struct
            | ".rei" -> ".mli"
            | _ -> code_errorf "to_ocaml: unrecognized extension %s" ext ())
       }
+
+  let pp fmt t =
+    Format.fprintf fmt
+      "@[<2>{\
+       @[<2>name@ =@ %s;@]\
+       @[<2>syntax@ =@ %a@]\
+       }@]" t.name Syntax.pp t.syntax
 end
 
 type t =
@@ -56,3 +67,12 @@ let cmti_file t ~dir =
   match t.intf with
   | None   -> Path.relative dir (t.obj_name ^ ".cmt")
   | Some _ -> Path.relative dir (t.obj_name ^ ".cmti")
+
+let pp fmt t =
+  Format.fprintf fmt
+    "@[<2>{@[<2>name@ =@ %s@]@ ;\
+     @[<2>impl@ =@ %a@]@ ;\
+     @[<2>intf@ =@ %a@]@ ;\
+     @[<2>obj_name@ =@ %s@]\
+     }@]"
+    t.name (Fmt.opt File.pp) t.impl (Fmt.opt File.pp) t.intf t.obj_name

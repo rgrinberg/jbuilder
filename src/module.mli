@@ -37,3 +37,5 @@ val odoc_file : t -> dir:Path.t -> Path.t
 val cmti_file : t -> dir:Path.t -> Path.t
 
 val name : t -> string
+
+val pp : t Fmt.t

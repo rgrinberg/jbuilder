@@ -1,3 +1,5 @@
+open Import
+
 type t = Cmi | Cmo | Cmx
 
 val all : t list
@@ -18,3 +20,5 @@ module Dict : sig
 
   val of_func : (cm_kind:cm_kind -> 'a) -> 'a t
 end with type cm_kind := t
+
+val pp : t Fmt.t

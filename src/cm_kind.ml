@@ -1,5 +1,10 @@
 type t = Cmi | Cmo | Cmx
 
+let pp fmt = function
+  | Cmi -> Format.pp_print_string fmt "Cmi"
+  | Cmo -> Format.pp_print_string fmt "Cmo"
+  | Cmx -> Format.pp_print_string fmt "Cmx"
+
 let all = [Cmi; Cmo; Cmx]
 
 let choose cmi cmo cmx = function
