@@ -63,7 +63,10 @@ let parse_deps ~dir lines ~modules ~alias_module ~lib_interface_module =
 let rules sctx ~ml_kind ~dir ~item ~modules ~alias_module ~lib_interface_module =
   let suffix = Ml_kind.suffix ml_kind in
   let files =
-    List.filter_map (String_map.values modules) ~f:(fun m -> Module.file ~dir m ml_kind)
+    List.filter_map (String_map.values modules) ~f:(fun m ->
+      match Module.file ~dir m ml_kind with
+      | Some m -> Some m
+      | None -> Module.file ~dir m Ml_kind.Intf)
     |> List.map ~f:(fun fn ->
       match ml_kind, Filename.extension (Path.to_string fn) with
       | Impl, ".ml"  -> Arg_spec.Dep fn
@@ -91,6 +94,10 @@ module Dep_closure =
   end)
 
 let dep_closure ~dir dep_graph names =
+  Format.eprintf "names: %s@." (String.concat ~sep:"," names);
+  String_map.iter dep_graph ~f:(fun ~key ~data ->
+    Format.eprintf "%s: %s@." key (String.concat ~sep:"," data)
+  );
   match Dep_closure.top_closure (dir, dep_graph) names with
   | Ok names -> names
   | Error cycle ->
