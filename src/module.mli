@@ -16,7 +16,7 @@ end
 type t =
   { name      : string (** Name of the module. This is always the basename of the filename
                            without the extension. *)
-  ; impl      : File.t
+  ; impl      : File.t option
   ; intf      : File.t option
 
   ; obj_name  : string (** Object name. It is different from [name] for wrapped

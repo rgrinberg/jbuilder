@@ -73,10 +73,10 @@ let exe_stanzas stanzas =
         [ module_name
         , { Module.
             name = module_name
-          ; impl = { Module.File.
-                     name = module_filename
-                   ; syntax = Module.Syntax.OCaml
-                   }
+          ; impl = Some { Module.File.
+                          name = module_filename
+                        ; syntax = Module.Syntax.OCaml
+                        }
           ; intf = None
           ; obj_name = "" }
         ] in

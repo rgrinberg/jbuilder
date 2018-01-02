@@ -212,7 +212,7 @@ module Gen(P : Params) = struct
         in
         Some
           { Module.name = main_module_name ^ suf
-          ; impl = { name = lib.name ^ suf ^ ".ml-gen" ; syntax = OCaml }
+          ; impl = Some { name = lib.name ^ suf ^ ".ml-gen" ; syntax = OCaml }
           ; intf = None
           ; obj_name = lib.name ^ suf
           }
@@ -739,11 +739,12 @@ Add it to your jbuild file to remove this warning.
            ~targets:Infer
            ~scope:Scope.empty);
       { intf with name = impl_fname } in
+    let _ignore = setup_intf_only in
     String_map.merge impls intfs ~f:(fun name impl intf ->
-      let impl =
-        match impl with
-        | None -> setup_intf_only name (Option.value_exn intf)
-        | Some i -> i in
+      (* let impl =
+       *   match impl with
+       *   | None -> setup_intf_only name (Option.value_exn intf)
+       *   | Some i -> i in *)
       Some
         { Module.name
         ; impl
