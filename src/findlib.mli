@@ -57,6 +57,7 @@ type package =
   ; ppx_runtime_deps : package list
 
   ; test_runner_runtime_deps : package list
+  ; bench_runner_runtime_deps : package list
   }
 
 val find     : t -> required_by:string list -> string -> package option

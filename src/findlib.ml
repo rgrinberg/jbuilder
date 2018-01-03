@@ -153,6 +153,7 @@ type package =
   ; ppx_runtime_deps : package list
 
   ; test_runner_runtime_deps : package list
+  ; bench_runner_runtime_deps : package list
   }
 
 module Package_not_available = struct
@@ -246,6 +247,7 @@ module Pkg_step1 = struct
     ; requires         : string list
     ; ppx_runtime_deps : string list
     ; test_runner_runtime_deps : string list
+    ; bench_runner_runtime_deps : string list
     ; exists           : bool
     ; required_by      : string list
     }
@@ -284,6 +286,7 @@ let parse_package t ~name ~parent_dir ~vars ~required_by =
     ; requires    = []
     ; ppx_runtime_deps = []
     ; test_runner_runtime_deps = []
+    ; bench_runner_runtime_deps = []
     }
   in
   let exists_if = Vars.get_words vars "exists_if" [] in
@@ -296,6 +299,7 @@ let parse_package t ~name ~parent_dir ~vars ~required_by =
   ; requires         = Vars.get_words vars "requires"         preds
   ; ppx_runtime_deps = Vars.get_words vars "ppx_runtime_deps" preds
   ; test_runner_runtime_deps = Vars.get_words vars "ppx_runtime_deps" ("test_runner" :: preds)
+  ; bench_runner_runtime_deps = Vars.get_words vars "ppx_runtime_deps" ("bench_runner" :: preds)
   ; exists           = exists
   ; required_by
   }
@@ -379,6 +383,7 @@ let rec load_meta_rec t ~fq_name ~packages ~required_by =
                 [ pkg.requires
                 ; pkg.ppx_runtime_deps
                 ; pkg.test_runner_runtime_deps
+                ; pkg.bench_runner_runtime_deps
                 ]
             else
               acc)
@@ -398,6 +403,7 @@ module Local_closure =
           [ t.requires
           ; t.ppx_runtime_deps
           ; t.test_runner_runtime_deps
+          ; t.bench_runner_runtime_deps
           ] ~f:(List.filter_map ~f:(fun name -> String_map.find name packages))
     end)
 
@@ -459,6 +465,9 @@ let load_meta t ~fq_name ~required_by =
           let test_runner_runtime_deps, missing_deps =
             resolve_deps pkg.test_runner_runtime_deps missing_deps
           in
+          let bench_runner_runtime_deps, missing_deps =
+            resolve_deps pkg.bench_runner_runtime_deps missing_deps
+          in
           match missing_deps with
           | [] ->
             let requires =
@@ -482,11 +491,21 @@ let load_meta t ~fq_name ~required_by =
                    ; List.concat_map requires ~f:(fun pkg -> pkg.ppx_runtime_deps)
                    ])
             in
+            let bench_runner_runtime_deps =
+              remove_dups_preserve_order
+                (List.concat
+                   [ List.concat_map bench_runner_runtime_deps ~f:(fun pkg -> pkg.requires)
+                   ; ppx_runtime_deps
+                   ; bench_runner_runtime_deps
+                   ; List.concat_map requires ~f:(fun pkg -> pkg.ppx_runtime_deps)
+                   ])
+            in
             let pkg =
               { pkg.package with
                 requires
               ; ppx_runtime_deps
               ; test_runner_runtime_deps
+              ; bench_runner_runtime_deps
               }
             in
             Present pkg
