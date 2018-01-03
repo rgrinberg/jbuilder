@@ -142,18 +142,18 @@ let gen ~package ~version ~stanzas ~lib_deps ~ppx_runtime_deps
   >>>
   Build.all
     (List.map items ~f:(fun (Lib (dir, pub_name, lib)) ->
-         Build.fanout4
-           (Build.arr (fun x -> x))
-           (lib_deps ~dir         (Stanza.Library lib))
-           (ppx_runtime_deps ~dir (Stanza.Library lib))
-           ((test_runner_runtime_deps ~dir (Stanza.Library lib))
-            &&&
-            (bench_runner_runtime_deps ~dir (Stanza.Library lib)))
-         >>^ fun (version, lib_deps, ppx_runtime_deps,
-                  (test_runner_runtime_deps, bench_runner_runtime_deps)) ->
-         (pub_name,
-          gen_lib pub_name lib ~lib_deps ~ppx_runtime_deps
-            ~test_runner_runtime_deps ~bench_runner_runtime_deps ~version)))
+       Build.fanout4
+         (Build.arr (fun x -> x))
+         (lib_deps ~dir         (Stanza.Library lib))
+         (ppx_runtime_deps ~dir (Stanza.Library lib))
+         ((test_runner_runtime_deps ~dir (Stanza.Library lib))
+          &&&
+          (bench_runner_runtime_deps ~dir (Stanza.Library lib)))
+       >>^ fun (version, lib_deps, ppx_runtime_deps,
+                (test_runner_runtime_deps, bench_runner_runtime_deps)) ->
+       (pub_name,
+        gen_lib pub_name lib ~lib_deps ~ppx_runtime_deps
+          ~test_runner_runtime_deps ~bench_runner_runtime_deps ~version)))
   >>^ fun pkgs ->
   let pkgs =
     List.map pkgs ~f:(fun (pn, meta) ->
