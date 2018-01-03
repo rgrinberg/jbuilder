@@ -157,7 +157,7 @@ module Library : sig
 
   module Inline_tests : sig
     type t =
-      { deps: string list
+      { deps: Dep_conf.t list
       }
   end
 

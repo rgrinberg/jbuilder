@@ -542,7 +542,7 @@ module Library = struct
 
   module Inline_tests = struct
     type t =
-      { deps: string list
+      { deps: Dep_conf.t list
       }
 
     let empty =
@@ -551,7 +551,7 @@ module Library = struct
 
     let t =
       record
-        (field "deps" (list string) ~default:[] >>= fun deps ->
+        (field "deps" (list Dep_conf.t) ~default:[] >>= fun deps ->
          return
            { deps
            }
