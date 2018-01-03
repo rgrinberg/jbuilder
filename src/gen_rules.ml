@@ -225,11 +225,13 @@ module Gen(P : Params) = struct
     alias_rules ~dir ~scope (
       { Alias_conf.name = alias_name
       ; package = Option.map lib.public ~f:(fun x -> x.Public_lib.package)
-      ; deps = [Dep_conf.File (
+      ; deps = Dep_conf.File (
           Sexp.Atom (name ^ ".exe")
           |> Sexp.add_loc ~loc:Loc.none
           |> String_with_vars.t
-        )]
+        ) :: (match runner with
+          | Test -> lib.inline_tests.deps
+          | Bench -> [])
       ; locks = []
       ; action = Some (
           Sexp.List (List.map ~f:(fun x -> Sexp.Atom x)
