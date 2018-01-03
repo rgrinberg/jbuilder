@@ -267,15 +267,21 @@ module Libs = struct
     let fn = Path.relative dir (item ^ ".runtime-deps.sexp") in
     Build.Vspec.T (fn, t.libs_vfile)
 
-  let vruntime_test_runner_deps t ~dir ~item =
-    let fn = Path.relative dir (item ^ ".runtime-test-runner-deps.sexp") in
+  let vruntime_test_runner_deps t ~dir ~item ~kind =
+    let fn =
+      Path.relative dir
+        (sprintf "%s.runtime-%s-runner-deps.sexp"
+           item (match (kind : Jbuild.Library.Ppx_runner.Kind.t) with
+             | Test -> "test"
+             | Bench -> "bench")
+        ) in
     Build.Vspec.T (fn, t.libs_vfile)
 
   let load_runtime_deps t ~dir ~item =
     Build.vpath (vruntime_deps t ~dir ~item)
 
-  let load_test_runner_runtime_deps t ~dir ~item =
-    Build.vpath (vruntime_test_runner_deps t ~dir ~item)
+  let load_runner_runtime_deps t ~dir ~item ~kind =
+    Build.vpath (vruntime_test_runner_deps t ~dir ~item ~kind)
 
   let with_fail ~fail build =
     match fail with
@@ -383,8 +389,9 @@ module Libs = struct
        >>>
        Build.store_vfile vruntime_deps)
 
-  let setup_test_runner_runtime_deps t ~dir ~dep_kind ~item ~runner =
-    let vruntime_deps = vruntime_test_runner_deps t ~dir ~item in
+  let setup_runner_runtime_deps t ~dir ~dep_kind ~item ~runner =
+    let (kind, runner) = runner in
+    let vruntime_deps = vruntime_test_runner_deps t ~dir ~item ~kind in
     add_rule t (
       closure t ~dir ~dep_kind [Lib_dep.direct runner]
       >>^ Lib.remove_dups_preserve_order

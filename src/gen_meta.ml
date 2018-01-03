@@ -56,7 +56,8 @@ let archives ?(preds=[]) name =
   ]
 
 let gen_lib pub_name (lib : Library.t) ~lib_deps
-      ~ppx_runtime_deps:ppx_rt_deps ~test_runner_runtime_deps ~version =
+      ~ppx_runtime_deps:ppx_rt_deps ~test_runner_runtime_deps
+      ~bench_runner_runtime_deps ~version =
   let desc =
     match lib.synopsis with
     | Some s -> s
@@ -87,6 +88,7 @@ let gen_lib pub_name (lib : Library.t) ~lib_deps
              ; Comment "a preprocessor"
              ; ppx_runtime_deps ppx_rt_deps
              ; ppx_runtime_deps ~preds:[Pos "test_runner"] test_runner_runtime_deps
+             ; ppx_runtime_deps ~preds:[Pos "bench_runner"] bench_runner_runtime_deps
              ]
 
            (* Deprecated ppx method support *)
@@ -123,7 +125,8 @@ let gen_lib pub_name (lib : Library.t) ~lib_deps
       )
     ]
 
-let gen ~package ~version ~stanzas ~lib_deps ~ppx_runtime_deps ~test_runner_runtime_deps =
+let gen ~package ~version ~stanzas ~lib_deps ~ppx_runtime_deps
+      ~test_runner_runtime_deps ~bench_runner_runtime_deps =
   let items =
     List.filter_map stanzas ~f:(fun (dir, stanza) ->
       match (stanza : Stanza.t) with
@@ -143,11 +146,14 @@ let gen ~package ~version ~stanzas ~lib_deps ~ppx_runtime_deps ~test_runner_runt
            (Build.arr (fun x -> x))
            (lib_deps ~dir         (Stanza.Library lib))
            (ppx_runtime_deps ~dir (Stanza.Library lib))
-           (test_runner_runtime_deps ~dir (Stanza.Library lib))
-         >>^ fun (version, lib_deps, ppx_runtime_deps, test_runner_runtime_deps) ->
+           ((test_runner_runtime_deps ~dir (Stanza.Library lib))
+            &&&
+            (bench_runner_runtime_deps ~dir (Stanza.Library lib)))
+         >>^ fun (version, lib_deps, ppx_runtime_deps,
+                  (test_runner_runtime_deps, bench_runner_runtime_deps)) ->
          (pub_name,
           gen_lib pub_name lib ~lib_deps ~ppx_runtime_deps
-            ~test_runner_runtime_deps ~version)))
+            ~test_runner_runtime_deps ~bench_runner_runtime_deps ~version)))
   >>^ fun pkgs ->
   let pkgs =
     List.map pkgs ~f:(fun (pn, meta) ->

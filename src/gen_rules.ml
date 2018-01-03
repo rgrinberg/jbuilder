@@ -339,12 +339,9 @@ module Gen(P : Params) = struct
       ~ppx_runtime_libraries:lib.ppx_runtime_libraries;
     SC.Libs.add_select_rules sctx ~dir lib.buildable.libraries;
 
-    begin match lib.ppx_runner_library with
-    | None
-    | Some (Bench, _) -> ()
-    | Some (Test, runner) ->
-      SC.Libs.setup_test_runner_runtime_deps sctx ~dir ~dep_kind ~item:lib.name ~runner
-    end;
+    Option.iter lib.ppx_runner_library ~f:(fun runner ->
+      SC.Libs.setup_runner_runtime_deps sctx ~dir ~dep_kind ~item:lib.name ~runner
+    );
 
     let dynlink = lib.dynlink in
     let js_of_ocaml = lib.buildable.js_of_ocaml in
@@ -1007,10 +1004,19 @@ Add it to your jbuild file to remove this warning.
           ~test_runner_runtime_deps:(fun ~dir jbuild ->
             match jbuild with
             | Library ({ ppx_runner_library =
-                           Some (Library.Ppx_runner.Kind.Test, _) ; _ } as lib) ->
+                           Some (Library.Ppx_runner.Kind.Test as k, _) ; _ } as lib) ->
               Build.arr ignore
               >>>
-              SC.Libs.load_test_runner_runtime_deps sctx ~dir ~item:lib.name
+              SC.Libs.load_runner_runtime_deps sctx ~dir ~item:lib.name ~kind:k
+              >>^ List.map ~f:Lib.best_name
+            | _ -> Build.arr (fun _ -> []))
+          ~bench_runner_runtime_deps:(fun ~dir jbuild ->
+            match jbuild with
+            | Library ({ ppx_runner_library =
+                           Some (Library.Ppx_runner.Kind.Bench as k, _) ; _ } as lib) ->
+              Build.arr ignore
+              >>>
+              SC.Libs.load_runner_runtime_deps sctx ~dir ~item:lib.name ~kind:k
               >>^ List.map ~f:Lib.best_name
             | _ -> Build.arr (fun _ -> []))
       in
