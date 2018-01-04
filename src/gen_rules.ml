@@ -978,6 +978,15 @@ Add it to your jbuild file to remove this warning.
           Build.return ["# JBUILDER_GEN"]
       in
       let meta =
+        let runner_deps kind ~dir (jbuild : Jbuild.Stanza.t) =
+          match jbuild with
+          | Library ({ ppx_runner_library = Some (k, _) ; _ } as lib)
+            when k = kind ->
+            Build.arr ignore
+            >>>
+            SC.Libs.load_runner_runtime_deps sctx ~dir ~item:lib.name ~kind
+            >>^ List.map ~f:Lib.best_name
+          | _ -> Build.arr (fun _ -> []) in
         Gen_meta.gen ~package:pkg.name
           ~version
           ~stanzas:(SC.stanzas_to_consider_for_install sctx)
@@ -1003,24 +1012,8 @@ Add it to your jbuild file to remove this warning.
               SC.Libs.load_runtime_deps sctx ~dir ~item:lib.name
               >>^ List.map ~f:Lib.best_name
             | _ -> Build.arr (fun _ -> []))
-          ~test_runner_runtime_deps:(fun ~dir jbuild ->
-            match jbuild with
-            | Library ({ ppx_runner_library =
-                           Some (Library.Ppx_runner.Kind.Test as k, _) ; _ } as lib) ->
-              Build.arr ignore
-              >>>
-              SC.Libs.load_runner_runtime_deps sctx ~dir ~item:lib.name ~kind:k
-              >>^ List.map ~f:Lib.best_name
-            | _ -> Build.arr (fun _ -> []))
-          ~bench_runner_runtime_deps:(fun ~dir jbuild ->
-            match jbuild with
-            | Library ({ ppx_runner_library =
-                           Some (Library.Ppx_runner.Kind.Bench as k, _) ; _ } as lib) ->
-              Build.arr ignore
-              >>>
-              SC.Libs.load_runner_runtime_deps sctx ~dir ~item:lib.name ~kind:k
-              >>^ List.map ~f:Lib.best_name
-            | _ -> Build.arr (fun _ -> []))
+          ~test_runner_runtime_deps:(runner_deps Test)
+          ~bench_runner_runtime_deps:(runner_deps Bench)
       in
       SC.add_rule sctx
         (Build.fanout meta template
