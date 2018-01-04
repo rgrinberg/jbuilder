@@ -474,32 +474,22 @@ let load_meta t ~fq_name ~required_by =
               remove_dups_preserve_order
                 (List.concat_map requires ~f:(fun pkg -> pkg.requires) @ requires)
             in
+            let runtime_deps ppx_runtime_deps runtime_deps =
+              remove_dups_preserve_order (
+                List.concat
+                  [ List.concat_map ppx_runtime_deps ~f:(fun pkg -> pkg.requires)
+                  ; ppx_runtime_deps
+                  ; runtime_deps
+                  ]
+              ) in
             let ppx_runtime_deps =
-              remove_dups_preserve_order
-                (List.concat
-                   [ List.concat_map ppx_runtime_deps ~f:(fun pkg -> pkg.requires)
-                   ; ppx_runtime_deps
-                   ; List.concat_map requires ~f:(fun pkg -> pkg.ppx_runtime_deps)
-                   ])
-            in
+              runtime_deps ppx_runtime_deps (
+                List.concat_map requires ~f:(fun pkg -> pkg.ppx_runtime_deps)
+              ) in
             let test_runner_runtime_deps =
-              remove_dups_preserve_order
-                (List.concat
-                   [ List.concat_map test_runner_runtime_deps ~f:(fun pkg -> pkg.requires)
-                   ; ppx_runtime_deps
-                   ; test_runner_runtime_deps
-                   ; List.concat_map requires ~f:(fun pkg -> pkg.ppx_runtime_deps)
-                   ])
-            in
+              runtime_deps test_runner_runtime_deps ppx_runtime_deps in
             let bench_runner_runtime_deps =
-              remove_dups_preserve_order
-                (List.concat
-                   [ List.concat_map bench_runner_runtime_deps ~f:(fun pkg -> pkg.requires)
-                   ; ppx_runtime_deps
-                   ; bench_runner_runtime_deps
-                   ; List.concat_map requires ~f:(fun pkg -> pkg.ppx_runtime_deps)
-                   ])
-            in
+              runtime_deps bench_runner_runtime_deps ppx_runtime_deps in
             let pkg =
               { pkg.package with
                 requires
