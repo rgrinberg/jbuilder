@@ -172,7 +172,13 @@
 
 (alias
  ((name runtest)
-  (deps ((files_recursively_in test-cases/libmain)))
+  (deps
+   ((files_recursively_in test-cases/libmain)
+     ../../libmain.opam
+    (files_recursively_in ../../libmain)))
   (action
-   (chdir test-cases/libmain
-    (setenv JBUILDER ${bin:jbuilder} (run ${exe:cram.exe} run.t))))))
+   (progn
+    (bash "cp ../../libmain.opam test-cases/libmain/libmain.opam &&
+cp ../../libmain/jbuild ../../libmain/*.ml* test-cases/libmain/libmain")
+    (chdir test-cases/libmain
+     (setenv JBUILDER ${bin:jbuilder} (run ${exe:cram.exe} run.t)))))))
