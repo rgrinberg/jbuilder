@@ -8,5 +8,3 @@ let run_main () =
   | Some f -> f ()
   end;
   exit 0
-
-let is_library_runner () = false
