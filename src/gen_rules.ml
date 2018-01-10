@@ -194,6 +194,25 @@ module Gen(P : Params) = struct
       match runner with
       | Bench -> "bench"
       | Test -> "runtest" in
+    let action =
+      let run args =
+        Sexp.List (List.map ~f:(fun x -> Sexp.Atom x) args)
+        |> Sexp.add_loc ~loc:Loc.none
+        |> Action.Unexpanded.t in
+      match runner with
+      | Bench ->
+        let open Action.Unexpanded in
+        let str = String_with_vars.virt __POS__ in
+        let setenv action =
+          List.fold_left ~f:(fun action (k, v) ->
+            Setenv (str k, str v, action)
+          ) ~init:action in
+        setenv (run ["run"; "${<}"])
+          [ "BENCHMARKS_RUNNER", "RUNNER"
+          ; "BENCH_LIB", lib.name ]
+      | Test ->
+        run ["run"; "${<}"; "inline-test-runner"; lib.name]
+    in
     executables_rules
       ~last_lib:"libmain.main"
       ({ Executables.names = [name]
@@ -233,12 +252,7 @@ module Gen(P : Params) = struct
           | Test -> lib.inline_tests.deps
           | Bench -> [])
       ; locks = []
-      ; action = Some (
-          Sexp.List (List.map ~f:(fun x -> Sexp.Atom x)
-                       ["run"; "${<}"; "inline-test-runner"; lib.name])
-          |> Sexp.add_loc ~loc:Loc.none
-          |> Action.Unexpanded.t
-        )
+      ; action = Some action
       }
     )
 
