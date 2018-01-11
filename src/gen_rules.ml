@@ -189,29 +189,12 @@ module Gen(P : Params) = struct
     let name =
       match runner with
       | Bench -> lib.name ^ "_bench_runner"
-      | Test -> lib.name ^ "_test_runner" in
+      | Test -> lib.name ^ "_test_runner"
+    in
     let alias_name =
       match runner with
       | Bench -> "bench"
-      | Test -> "runtest" in
-    let action =
-      let run args =
-        Sexp.List (List.map ~f:(fun x -> Sexp.Atom x) args)
-        |> Sexp.add_loc ~loc:Loc.none
-        |> Action.Unexpanded.t in
-      match runner with
-      | Bench ->
-        let open Action.Unexpanded in
-        let str = String_with_vars.virt __POS__ in
-        let setenv action =
-          List.fold_left ~f:(fun action (k, v) ->
-            Setenv (str k, str v, action)
-          ) ~init:action in
-        setenv (run ["run"; "${<}"])
-          [ "BENCHMARKS_RUNNER", "RUNNER"
-          ; "BENCH_LIB", lib.name ]
-      | Test ->
-        run ["run"; "${<}"; "inline-test-runner"; lib.name]
+      | Test -> "runtest"
     in
     executables_rules
       ~last_lib:"libmain.main"
@@ -241,20 +224,23 @@ module Gen(P : Params) = struct
       ~all_modules:String_map.empty
       ~scope
     |> ignore;
-    alias_rules ~dir ~scope (
-      { Alias_conf.name = alias_name
-      ; package = Option.map lib.public ~f:(fun x -> x.Public_lib.package)
-      ; deps = Dep_conf.File (
-          Sexp.Atom (name ^ ".exe")
-          |> Sexp.add_loc ~loc:Loc.none
-          |> String_with_vars.t
-        ) :: (match runner with
-          | Test -> lib.inline_tests.deps
-          | Bench -> [])
-      ; locks = []
-      ; action = Some action
-      }
-    )
+    let exe = Path.relative dir (name ^ ".exe") in
+    add_alias
+      ~dir ~name:alias_name
+      ~stamp:(Sexp.List [Atom "ppx-runner"; Atom name])
+      (let module A = Action in
+       match runner with
+       | Bench ->
+         Build.return
+           (A.chdir dir
+              (A.setenv "BENCHMARKS_RUNNER" "RUNNER"
+                 (A.setenv "BENCH_LIB" lib.name
+                    (A.run (Ok exe) []))))
+       | Test ->
+         SC.Deps.interpret sctx ~scope ~dir lib.inline_tests.deps
+         >>^ fun _ ->
+         A.chdir dir
+           (A.run (Ok exe) ["inline-test-runner"; lib.name]))
 
   and runner_rules ~dir ~(lib : Library.t) ~scope =
     Preprocess_map.pps lib.buildable.preprocess
@@ -366,7 +352,7 @@ module Gen(P : Params) = struct
     Option.iter alias_module ~f:(fun m ->
       let flags = Ocaml_flags.default () in
       Module_compilation.build_module sctx m
-         ~js_of_ocaml
+        ~js_of_ocaml
         ~dynlink
         ~sandbox:alias_module_build_sandbox
         ~flags:(Ocaml_flags.append_common flags ["-w"; "-49"])
@@ -685,32 +671,36 @@ module Gen(P : Params) = struct
          ~scope)
 
   and alias_rules (alias_conf : Alias_conf.t) ~dir ~scope =
-    let alias = Alias.make alias_conf.name ~dir in
-    let digest_path =
-      Alias.add_action_dep (SC.aliases sctx) alias
-        ~action:alias_conf.action
-        ~action_deps:alias_conf.deps in
-    let deps = SC.Deps.interpret sctx ~scope ~dir alias_conf.deps in
-    SC.add_rule sctx
+    let stamp =
+      let module S = Sexp.To_sexp in
+      Sexp.List
+        [ Atom "user-alias"
+        ; S.list   Jbuild.Dep_conf.sexp_of_t   alias_conf.deps
+        ; S.option Action.Unexpanded.sexp_of_t alias_conf.action
+        ]
+    in
+    add_alias
+      ~dir
+      ~name:alias_conf.name
+      ~stamp
       ~locks:(interpret_locks ~dir ~scope alias_conf.locks)
-      (match alias_conf.action with
-       | None ->
-         deps
-         >>>
-         Build.create_file digest_path
+      (SC.Deps.interpret sctx ~scope ~dir alias_conf.deps
+       >>>
+       match alias_conf.action with
+       | None -> Build.progn []
        | Some action ->
-         deps
-         >>>
-         Build.progn
-           [ SC.Action.run
-               sctx
-               action
-               ~dir
-               ~dep_kind:Required
-               ~targets:(Static [])
-               ~scope
-           ; Build.create_file digest_path
-           ])
+         SC.Action.run
+           sctx
+           action
+           ~dir
+           ~dep_kind:Required
+           ~targets:(Static [])
+           ~scope)
+
+  and add_alias ~dir ~name ~stamp ?(locks=[]) build =
+    let alias = Alias.make name ~dir in
+    SC.add_rule sctx ~locks
+      (Alias.add_build (SC.aliases sctx) alias ~stamp build)
 
   let copy_files_rules (def: Copy_files.t) ~src_dir ~dir ~scope =
     let loc = String_with_vars.loc def.glob in
