@@ -26,6 +26,7 @@ val default : dir:Path.t -> t
 val runtest : dir:Path.t -> t
 val install : dir:Path.t -> t
 val doc     : dir:Path.t -> t
+val lint    : dir:Path.t -> t
 
 val dep : t -> ('a, 'a) Build.t
 
@@ -66,6 +67,29 @@ module Store : sig
   val unlink : t -> string list -> unit
 end
 
+(** [add_build store alias deps] arrange things so that all [deps] are built as part of
+    the build of alias [alias]. *)
 val add_deps : Store.t -> t -> Path.t list -> unit
 
+(** [add_build store alias ~stamp build] arrange things so that [build] is part of the
+    build of alias [alias]. [stamp] is any S-expression that is unique and persistent
+    S-expression.
+
+    Return a rule that must be added with [Super_context.add_rule].
+*)
+val add_build
+  :  Store.t
+  -> t
+  -> stamp:Sexp.t
+  -> (unit, Action.t) Build.t
+  -> (unit, Action.t) Build.t
+
+(** Same as calling [add_build] in a loop but slightly more efficient. *)
+val add_builds
+  :  Store.t
+  -> t
+  -> (Sexp.t * (unit, Action.t) Build.t) list
+  -> (unit, Action.t) Build.t list
+
 val rules : Store.t -> Build_interpret.Rule.t list
+

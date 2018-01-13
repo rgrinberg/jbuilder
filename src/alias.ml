@@ -47,7 +47,7 @@ let make name ~dir =
 let dep t = Build.path t.file
 
 let is_standard = function
-  | "runtest" | "install" | "doc" -> true
+  | "runtest" | "install" | "doc" | "lint" -> true
   | _ -> false
 
 let dep_rec ~loc ~file_tree t =
@@ -113,6 +113,7 @@ let default = make "DEFAULT"
 let runtest = make "runtest"
 let install = make "install"
 let doc     = make "doc"
+let lint    = make "lint"
 
 module Store = struct
   type entry =
@@ -183,3 +184,27 @@ let rules store =
                         (Path.Set.elements deps))))
     in
     rule :: acc)
+
+let add_build store t ~stamp build =
+  let digest = Digest.string (Sexp.to_string stamp) in
+  let digest_path = file_with_digest_suffix t ~digest in
+  add_deps store t [digest_path];
+  Build.progn
+    [ build
+    ; Build.create_file digest_path
+    ]
+
+let add_builds store t builds =
+  let digest_files, actions =
+    List.split
+      (List.map builds ~f:(fun (stamp, build) ->
+         let digest = Digest.string (Sexp.to_string stamp) in
+         let digest_path = file_with_digest_suffix t ~digest in
+         (digest_path,
+          Build.progn
+            [ build
+            ; Build.create_file digest_path
+            ])))
+  in
+  add_deps store t digest_files;
+  actions
