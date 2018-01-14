@@ -1,0 +1,20 @@
+(jbuild_version 1)
+
+(library
+ ((name foo_runner)
+  (libraries (libmain foo))
+  (modules (foo_runner))))
+
+(library
+ ((name foo_rewriter)
+  (wrapped false)
+  (modules (foo_rewriter))
+  (kind ppx_rewriter)
+  (libraries (ocaml-migrate-parsetree))
+  (ppx_runner_library (test foo_runner))))
+
+(library
+ ((name foo)
+  (wrapped false)
+  (modules (foo))
+  (preprocess (pps (foo_rewriter)))))
