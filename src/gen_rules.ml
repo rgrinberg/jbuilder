@@ -442,7 +442,20 @@ Add it to your jbuild file to remove this warning.
   let alias_module_build_sandbox = Scanf.sscanf ctx.version "%u.%u"
      (fun a b -> a, b) <= (4, 02)
 
-  let library_rules (lib : Library.t) ~dir ~files ~scope =
+  let rec runner_rules ~dir ~(lib : Library.t) ~scope =
+    Option.iter (Inline_lib.rule sctx ~lib ~dir ~scope)
+      ~f:(fun { Inline_lib.exe ; alias_name ; alias_action ; alias_stamp
+              ; gen_source ; all_modules } ->
+        SC.add_rule sctx gen_source;
+        executables_rules exe ~dir ~all_modules ~scope
+        |> ignore;
+        add_alias ~dir
+          ~name:alias_name
+          ~stamp:alias_stamp
+          alias_action
+      )
+
+  and library_rules (lib : Library.t) ~dir ~files ~scope =
     let dep_kind = if lib.optional then Build.Optional else Required in
     let flags = Ocaml_flags.make lib.buildable sctx ~scope ~dir in
     let { modules; main_module_name; alias_module } = modules_by_lib ~dir lib in
@@ -634,6 +647,10 @@ Add it to your jbuild file to remove this warning.
       | None -> Ocaml_flags.common flags
       | Some m -> Ocaml_flags.prepend_common ["-open"; m.name] flags |> Ocaml_flags.common
     in
+
+    (* test runners if they are present *)
+    runner_rules ~dir ~lib ~scope;
+
     { Merlin.
       requires = real_requires
     ; flags
@@ -646,7 +663,7 @@ Add it to your jbuild file to remove this warning.
      | Executables stuff                                               |
      +-----------------------------------------------------------------+ *)
 
-  let build_exe ~js_of_ocaml ~flags ~scope ~dir ~requires ~name ~mode ~modules ~dep_graph
+  and build_exe ~js_of_ocaml ~flags ~scope ~dir ~requires ~name ~mode ~modules ~dep_graph
         ~link_flags ~force_custom_bytecode =
     let exe_ext = Mode.exe_ext mode in
     let mode, link_custom, compiler =
@@ -683,19 +700,18 @@ Add it to your jbuild file to remove this warning.
         libs @ List.map ~f:(Path.change_extension ~ext:ctx.ext_obj) cm
     in
     SC.add_rule sctx
-      ((libs_and_cm >>> Build.dyn_paths (Build.arr objs))
-       &&&
-       Build.fanout
-       (Ocaml_flags.get flags mode)
-       (SC.expand_and_eval_set sctx ~scope ~dir link_flags ~standard:[])
+      (Build.fanout3
+         (libs_and_cm >>> Build.dyn_paths (Build.arr objs))
+         (Ocaml_flags.get flags mode)
+         (SC.expand_and_eval_set sctx ~scope ~dir link_flags ~standard:[])
        >>>
        Build.run ~context:ctx
          (Ok compiler)
-         [ Dyn (fun (_, (flags,_)) -> As flags)
+         [ Dyn (fun (_, flags,_) -> As flags)
          ; A "-o"; Target exe
-         ; Dyn (fun (_, (_, link_flags)) -> As (link_custom @ link_flags))
-         ; Dyn (fun ((libs, _), _) -> Lib.link_flags libs ~mode)
-         ; Dyn (fun ((_, cm_files), _) -> Deps cm_files)
+         ; Dyn (fun (_, _, link_flags) -> As (link_custom @ link_flags))
+         ; Dyn (fun ((libs, _), _, _) -> Lib.link_flags libs ~mode)
+         ; Dyn (fun ((_, cm_files), _, _) -> Deps cm_files)
          ]);
     if mode = Mode.Byte then
       let rules = Js_of_ocaml_rules.build_exe sctx ~dir ~js_of_ocaml ~src:exe in
@@ -706,7 +722,8 @@ Add it to your jbuild file to remove this warning.
       in
       SC.add_rules sctx (List.map rules ~f:(fun r -> libs_and_cm_and_flags >>> r))
 
-  let executables_rules (exes : Executables.t) ~dir ~all_modules ~scope =
+
+  and executables_rules (exes : Executables.t) ~dir ~all_modules ~scope =
     let dep_kind = Build.Required in
     let flags = Ocaml_flags.make exes.buildable sctx ~scope ~dir in
     let modules =
@@ -768,7 +785,11 @@ Add it to your jbuild file to remove this warning.
      | Aliases                                                         |
      +-----------------------------------------------------------------+ *)
 
-  let add_alias ~dir ~name ~stamp ?(locks=[]) build =
+  and interpret_locks ~dir ~scope locks =
+    List.map locks ~f:(fun s ->
+      Path.relative dir (SC.expand_vars sctx ~dir ~scope s))
+
+  and add_alias ~dir ~name ~stamp ?(locks=[]) build =
     let alias = Build_system.Alias.make name ~dir in
     SC.add_alias_action sctx alias ~locks ~stamp build
 
