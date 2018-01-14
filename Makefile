@@ -47,6 +47,7 @@ update-jbuilds: $(BIN)
 	"\n"\
 	"(install\n"\
 	" ((section man)\n"\
+	"  (package jbuilder)\n"\
 	"  (files (jbuilder-$$cmd.1))))\n"; \
 	  done } >> doc/jbuild.tmp
 	rm -f doc/jbuild

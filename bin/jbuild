@@ -2,4 +2,5 @@
  ((name        main)
   (public_name jbuilder)
   (libraries (unix jbuilder jbuilder_cmdliner))
+  (package jbuilder)
   (preprocess no_preprocessing)))
