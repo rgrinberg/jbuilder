@@ -832,7 +832,7 @@ Add it to your jbuild file to remove this warning.
         | None ->
           Build.fail { fail = fun () ->
             die "@{<error>Error@}: I couldn't find '%s'.\n\
-                 Hint: opam install libmain" lib
+                 Hint: opam install %s" lib lib
           }
           >>>
           requires
