@@ -13,8 +13,7 @@ module Gen(P : Install_rules.Params) = struct
   module SC = Super_context
   module Odoc = Odoc.Gen(P)
 
-  open P
-
+  let sctx = P.sctx
   let ctx = SC.context sctx
 
   let stanzas_per_dir =
@@ -267,7 +266,8 @@ module Gen(P : Install_rules.Params) = struct
                   match (dep : Jbuild.Lib_dep.t) with
                   | Direct _ -> None
                   | Select s -> Some s.result_fn)
-              | Documentation _ | Alias _ | Provides _ | Install _ -> [])
+              | Documentation _ | Alias _ | Provides _ | Install _
+              | Env _ -> [])
             |> String.Set.of_list
           in
           String.Set.union generated_files
@@ -465,10 +465,12 @@ module Gen(P : Install_rules.Params) = struct
         (obj_deps
          >>>
          Build.fanout4
-           (top_sorted_modules >>^ artifacts ~ext:(Cm_kind.ext (Mode.cm_kind mode)))
-           (SC.expand_and_eval_set sctx ~scope ~dir lib.c_library_flags ~standard:[])
+           (top_sorted_modules >>^artifacts ~ext:(Cm_kind.ext (Mode.cm_kind mode)))
+           (SC.expand_and_eval_set sctx ~scope ~dir lib.c_library_flags
+              ~standard:(Build.return []))
            (Ocaml_flags.get flags mode)
-           (SC.expand_and_eval_set sctx ~scope ~dir lib.library_flags ~standard:[])
+           (SC.expand_and_eval_set sctx ~scope ~dir lib.library_flags
+              ~standard:(Build.return []))
          >>>
          Build.run ~context:ctx (Ok compiler)
            [ Dyn (fun (_, _, flags, _) -> As flags)
@@ -491,7 +493,7 @@ module Gen(P : Install_rules.Params) = struct
     let dst = Path.relative dir (c_name ^ ctx.ext_obj) in
     SC.add_rule sctx
       (SC.expand_and_eval_set sctx ~scope ~dir lib.c_flags
-         ~standard:(Context.cc_g ctx)
+         ~standard:(Build.return (Context.cc_g ctx))
        >>>
        Build.run ~context:ctx
          (* We have to execute the rule in the library directory as
@@ -518,7 +520,7 @@ module Gen(P : Install_rules.Params) = struct
     in
     SC.add_rule sctx
       (SC.expand_and_eval_set sctx ~scope ~dir lib.cxx_flags
-         ~standard:(Context.cc_g ctx)
+         ~standard:(Build.return (Context.cc_g ctx))
        >>>
        Build.run ~context:ctx
          (* We have to execute the rule in the library directory as
@@ -544,7 +546,7 @@ module Gen(P : Install_rules.Params) = struct
     let obj_dir = Utils.library_object_directory ~dir lib.name in
     let requires = Lib.Compile.requires compile_info in
     let dep_kind = if lib.optional then Build.Optional else Required in
-    let flags = Ocaml_flags.make lib.buildable sctx ~scope ~dir in
+    let flags = SC.ocaml_flags sctx ~scope ~dir lib.buildable in
     let { modules; main_module_name; alias_module } = modules_by_lib ~dir lib in
     let source_modules = modules in
     let already_used =
@@ -605,7 +607,7 @@ module Gen(P : Install_rules.Params) = struct
       ~js_of_ocaml ~dynlink ~flags ~scope ~dir ~obj_dir ~dep_graphs
       ~modules ~requires ~alias_module;
     Option.iter alias_module ~f:(fun m ->
-      let flags = Ocaml_flags.default () in
+      let flags = Ocaml_flags.default ~profile:(SC.profile sctx) in
       Module_compilation.build_module sctx m
         ~js_of_ocaml
         ~dynlink
@@ -649,7 +651,7 @@ module Gen(P : Install_rules.Params) = struct
         let ocamlmklib ~sandbox ~custom ~targets =
           SC.add_rule sctx ~sandbox
             (SC.expand_and_eval_set sctx ~scope ~dir
-               lib.c_library_flags ~standard:[]
+               lib.c_library_flags ~standard:(Build.return [])
              >>>
              Build.run ~context:ctx
                (Ok ctx.ocamlmklib)
@@ -857,14 +859,12 @@ module Gen(P : Install_rules.Params) = struct
         l
     in
 
-    let flags =
-      Ocaml_flags.make exes.buildable sctx ~scope ~dir
-    in
+    let flags = SC.ocaml_flags sctx ~scope ~dir exes.buildable in
     let link_flags =
       SC.expand_and_eval_set sctx exes.link_flags
         ~scope
         ~dir
-        ~standard:[]
+        ~standard:(Build.return [])
     in
 
     (* Use "eobjs" rather than "objs" to avoid a potential conflict
@@ -1026,6 +1026,7 @@ module type Gen = sig
     -> string list
     -> Build_system.extra_sub_directories_to_keep
   val init : unit -> unit
+  val sctx : Super_context.t
 end
 
 let gen ~contexts ~build_system
@@ -1083,11 +1084,11 @@ let gen ~contexts ~build_system
     let module M = Gen(struct let sctx = sctx end) in
     Fiber.Ivar.fill (Option.value_exn (Hashtbl.find sctxs context.name)) sctx
     >>| fun () ->
-    (context.name, ((module M : Gen), stanzas))
+    (context.name, (module M : Gen))
   in
   Fiber.parallel_map contexts ~f:make_sctx >>| fun l ->
   let map = String.Map.of_list_exn l in
   Build_system.set_rule_generators build_system
-    (String.Map.map map ~f:(fun ((module M : Gen), _) -> M.gen_rules));
-  String.Map.iter map ~f:(fun ((module M : Gen), _) -> M.init ());
-  String.Map.map map ~f:snd
+    (String_map.map map ~f:(fun (module M : Gen) -> M.gen_rules));
+  String_map.iter map ~f:(fun (module M : Gen) -> M.init ());
+  String_map.map map ~f:(fun (module M : Gen) -> M.sctx)
