@@ -763,8 +763,12 @@ Add it to your jbuild file to remove this warning.
     in
 
     let requires, real_requires =
+      let libraries =
+        match last_lib with
+        | Some lib -> exes.buildable.libraries @ [Lib_dep.direct lib]
+        | None -> exes.buildable.libraries in
       SC.Libs.requires sctx ~dir ~dep_kind ~item
-        ~libraries:exes.buildable.libraries
+        ~libraries
         ~preprocess:exes.buildable.preprocess
         ~virtual_deps:[]
         ~has_dot_merlin:exes.buildable.gen_dot_merlin
@@ -783,7 +787,9 @@ Add it to your jbuild file to remove this warning.
           >>>
           requires
         | Some lib ->
-          requires >>^ (fun libs -> libs @ [lib])
+          requires >>^ (fun libs -> (List.filter ~f:(fun lib' ->
+            Lib.best_name lib <> Lib.best_name lib'
+          ) libs) @ [lib])
         end
     in
 
