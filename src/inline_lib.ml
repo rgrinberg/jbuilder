@@ -18,9 +18,10 @@ module Test_lib = struct
     | Ppx_inline_test
 
   let of_lib_name = function
-    | "ppx_inline_test" -> Some Ppx_inline_test
-    | "ppx_expect" -> Some Ppx_expect
-    | _ -> None
+    | "ppx_inline_test" -> [Ppx_inline_test]
+    | "ppx_expect" -> [Ppx_expect]
+    | "ppx_jane" -> [Ppx_inline_test; Ppx_expect]
+    | _ -> []
 
   module Set = Set.Make(struct
       type t' = t
@@ -101,7 +102,7 @@ let rule sctx ~(lib : Jbuild.Library.t) ~dir ~scope =
   let test_config =
     Jbuild.Preprocess_map.pps lib.buildable.preprocess
     |> List.rev_map ~f:Jbuild.Pp.to_string
-    |> List.filter_map ~f:Test_lib.of_lib_name
+    |> List.concat_map ~f:Test_lib.of_lib_name
     |> Test_lib.Set.of_list in
   if Test_lib.Set.is_empty test_config then
     None
