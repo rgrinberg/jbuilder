@@ -8,7 +8,8 @@ type rule =
   ; alias_name: string
   ; alias_action: (unit, Action.t) Build.t
   ; alias_stamp: Sexp.t
-  ; last_lib: string
+  ; all_modules: Module.t String_map.t
+  ; gen_source : (unit, Action.t) Build.t
   }
 
 module Test_lib = struct
@@ -31,17 +32,12 @@ module Test_lib = struct
         | Ppx_inline_test, Ppx_expect -> 1
         | Ppx_expect, Ppx_inline_test -> -1
     end)
-
-  let libs_of_set s =
-    if Set.mem Ppx_expect s then
-      [Lib_dep.direct "ppx_expect.evaluator"]
-    else
-      []
 end
 
 let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t) ~scope =
   let name = lib.name ^ "_test_runner" in
-  let alias_name = "runtest" in
+  let module_filename = name ^ ".ml-gen" in
+  let module_name = String.capitalize_ascii name in
   let exe_stanza =
     { Jbuild.Executables.names = [name]
     ; link_executables = true
@@ -51,12 +47,19 @@ let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t) ~scope =
     ; modes = Mode.Dict.Set.all
     ; buildable =
         { Buildable.modules = Ordered_set_lang.t (
-            Sexp.add_loc ~loc:Loc.none (List [])
+            Sexp.add_loc ~loc:Loc.none (List [Atom module_name])
           )
-        ; libraries = Lib_dep.direct lib.name
-                      :: (Test_lib.libs_of_set test_libs)
-        ; preprocess = lib.buildable.preprocess
-        ; preprocessor_deps = lib.buildable.preprocessor_deps
+        ; libraries =
+            List.map ~f:Lib_dep.direct (
+              [lib.name]
+              @ (if Test_lib.Set.mem Test_lib.Ppx_expect test_libs then
+                   ["ppx_expect.evaluator"]
+                 else
+                   [])
+              @ ["ppx_inline_test.runner.lib"]
+          )
+        ; preprocess = Preprocess_map.no_preprocessing
+        ; preprocessor_deps = []
         ; flags = Ordered_set_lang.Unexpanded.standard
         ; ocamlc_flags = Ordered_set_lang.Unexpanded.standard
         ; ocamlopt_flags = Ordered_set_lang.Unexpanded.standard
@@ -65,18 +68,32 @@ let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t) ~scope =
         ; lint = Jbuild.Lint.no_lint
         }
     } in
-  let exe = Path.relative dir (name ^ ".exe") in
   { exe = exe_stanza
-  ; alias_name
+  ; alias_name = "runtest"
   ; alias_stamp = Sexp.List [Atom "ppx-runner"; Atom name]
   ; alias_action =
       (let module A = Action in
+       let exe = Path.relative dir (name ^ ".exe") in
        Build.path exe >>>
        Super_context.Deps.interpret sctx ~scope ~dir lib.inline_tests.deps
        >>^ fun _ ->
        A.chdir dir
          (A.run (Ok exe) ["inline-test-runner"; lib.name]))
-  ; last_lib = "ppx_inline_test.runner"
+  ; gen_source = (
+      Build.write_file (Path.relative dir module_filename)
+        "let () = Ppx_inline_test_lib.Runtime.exit ()"
+    )
+  ; all_modules =
+      (String_map.of_alist_exn
+         [ module_name
+         , { Module.
+             name = module_name
+           ; impl = { Module.File.
+                      name = module_filename
+                    ; syntax = Module.Syntax.OCaml
+                    }
+           ; intf = None
+           ; obj_name = "" } ])
   }
 ;;
 
