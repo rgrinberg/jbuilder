@@ -444,13 +444,10 @@ Add it to your jbuild file to remove this warning.
 
   let rec runner_rules ~dir ~(lib : Library.t) ~scope =
     Option.iter (Inline_lib.rule sctx ~lib ~dir ~scope)
-      ~f:(fun { Inline_lib.exe ; alias_name ; alias_action ; alias_stamp ; last_lib } ->
-        executables_rules
-          ~last_lib
-          exe
-          ~dir
-          ~all_modules:String_map.empty
-          ~scope
+      ~f:(fun { Inline_lib.exe ; alias_name ; alias_action ; alias_stamp
+              ; gen_source ; all_modules } ->
+        SC.add_rule sctx gen_source;
+        executables_rules exe ~dir ~all_modules ~scope
         |> ignore;
         add_alias ~dir
           ~name:alias_name
@@ -680,18 +677,14 @@ Add it to your jbuild file to remove this warning.
       Build.fanout
         (requires
          >>> Build.dyn_paths (Build.arr (Lib.archive_files ~mode ~ext_lib:ctx.ext_lib)))
-        (if String_map.is_empty modules then (
-           Build.arr (fun _ -> [])
-         ) else (
-           dep_graph
-           >>> Build.arr (fun dep_graph ->
-             Ocamldep.names_to_top_closed_cm_files
-               ~dir
-               ~dep_graph
-               ~modules
-               ~mode
-               [String.capitalize_ascii name])
-         ))
+        (dep_graph
+         >>> Build.arr (fun dep_graph ->
+           Ocamldep.names_to_top_closed_cm_files
+             ~dir
+             ~dep_graph
+             ~modules
+             ~mode
+             [String.capitalize_ascii name]))
     in
     let objs (libs, cm) =
       if mode = Mode.Byte then
@@ -730,7 +723,7 @@ Add it to your jbuild file to remove this warning.
       SC.add_rules sctx (List.map rules ~f:(fun r -> libs_and_cm_and_flags >>> r))
 
 
-  and executables_rules ?last_lib (exes : Executables.t) ~dir ~all_modules ~scope =
+  and executables_rules (exes : Executables.t) ~dir ~all_modules ~scope =
     let dep_kind = Build.Required in
     let flags = Ocaml_flags.make exes.buildable sctx ~scope ~dir in
     let modules =
@@ -740,14 +733,11 @@ Add it to your jbuild file to remove this warning.
       String_map.map modules ~f:(fun (m : Module.t) ->
         { m with obj_name = Utils.obj_name_of_basename m.impl.name })
     in
-    begin match last_lib with
-    | Some _ -> ()
-    | None ->
-      List.iter exes.names ~f:(fun name ->
-        if not (String_map.mem (String.capitalize_ascii name) modules) then
-          die "executable %s in %s doesn't have a corresponding .ml file"
-            name (Path.to_string dir))
-    end;
+    List.iter exes.names ~f:(fun name ->
+      if not (String_map.mem (String.capitalize_ascii name) modules) then
+        die "executable %s in %s doesn't have a corresponding .ml file"
+          name (Path.to_string dir));
+
     let modules =
       SC.PP.pp_and_lint_modules sctx ~dir ~dep_kind ~modules ~scope
         ~preprocess:exes.buildable.preprocess
@@ -763,34 +753,11 @@ Add it to your jbuild file to remove this warning.
     in
 
     let requires, real_requires =
-      let libraries =
-        match last_lib with
-        | Some lib -> exes.buildable.libraries @ [Lib_dep.direct lib]
-        | None -> exes.buildable.libraries in
       SC.Libs.requires sctx ~dir ~dep_kind ~item
-        ~libraries
+        ~libraries:exes.buildable.libraries
         ~preprocess:exes.buildable.preprocess
         ~virtual_deps:[]
         ~has_dot_merlin:exes.buildable.gen_dot_merlin
-    in
-
-    let requires =
-      match last_lib with
-      | None -> requires
-      | Some lib ->
-        begin match SC.Libs.find sctx ~from:dir lib with
-        | None ->
-          Build.fail { fail = fun () ->
-            die "@{<error>Error@}: I couldn't find '%s'.\n\
-                 Hint: opam install %s" lib lib
-          }
-          >>>
-          requires
-        | Some lib ->
-          requires >>^ (fun libs -> (List.filter ~f:(fun lib' ->
-            Lib.best_name lib <> Lib.best_name lib'
-          ) libs) @ [lib])
-        end
     in
 
     SC.Libs.add_select_rules sctx ~dir exes.buildable.libraries;
