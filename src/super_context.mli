@@ -200,6 +200,8 @@ module PP : sig
   (** Get a path to a cached ppx driver *)
   val get_ppx_driver : t -> Pp.t list -> Path.t
 
+  val get_ppx_driver_requires : t -> Pp.t list -> (unit, Lib.t) Build.t
+
   (** [cookie_library_name lib_name] is ["--cookie"; lib_name] if [lib_name] is not
       [None] *)
   val cookie_library_name : string option -> string list

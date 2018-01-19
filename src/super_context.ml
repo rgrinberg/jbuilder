@@ -836,6 +836,9 @@ module PP = struct
     let ppx_dir = Path.relative sctx.ppx_dir key in
     Path.relative ppx_dir "ppx.exe"
 
+  let get_ppx_driver_requires _sctx _pps =
+    failwith ""
+
   let target_var = String_with_vars.virt_var __POS__ "@"
   let root_var   = String_with_vars.virt_var __POS__ "ROOT"
 

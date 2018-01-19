@@ -442,18 +442,22 @@ Add it to your jbuild file to remove this warning.
   let alias_module_build_sandbox = Scanf.sscanf ctx.version "%u.%u"
      (fun a b -> a, b) <= (4, 02)
 
-  let rec runner_rules ~dir ~(lib : Library.t) ~inline_tests ~scope =
-    Option.iter (Inline_lib.rule sctx ~lib ~inline_tests ~dir ~scope)
-      ~f:(fun { Inline_lib.exe ; alias_name ; alias_action ; alias_stamp
-              ; gen_source ; all_modules } ->
-        SC.add_rule sctx gen_source;
-        executables_rules exe ~dir ~all_modules ~scope
-        |> ignore;
-        add_alias ~dir
-          ~name:alias_name
-          ~stamp:alias_stamp
-          alias_action
-      )
+  let rec runner_rules ~dir ~(lib : Library.t) ~inline_tests ~scope
+            ~lib_requires =
+    let { Inline_lib.exe ; alias_name ; alias_action ; alias_stamp
+        ; gen_source ; all_modules } =
+      Inline_lib.rule sctx ~lib ~inline_tests ~dir ~scope in
+    SC.add_rule sctx gen_source;
+    executables_rules exe ~dir ~all_modules ~scope
+    |> ignore;
+    add_alias ~dir
+      ~name:alias_name
+      ~stamp:alias_stamp
+      (lib_requies >>^ (fun libs ->
+         List.iter libs ~f:(fun lib ->
+           Format.eprintf "checking lib: %s@." (Lib.best_name lib)
+         )
+       )alias_action)
 
   and library_rules (lib : Library.t) ~dir ~files ~scope =
     let dep_kind = if lib.optional then Build.Optional else Required in
@@ -830,8 +834,9 @@ Add it to your jbuild file to remove this warning.
         let dir = ctx_dir in
         match (stanza : Stanza.t) with
         | Library lib ->
-          (library_rules lib ~dir ~files ~scope :: merlins
-          , ((lib.name, lib) :: libs), inline_tests)
+          let merlin = library_rules lib ~dir ~files ~scope in
+          (merlin :: merlins
+          , ((lib.name, (lib, merlin.Merlin.requires)) :: libs), inline_tests)
         | Executables exes ->
           (executables_rules exes ~dir ~all_modules ~scope :: merlins
           , libs, inline_tests)
@@ -856,8 +861,11 @@ Add it to your jbuild file to remove this warning.
     let libs_by_name = String_map.of_alist_exn libs in
     List.iter inline_tests ~f:(fun (inline_tests : Jbuild.Inline_tests.t) ->
       match String_map.find_opt inline_tests.library libs_by_name with
-      | None -> die "library %s must be defined in the jbuild file" inline_tests.library
-      | Some lib -> runner_rules ~lib ~dir:ctx_dir ~inline_tests ~scope
+      | None ->
+        die "library %s must be defined in the jbuild file" inline_tests.library
+      | Some (lib, requires) ->
+        runner_rules ~lib ~dir:ctx_dir ~inline_tests ~scope
+          ~lib_requires:requires
     );
     Merlin.merge_all merlins
     |> Option.map ~f:(fun (m : Merlin.t) ->

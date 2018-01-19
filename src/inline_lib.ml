@@ -12,30 +12,27 @@ type rule =
   ; gen_source : (unit, Action.t) Build.t
   }
 
-module Test_lib = struct
+module Ppx_info = struct
   type t =
-    | Ppx_expect
-    | Ppx_inline_test
+    { uses_inline_test: bool
+    ; uses_expect: bool
+    }
 
-  let of_lib_name = function
-    | "ppx_inline_test" -> [Ppx_inline_test]
-    | "ppx_expect" -> [Ppx_expect]
-    | "ppx_jane" -> [Ppx_inline_test; Ppx_expect]
-    | _ -> []
-
-  module Set = Set.Make(struct
-      type t' = t
-      type t = t'
-      let compare (x : t) (y : t) =
-        match x, y with
-        | Ppx_expect, Ppx_expect
-        | Ppx_inline_test, Ppx_inline_test -> 0
-        | Ppx_inline_test, Ppx_expect -> 1
-        | Ppx_expect, Ppx_inline_test -> -1
-    end)
+  let of_libs libs =
+    let uses_expect = ref false in
+    let uses_inline_test = ref false in
+    List.iter libs ~f:(fun lib ->
+      match Lib.best_name lib with
+      | "ppx_inline_test" -> uses_inline_test := true
+      | "ppx_expect" -> uses_expect := true
+      | _ -> ()
+    );
+    { uses_expect = !uses_expect
+    ; uses_inline_test = !uses_inline_test
+    }
 end
 
-let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t)
+let setup_rules ppx_info ~sctx ~dir ~(lib : Jbuild.Library.t)
       ~(inline_tests : Jbuild.Inline_tests.t) ~scope =
   let name = lib.name ^ "_test_runner" in
   let module_filename = name ^ ".ml-gen" in
@@ -54,7 +51,7 @@ let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t)
         ; libraries =
             List.map ~f:Lib_dep.direct (
               [lib.name]
-              @ (if Test_lib.Set.mem Test_lib.Ppx_expect test_libs then
+              @ (if ppx_info.Ppx_info.uses_expect then
                    ["ppx_expect.evaluator"]
                  else
                    [])
@@ -82,6 +79,15 @@ let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t)
        A.chdir dir
          (A.run (Ok exe) ["inline-test-runner"; lib.name]))
   ; gen_source = (
+      let pps = Jbuild.Preprocess_map.pps lib.buildable.preprocess in
+      let pp_requires = Super_context.PP.get_ppx_driver_requires sctx pps in
+      pp_requires >>^ (fun libs ->
+        List.iter ~f:(fun lib ->
+          Format.eprintf "checking lib: %s@." (Lib.best_name lib)
+        )
+      )
+      >>^ ignore
+      >>>
       Build.write_file (Path.relative dir module_filename)
         "let () = Ppx_inline_test_lib.Runtime.exit ()"
     )
@@ -101,12 +107,4 @@ let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t)
 
 let rule sctx ~(inline_tests : Jbuild.Inline_tests.t) ~(lib : Jbuild.Library.t)
       ~dir ~scope =
-  let test_config =
-    Jbuild.Preprocess_map.pps lib.buildable.preprocess
-    |> List.rev_map ~f:Jbuild.Pp.to_string
-    |> List.concat_map ~f:Test_lib.of_lib_name
-    |> Test_lib.Set.of_list in
-  if Test_lib.Set.is_empty test_config then
-    None
-  else
-    Some (setup_rules test_config ~sctx ~dir ~inline_tests ~lib ~scope)
+  setup_rules ~sctx ~dir ~inline_tests ~lib ~scope

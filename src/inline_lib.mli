@@ -15,4 +15,4 @@ val rule
   -> lib:Jbuild.Library.t
   -> dir:Path.t
   -> scope:Jbuild.Scope.t
-  -> rule option
+  -> rule
