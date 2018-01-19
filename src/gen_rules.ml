@@ -789,24 +789,6 @@ Add it to your jbuild file to remove this warning.
     List.map locks ~f:(fun s ->
       Path.relative dir (SC.expand_vars sctx ~dir ~scope s))
 
-  and user_rule (rule : Rule.t) ~dir ~scope =
-    let targets : SC.Action.targets =
-      match rule.targets with
-      | Infer -> Infer
-      | Static fns -> Static (List.map fns ~f:(Path.relative dir))
-    in
-    SC.add_rule sctx ~fallback:rule.fallback ~loc:rule.loc
-      ~locks:(interpret_locks ~dir ~scope rule.locks)
-      (SC.Deps.interpret sctx ~scope ~dir rule.deps
-       >>>
-       SC.Action.run
-         sctx
-         rule.action
-         ~dir
-         ~dep_kind:Required
-         ~targets
-         ~scope)
-
   and add_alias ~dir ~name ~stamp ?(locks=[]) build =
     let alias = Build_system.Alias.make name ~dir in
     SC.add_alias_action sctx alias ~locks ~stamp build
