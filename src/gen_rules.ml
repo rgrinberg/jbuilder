@@ -185,17 +185,44 @@ module Gen(P : Params) = struct
      (fun a b -> a, b) <= (4, 02)
 
   let rec runner_rules ~dir ~(lib : Library.t) ~scope =
-    Option.iter (Inline_lib.rule sctx ~lib ~dir ~scope)
-      ~f:(fun { Inline_lib.exe ; alias_name ; alias_action ; alias_stamp
-              ; gen_source ; all_modules } ->
-        SC.add_rule sctx gen_source;
-        executables_rules exe ~dir ~all_modules ~scope
-        |> ignore;
-        add_alias ~dir
-          ~name:alias_name
-          ~stamp:alias_stamp
-          alias_action
-      )
+    let alias_action =
+      let module A = Action in
+      let name = lib.name ^ "_test_runner" in
+      let exe = Path.relative dir (name ^ ".exe") in
+      let pps = Jbuild.Preprocess_map.pps lib.buildable.preprocess in
+      Super_context.PP.get_ppx_info sctx pps
+      >>^ (fun (ppx_info : Super_context.PP.Ppx_info.t) ->
+        Format.eprintf "ppx_info rules: (%b, %b)@." ppx_info.uses_inline_test ppx_info.uses_expect;
+        if Super_context.PP.Ppx_info.need_runner ppx_info then (
+          let rule = Inline_lib.make_rules ~sctx ppx_info ~lib ~dir ~scope in
+          SC.add_rule sctx rule.gen_source;
+          executables_rules rule.exe ~dir ~all_modules:rule.all_modules ~scope
+          |> ignore;
+          Format.eprintf "Adding %a@." Path.pp exe;
+          [exe]
+        )
+        else
+          [])
+      |> Build.dyn_paths
+      >>> (Build.arr @@ fun () ->
+           Format.eprintf "runner exists@.";
+           A.chdir dir (A.run (Ok exe) ["inline-test-runner"; lib.name])
+          )
+      (* >>> Build.file_exists exe
+       * >>^ (function
+       *   | false ->
+       *     Format.eprintf "runner doesn't exist@.";
+       *     A.progn []
+       *   | true ->
+       *     Format.eprintf "runner exists@.";
+       *     A.chdir dir (A.run (Ok exe) ["inline-test-runner"; lib.name])
+       * ) *)
+    in
+    add_alias
+      ~dir
+      ~name:"runtest"
+      ~stamp:(Sexp.List [Atom "ppx-runner"; Sexp.Atom (lib.name ^ "_test_runner")])
+      alias_action
 
   and library_rules (lib : Library.t) ~dir ~all_modules ~files ~scope =
     let dep_kind = if lib.optional then Build.Optional else Required in
@@ -456,6 +483,7 @@ module Gen(P : Params) = struct
     in
     let dep_graph = Ml_kind.Dict.get dep_graph Impl in
     let exe = Path.relative dir (name ^ exe_ext) in
+    Format.eprintf "Making rule for: %a@." Path.pp exe;
     let libs_and_cm =
       Build.fanout
         (requires

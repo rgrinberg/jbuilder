@@ -179,7 +179,7 @@ let wait_for_file t fn ~targeting =
   match Hashtbl.find t.files fn with
   | None ->
     if Path.is_in_build_dir fn then
-      die "no rule found for %s" (Utils.describe_target fn)
+      die "(wait_for_file) no rule found for %s" (Utils.describe_target fn)
     else if Path.exists fn then
       return ()
     else

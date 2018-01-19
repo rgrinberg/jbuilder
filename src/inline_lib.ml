@@ -12,30 +12,8 @@ type rule =
   ; gen_source : (unit, Action.t) Build.t
   }
 
-module Test_lib = struct
-  type t =
-    | Ppx_expect
-    | Ppx_inline_test
-
-  let of_lib_name = function
-    | "ppx_inline_test" -> [Ppx_inline_test]
-    | "ppx_expect" -> [Ppx_expect]
-    | "ppx_jane" -> [Ppx_inline_test; Ppx_expect]
-    | _ -> []
-
-  module Set = Set.Make(struct
-      type t' = t
-      type t = t'
-      let compare (x : t) (y : t) =
-        match x, y with
-        | Ppx_expect, Ppx_expect
-        | Ppx_inline_test, Ppx_inline_test -> 0
-        | Ppx_inline_test, Ppx_expect -> 1
-        | Ppx_expect, Ppx_inline_test -> -1
-    end)
-end
-
-let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t) ~scope =
+let make_rules (info : Super_context.PP.Ppx_info.t) ~sctx ~dir
+      ~(lib : Jbuild.Library.t) ~scope =
   let name = lib.name ^ "_test_runner" in
   let module_filename = name ^ ".ml-gen" in
   let module_name = String.capitalize_ascii name in
@@ -53,7 +31,7 @@ let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t) ~scope =
         ; libraries =
             List.map ~f:Lib_dep.direct (
               [lib.name]
-              @ (if Test_lib.Set.mem Test_lib.Ppx_expect test_libs then
+              @ (if info.uses_expect then
                    ["ppx_expect.evaluator"]
                  else
                    [])
@@ -98,13 +76,12 @@ let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t) ~scope =
   }
 ;;
 
-let rule sctx ~(lib : Jbuild.Library.t) ~dir ~scope =
-  let test_config =
-    Jbuild.Preprocess_map.pps lib.buildable.preprocess
-    |> List.rev_map ~f:Jbuild.Pp.to_string
-    |> List.concat_map ~f:Test_lib.of_lib_name
-    |> Test_lib.Set.of_list in
-  if Test_lib.Set.is_empty test_config then
-    None
-  else
-    Some (setup_rules test_config ~sctx ~dir ~lib ~scope)
+let setup_rules sctx ~(lib : Jbuild.Library.t) ~dir ~scope =
+  let pps = Jbuild.Preprocess_map.pps lib.buildable.preprocess in
+  Super_context.PP.get_ppx_info sctx pps
+  >>^ (fun (ppx_info : Super_context.PP.Ppx_info.t) ->
+    if ppx_info.uses_expect || ppx_info.uses_inline_test then
+      Some (make_rules ppx_info ~sctx ~dir ~lib ~scope)
+    else
+      None
+  )

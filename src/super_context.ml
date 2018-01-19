@@ -55,7 +55,7 @@ type t =
   ; cxx_flags                               : string list
   ; vars                                    : Action.Var_expansion.t String_map.t
   ; ppx_dir                                 : Path.t
-  ; ppx_drivers                             : (string, Path.t) Hashtbl.t
+  ; ppx_drivers                             : (string, Path.t * (unit, Lib.t list) Build.t) Hashtbl.t
   ; external_dirs                           : (Path.t, External_dir.t) Hashtbl.t
   ; chdir                                   : (Action.t, Action.t) Build.t
   ; host                                    : t option
@@ -758,6 +758,69 @@ end
 module PP = struct
   open Build.O
 
+  let ppx_dir sctx pps =
+    let _, names =
+      match List.rev_map pps ~f:Pp.to_string with
+      | [] -> (None, [])
+      | driver :: rest ->
+        (Some driver, List.sort rest ~cmp:String.compare @ [driver])
+    in
+    let key =
+      match names with
+      | [] -> "+none+"
+      | _  -> String.concat names ~sep:"+" in
+    Path.relative sctx.ppx_dir key
+
+  module Ppx_info = struct
+    type t =
+      { uses_inline_test: bool
+      ; uses_expect: bool
+      }
+
+    let need_runner t = t.uses_inline_test || t.uses_expect
+
+    let of_libs libs =
+      let uses_inline_test = ref false in
+      let uses_expect = ref false in
+      List.iter libs ~f:(fun lib ->
+        match Lib.best_name lib with
+        | "ppx_inline_test" -> uses_inline_test := true
+        | "ppx_expect" -> uses_expect := true
+        | _ -> ()
+      );
+      { uses_inline_test = !uses_inline_test
+      ; uses_expect = !uses_expect
+      }
+
+    module Vfile = Vfile_kind.Make_full
+        (struct type nonrec t = t end)
+        (struct
+          open Sexp.To_sexp
+          let t _dir t =
+            record
+              [ "uses_inline_test" , bool t.uses_inline_test
+              ; "uses_expect", bool t.uses_expect ]
+        end)
+        (struct
+         open Sexp.Of_sexp
+          let t _dir sexp =
+            record
+              (field "uses_inline_test"  bool >>= fun uses_inline_test ->
+               field "uses_expect"   bool >>= fun uses_expect ->
+               return
+                 { uses_inline_test
+                 ; uses_expect
+                 })
+              sexp
+        end)
+
+    let info_file ~ppx_dir =
+      Build.Vspec.T (Path.relative ppx_dir "info.sexp", (module Vfile))
+  end
+
+  let get_ppx_info sctx pps =
+    Build.vpath (Ppx_info.info_file ~ppx_dir:(ppx_dir sctx pps))
+
   let pp_fname fn =
     let fn, ext = Filename.split_extension fn in
     (* We need to to put the .pp before the .ml so that the compiler realises that
@@ -837,6 +900,10 @@ module PP = struct
     in
     add_rule sctx
       (libs
+       >>^ Ppx_info.of_libs
+       >>> Build.store_vfile (Ppx_info.info_file ~ppx_dir:(Path.parent target)));
+    add_rule sctx
+      (libs
        >>>
        Build.dyn_paths (Build.arr (fun libs ->
          List.rev_append
@@ -850,7 +917,8 @@ module PP = struct
        Build.run ~context:ctx (Ok compiler)
          [ A "-o" ; Target target
          ; Dyn (Lib.link_flags ~mode)
-         ])
+         ]);
+    libs
 
   let get_ppx_driver sctx pps ~dir ~dep_kind =
     let driver, names =
@@ -870,9 +938,17 @@ module PP = struct
     | None ->
       let ppx_dir = Path.relative sctx.ppx_dir key in
       let exe = Path.relative ppx_dir "ppx.exe" in
-      build_ppx_driver sctx names ~dir ~dep_kind ~target:exe ~driver;
-      Hashtbl.add sctx.ppx_drivers ~key ~data:exe;
-      exe
+      let requires = build_ppx_driver sctx names ~dir ~dep_kind ~target:exe ~driver in
+      Hashtbl.add sctx.ppx_drivers ~key ~data:(exe, requires);
+      (exe, requires)
+
+  let get_ppx_driver_requires sctx pps ~dir ~dep_kind =
+    let (_, requires) = get_ppx_driver sctx pps ~dir ~dep_kind in
+    requires
+
+  let get_ppx_driver sctx pps ~dir ~dep_kind =
+    let (exe, _) = get_ppx_driver sctx pps ~dir ~dep_kind in
+    exe
 
   let target_var = String_with_vars.virt_var __POS__ "@"
   let root_var   = String_with_vars.virt_var __POS__ "ROOT"

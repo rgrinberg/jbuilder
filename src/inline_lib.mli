@@ -9,9 +9,17 @@ type rule =
   ; gen_source : (unit, Action.t) Build.t
   }
 
-val rule
+val make_rules
+  : Super_context.PP.Ppx_info.t
+  -> sctx:Super_context.t
+  -> dir:Path.t
+  -> lib:Jbuild.Library.t
+  -> scope:Jbuild.Scope.t
+  -> rule
+
+val setup_rules
   : Super_context.t
   -> lib:Jbuild.Library.t
   -> dir:Path.t
   -> scope:Jbuild.Scope.t
-  -> rule option
+  -> (unit, rule option) Build.t

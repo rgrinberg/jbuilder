@@ -181,6 +181,27 @@ module PP : sig
     -> dep_kind:Build.lib_dep_kind
     -> Path.t
 
+  val get_ppx_driver_requires
+    :  t
+    -> Pp.t list
+    -> dir:Path.t
+    -> dep_kind:Build.lib_dep_kind
+    -> (unit, Lib.t list) Build.t
+
+  module Ppx_info : sig
+    type t =
+      { uses_inline_test: bool
+      ; uses_expect: bool
+      }
+
+    val need_runner : t -> bool
+  end
+
+  val get_ppx_info
+    : t
+    -> Pp.t list
+    -> (unit, Ppx_info.t) Build.t
+
   (** [cookie_library_name lib_name] is ["--cookie"; lib_name] if [lib_name] is not
       [None] *)
   val cookie_library_name : string option -> string list
