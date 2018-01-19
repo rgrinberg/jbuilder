@@ -136,7 +136,7 @@ module Gen(P : Params) = struct
                   match (dep : Jbuild.Lib_dep.t) with
                   | Direct _ -> None
                   | Select s -> Some s.result_fn)
-              | Alias _ | Provides _ | Install _ -> [])
+              | Alias _ | Provides _ | Install _ | Inline_tests _ -> [])
             |> String_set.of_list
           in
           String_set.union generated_files (SC.source_files sctx ~src_path:src_dir))
@@ -442,8 +442,8 @@ Add it to your jbuild file to remove this warning.
   let alias_module_build_sandbox = Scanf.sscanf ctx.version "%u.%u"
      (fun a b -> a, b) <= (4, 02)
 
-  let rec runner_rules ~dir ~(lib : Library.t) ~scope =
-    Option.iter (Inline_lib.rule sctx ~lib ~dir ~scope)
+  let rec runner_rules ~dir ~(lib : Library.t) ~inline_tests ~scope =
+    Option.iter (Inline_lib.rule sctx ~lib ~inline_tests ~dir ~scope)
       ~f:(fun { Inline_lib.exe ; alias_name ; alias_action ; alias_stamp
               ; gen_source ; all_modules } ->
         SC.add_rule sctx gen_source;
@@ -648,9 +648,6 @@ Add it to your jbuild file to remove this warning.
       | Some m -> Ocaml_flags.prepend_common ["-open"; m.name] flags |> Ocaml_flags.common
     in
 
-    (* test runners if they are present *)
-    runner_rules ~dir ~lib ~scope;
-
     { Merlin.
       requires = real_requires
     ; flags
@@ -828,31 +825,41 @@ Add it to your jbuild file to remove this warning.
     (* This interprets "rule" and "copy_files" stanzas. *)
     let files = text_files ~dir:ctx_dir in
     let all_modules = modules_by_dir ~dir:ctx_dir in
-    List.filter_map stanzas ~f:(fun stanza ->
-      let dir = ctx_dir in
-      match (stanza : Stanza.t) with
-      | Library lib ->
-        Some (library_rules lib ~dir ~files ~scope)
-      | Executables exes ->
-        Some (executables_rules exes ~dir ~all_modules ~scope)
-      | Alias alias ->
-        alias_rules alias ~dir ~scope;
-        None
-      | Copy_files { glob; _ } ->
-        let src_dir =
-          let loc = String_with_vars.loc glob in
-          let src_glob = SC.expand_vars sctx ~dir glob ~scope in
-          Path.parent (Path.relative src_dir src_glob ~error_loc:loc)
-        in
-        Some
-          { Merlin.requires = Build.return []
-          ; flags           = Build.return []
-          ; preprocess      = Jbuild.Preprocess.No_preprocessing
-          ; libname         = None
-          ; source_dirs     = Path.Set.singleton src_dir
-          }
-      | _ -> None)
-    |> Merlin.merge_all
+    let (merlins, libs, inline_tests) =
+      List.fold_left stanzas ~f:(fun (merlins, libs, inline_tests) stanza ->
+        let dir = ctx_dir in
+        match (stanza : Stanza.t) with
+        | Library lib ->
+          (library_rules lib ~dir ~files ~scope :: merlins
+          , ((lib.name, lib) :: libs), inline_tests)
+        | Executables exes ->
+          (executables_rules exes ~dir ~all_modules ~scope :: merlins
+          , libs, inline_tests)
+        | Alias alias ->
+          alias_rules alias ~dir ~scope;
+          (merlins, libs, inline_tests)
+        | Inline_tests tests ->
+          (merlins, libs, tests :: inline_tests)
+        | Copy_files { glob; _ } ->
+          let src_dir =
+            let loc = String_with_vars.loc glob in
+            let src_glob = SC.expand_vars sctx ~dir glob ~scope in
+            Path.parent (Path.relative src_dir src_glob ~error_loc:loc)
+          in
+          ({ Merlin.requires = Build.return []
+           ; flags           = Build.return []
+           ; preprocess      = Jbuild.Preprocess.No_preprocessing
+           ; libname         = None
+           ; source_dirs     = Path.Set.singleton src_dir
+           } :: merlins, libs, inline_tests)
+        | _ -> (merlins, libs, inline_tests)) ~init:([], [], [])  in
+    let libs_by_name = String_map.of_alist_exn libs in
+    List.iter inline_tests ~f:(fun (inline_tests : Jbuild.Inline_tests.t) ->
+      match String_map.find_opt inline_tests.library libs_by_name with
+      | None -> die "library %s must be defined in the jbuild file" inline_tests.library
+      | Some lib -> runner_rules ~lib ~dir:ctx_dir ~inline_tests ~scope
+    );
+    Merlin.merge_all merlins
     |> Option.map ~f:(fun (m : Merlin.t) ->
       { m with source_dirs =
                  Path.Set.add (Path.relative src_dir ".") m.source_dirs

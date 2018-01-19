@@ -11,6 +11,7 @@ type rule =
 
 val rule
   : Super_context.t
+  -> inline_tests:Jbuild.Inline_tests.t
   -> lib:Jbuild.Library.t
   -> dir:Path.t
   -> scope:Jbuild.Scope.t

@@ -35,7 +35,8 @@ module Test_lib = struct
     end)
 end
 
-let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t) ~scope =
+let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t)
+      ~(inline_tests : Jbuild.Inline_tests.t) ~scope =
   let name = lib.name ^ "_test_runner" in
   let module_filename = name ^ ".ml-gen" in
   let module_name = String.capitalize_ascii name in
@@ -76,7 +77,7 @@ let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t) ~scope =
       (let module A = Action in
        let exe = Path.relative dir (name ^ ".exe") in
        Build.path exe >>>
-       Super_context.Deps.interpret sctx ~scope ~dir lib.inline_tests.deps
+       Super_context.Deps.interpret sctx ~scope ~dir inline_tests.deps
        >>^ fun _ ->
        A.chdir dir
          (A.run (Ok exe) ["inline-test-runner"; lib.name]))
@@ -98,7 +99,8 @@ let setup_rules test_libs ~sctx ~dir ~(lib : Jbuild.Library.t) ~scope =
   }
 ;;
 
-let rule sctx ~(lib : Jbuild.Library.t) ~dir ~scope =
+let rule sctx ~(inline_tests : Jbuild.Inline_tests.t) ~(lib : Jbuild.Library.t)
+      ~dir ~scope =
   let test_config =
     Jbuild.Preprocess_map.pps lib.buildable.preprocess
     |> List.rev_map ~f:Jbuild.Pp.to_string
@@ -107,4 +109,4 @@ let rule sctx ~(lib : Jbuild.Library.t) ~dir ~scope =
   if Test_lib.Set.is_empty test_config then
     None
   else
-    Some (setup_rules test_config ~sctx ~dir ~lib ~scope)
+    Some (setup_rules test_config ~sctx ~dir ~inline_tests ~lib ~scope)

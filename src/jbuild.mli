@@ -145,12 +145,6 @@ module Library : sig
       | Ppx_rewriter
   end
 
-  module Inline_tests : sig
-    type t =
-      { deps: Dep_conf.t list
-      }
-  end
-
   type t =
     { name                     : string
     ; public                   : Public_lib.t option
@@ -171,7 +165,6 @@ module Library : sig
     ; optional                 : bool
     ; buildable                : Buildable.t
     ; dynlink                  : bool
-    ; inline_tests             : Inline_tests.t
     }
 
   val has_stubs : t -> bool
@@ -258,6 +251,13 @@ module Copy_files : sig
     }
 end
 
+module Inline_tests : sig
+  type t =
+    { library: string
+    ; deps: Dep_conf.t list
+    }
+end
+
 module Stanza : sig
   type t =
     | Library     of Library.t
@@ -267,6 +267,7 @@ module Stanza : sig
     | Install     of Install_conf.t
     | Alias       of Alias_conf.t
     | Copy_files  of Copy_files.t
+    | Inline_tests of Inline_tests.t
 end
 
 module Stanzas : sig

@@ -530,24 +530,6 @@ module Library = struct
         ]
   end
 
-  module Inline_tests = struct
-    type t =
-      { deps: Dep_conf.t list
-      }
-
-    let empty =
-      { deps = []
-      }
-
-    let t =
-      record
-        (field "deps" (list Dep_conf.t) ~default:[] >>= fun deps ->
-         return
-           { deps
-           }
-        )
-  end
-
   type t =
     { name                     : string
     ; public                   : Public_lib.t option
@@ -568,7 +550,6 @@ module Library = struct
     ; optional                 : bool
     ; buildable                : Buildable.t
     ; dynlink                  : bool
-    ; inline_tests             : Inline_tests.t
     }
 
   let v1 pkgs =
@@ -592,7 +573,6 @@ module Library = struct
        field_b    "optional"                                                 >>= fun optional                 ->
        field      "self_build_stubs_archive" (option string) ~default:None   >>= fun self_build_stubs_archive ->
        field_b    "no_dynlink"                                               >>= fun no_dynlink               ->
-       field      "inline_tests" Inline_tests.t ~default:Inline_tests.empty  >>= fun inline_tests             ->
        return
          { name
          ; public
@@ -613,7 +593,6 @@ module Library = struct
          ; optional
          ; buildable
          ; dynlink = not no_dynlink
-         ; inline_tests
          })
 
   let has_stubs t =
@@ -947,6 +926,23 @@ module Copy_files = struct
   let v1 = String_with_vars.t
 end
 
+module Inline_tests = struct
+  type t =
+    { library: string
+    ; deps: Dep_conf.t list
+    }
+
+  let v1 =
+    record
+      (field "library" string >>= fun library ->
+       field "deps" (list Dep_conf.t) ~default:[] >>= fun deps ->
+       return
+         { library
+         ; deps
+         }
+      )
+end
+
 module Stanza = struct
   type t =
     | Library     of Library.t
@@ -956,6 +952,7 @@ module Stanza = struct
     | Install     of Install_conf.t
     | Alias       of Alias_conf.t
     | Copy_files  of Copy_files.t
+    | Inline_tests of Inline_tests.t
 end
 
 module Stanzas = struct
@@ -999,6 +996,7 @@ module Stanzas = struct
           in
           let sexps = Sexp.load ~fname:fn ~mode:Many in
           parse pkgs sexps ~default_version:Jbuild_version.V1)
+      ; cstr "inline_tests" (Inline_tests.v1 @> nil) (fun x -> [Inline_tests x])
       ]
 
   and select : Jbuild_version.t -> Scope.t -> Stanza.t list Sexp.Of_sexp.t = function
