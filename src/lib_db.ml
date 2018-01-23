@@ -32,12 +32,23 @@ let rec internal_name_scope t ~dir =
 
 let find_by_internal_name t ~from name =
   let scope = internal_name_scope t ~dir:from in
+  if name = "caml" then (
+    Format.eprintf "trying to find caml in: %a@.%!" Path.pp from;
+    Format.eprintf "Using scope with libs:@.";
+    scope.libs |> String_map.iter ~f:(fun ~key ~data:_ ->
+      Format.eprintf "%s " key
+    );
+    Format.eprintf "@."
+  );
   String_map.find name scope.libs
 
 let find_exn t ~from name =
   match find_by_internal_name t ~from name with
   | Some x -> Lib.Internal x
   | None ->
+    if name = "caml" then (
+      failwith "we found caml in findlib which is wrong af"
+    );
     Hashtbl.find_or_add t.by_public_name name
       ~f:(fun name ->
         External (Findlib.find_exn t.findlib name
