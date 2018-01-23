@@ -1140,7 +1140,7 @@ end
 let gen ~contexts ~build_system
       ?(filter_out_optional_stanzas_with_missing_deps=true)
       ?only_packages conf =
-  let open Future in
+  let open Fiber.O in
   let { Jbuild_load. file_tree; jbuilds; packages; scopes } = conf in
   let packages =
     match only_packages with
@@ -1150,12 +1150,17 @@ let gen ~contexts ~build_system
         String_set.mem name pkgs)
   in
   let sctxs = Hashtbl.create 4 in
-  let make_sctx (context : Context.t) : _ Future.t =
-    let host =
-      Option.map context.for_host ~f:(fun h ->
-        Option.value_exn (Hashtbl.find sctxs h.name))
+  List.iter contexts ~f:(fun c ->
+    Hashtbl.add sctxs ~key:c.Context.name ~data:(Fiber.Ivar.create ()));
+  let make_sctx (context : Context.t) : _ Fiber.t =
+    let host () =
+      match context.for_host with
+      | None -> Fiber.return None
+      | Some h ->
+        Fiber.Ivar.read (Option.value_exn (Hashtbl.find sctxs h.name))
+        >>| fun x -> Some x
     in
-    let stanzas =
+    let stanzas () =
       Jbuild_load.Jbuilds.eval ~context jbuilds >>| fun stanzas ->
       match only_packages with
       | None -> stanzas
@@ -1171,7 +1176,7 @@ let gen ~contexts ~build_system
                String_set.mem package.name pkgs
              | _ -> true)))
     in
-    stanzas >>| fun stanzas ->
+    Fiber.fork host stanzas >>= fun (host, stanzas) ->
     let sctx =
       Super_context.create
         ?host
@@ -1184,10 +1189,11 @@ let gen ~contexts ~build_system
         ~stanzas
     in
     let module M = Gen(struct let sctx = sctx end) in
-    Hashtbl.add sctxs ~key:context.name ~data:sctx;
+    Fiber.Ivar.fill (Option.value_exn (Hashtbl.find sctxs context.name)) sctx
+    >>| fun () ->
     (context.name, ((module M : Gen), stanzas))
   in
-  Future.all (List.map ~f:make_sctx contexts) >>| fun l ->
+  Fiber.nfork_map contexts ~f:make_sctx >>| fun l ->
   let map = String_map.of_alist_exn l in
   Build_system.set_rule_generators build_system
     (String_map.map map ~f:(fun ((module M : Gen), _) -> M.gen_rules));

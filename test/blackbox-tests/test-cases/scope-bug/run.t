@@ -10,13 +10,13 @@
         ocamlc blib/sub/sub.cma
       ocamlopt blib/sub/sub.{a,cmxa}
       ocamlopt blib/blib.{cmx,o}
-        ocamlc alib/alib.{cmi,cmo,cmt}
         ocamlc alib/alib__Main.{cmi,cmo,cmt}
+        ocamlc alib/alib.{cmi,cmo,cmt}
         ocamlc blib/blib.cma
       ocamlopt blib/sub/sub.cmxs
       ocamlopt blib/blib.{a,cmxa}
-      ocamlopt alib/alib.{cmx,o}
       ocamlopt alib/alib__Main.{cmx,o}
+      ocamlopt alib/alib.{cmx,o}
         ocamlc alib/alib.cma
       ocamlopt blib/blib.cmxs
       ocamlopt alib/alib.{a,cmxa}

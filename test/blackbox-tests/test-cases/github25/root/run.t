@@ -20,4 +20,7 @@ We need ocamlfind to run this test
   External library "plop.ca-marche-pas" is not available because it depends on the following libraries that are not available:
   - une-lib-qui-nexiste-pas -> not found
   Hint: try: jbuilder external-lib-deps --missing --root . --only-packages pas-de-bol @install
+      ocamldep pas_de_bol.depends.ocamldep-output
+        ocamlc pas_de_bol.{cmi,cmo,cmt}
+      ocamlopt pas_de_bol.{cmx,o}
   [1]
