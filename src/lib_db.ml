@@ -151,6 +151,9 @@ let interpret_lib_dep t ~dir lib_dep =
       | x -> Inl [x]
       | exception _ ->
         (* Call [find] again to get a proper backtrace *)
+        if name = "ppx_jane_kernel" then (
+          Fmt.failwith "gotcha ppx_jane_kernel from dir: %a" Path.pp dir
+        );
         Inr { fail = fun () ->
           ignore (find_exn t ~from:dir name : Lib.t);
           assert false }
