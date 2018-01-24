@@ -151,6 +151,9 @@ let interpret_lib_dep t ~dir lib_dep =
       | x -> Inl [x]
       | exception _ ->
         (* Call [find] again to get a proper backtrace *)
+        if name = "ppx_jane_kernel" then (
+          failwith "gotcha ppx_jane_kernel"
+        );
         Inr { fail = fun () ->
           ignore (find_exn t ~from:dir name : Lib.t);
           assert false }
@@ -173,6 +176,11 @@ let interpret_lib_dep t ~dir lib_dep =
         Loc.fail loc "No solution found for this select form"
       }
 
+(* let interpret_lib_dep t ~dir lib_dep =
+ *   match interpret_lib_dep t ~dir lib_dep with
+ *   | Inl x -> Inl x
+ *   | Inr f -> f.fail () *)
+
 let interpret_lib_deps t ~dir lib_deps =
   let libs, failures =
     List.partition_map lib_deps ~f:(interpret_lib_dep t ~dir)
@@ -190,8 +198,13 @@ let interpret_lib_deps t ~dir lib_deps =
 let best_lib_dep_names_exn t ~dir lib_deps =
   List.concat_map lib_deps ~f:(fun lib_dep ->
     match interpret_lib_dep t ~dir lib_dep with
+    | exception x ->
+      Format.eprintf "uh oh. Uncaught exn %s@.%!" (Printexc.to_string x);
+      reraise x
     | Inl libs -> List.map libs ~f:Lib.best_name
-    | Inr fail -> fail.fail ())
+    | Inr fail ->
+      Format.eprintf "failing thru best_lib_dep_names_exn@.%!";
+      fail.fail ())
 
 type resolved_select =
   { src_fn : string

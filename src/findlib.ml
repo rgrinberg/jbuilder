@@ -483,7 +483,11 @@ exception Package_not_available of Package_not_available.t
 let find_exn t ~required_by name =
   match Hashtbl.find t.packages name with
   | Some (Present x) -> x
-  | Some (Not_available na) -> raise (Package_not_available na)
+  | Some (Not_available na) ->
+    (* if name = "ppx_jane_kernel" then (
+     *   Fmt.failwith "not found %s" name
+     * ); *)
+    raise (Package_not_available na)
   | None ->
     load_meta t ~fq_name:name ~required_by;
     match Hashtbl.find t.packages name with
