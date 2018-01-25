@@ -543,8 +543,8 @@ let closure ~required_by ~local_public_libs pkgs =
 let closed_ppx_runtime_deps_of ~required_by ~local_public_libs pkgs =
   remove_dups_preserve_order
     (List.concat_map pkgs ~f:(fun pkg ->
-       check_deps_consistency ~required_by ~local_public_libs pkg pkg.ppx_runtime_deps;
-       pkg.ppx_runtime_deps))
+       check_deps_consistency ~required_by ~local_public_libs pkg (pkg.requires @ pkg.ppx_runtime_deps);
+       pkg.requires @ pkg.ppx_runtime_deps))
 
 let root_packages t =
   let pkgs =
