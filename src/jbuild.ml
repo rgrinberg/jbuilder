@@ -73,20 +73,39 @@ let relative_file sexp =
   fn
 
 module Scope = struct
+  module Kind = struct
+    type t =
+      | Anonymous
+      | External
+      | Named of string
+  end
+
   type t =
-    { name     : string option
-    ; packages : Package.t String_map.t
+    { kind     : Kind.t
     ; root     : Path.t
+    ; packages : Package.t String_map.t
     }
 
-  let empty =
-    { name     = None
+  let prefix_lib t ~lib =
+    match t.kind with
+    | Anonymous -> lib ^ "@"
+    | External -> lib
+    | Named name -> lib ^ "@" ^ name
+
+  let anonymous =
+    { kind = Anonymous
+    ; root = Path.root
     ; packages = String_map.empty
-    ; root     = Path.root
+    }
+
+  let external_ =
+    { kind = External
+    ; root = Path.root
+    ; packages = String_map.empty
     }
 
   let make = function
-    | [] -> empty
+    | [] -> anonymous
     | pkg :: rest as pkgs ->
       let name =
         List.fold_left rest ~init:pkg.Package.name ~f:(fun acc pkg ->
@@ -94,7 +113,7 @@ module Scope = struct
       in
       let root = pkg.path in
       List.iter rest ~f:(fun pkg -> assert (pkg.Package.path = root));
-      { name = Some name
+      { kind = Named name
       ; packages =
           String_map.of_alist_exn (List.map pkgs ~f:(fun pkg ->
             pkg.Package.name, pkg))
@@ -108,8 +127,15 @@ module Scope = struct
          sprintf "- %-*s (because of %s)" longest_pkg pkg.Package.name
            (Path.to_string (Path.relative pkg.path (pkg.name ^ ".opam")))))
 
+  let packages t =
+    match t.kind with
+    | External -> String_map.empty
+    | Anonymous
+    | Named _ -> t.packages
+
   let default t =
-    match String_map.values t.packages with
+    let packages = packages t in
+    match String_map.values packages with
     | [pkg] -> Ok pkg
     | [] ->
       Error
@@ -125,14 +151,15 @@ module Scope = struct
             stanza is for. I have the choice between these ones:\n\
             %s\n\
             You need to add a (package ...) field in this (install ...) stanza"
-           (package_listing (String_map.values t.packages)))
+           (package_listing (String_map.values packages)))
 
   let resolve t name =
-    match String_map.find name t.packages with
+    let packages = packages t in
+    match String_map.find name packages with
     | Some pkg ->
       Ok pkg
     | None ->
-      if String_map.is_empty t.packages then
+      if String_map.is_empty packages then
         Error (sprintf
                  "You cannot declare items to be installed without \
                   adding a <package>.opam file at the root of your project.\n\
@@ -146,8 +173,8 @@ module Scope = struct
                   elements to be installed in this directory are:\n\
                   %s%s"
                  name
-                 (package_listing (String_map.values t.packages))
-                 (hint name (String_map.keys t.packages)))
+                 (package_listing (String_map.values packages))
+                 (hint name (String_map.keys packages)))
 
   let package t sexp =
     match resolve t (string sexp) with

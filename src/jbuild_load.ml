@@ -209,7 +209,7 @@ let load ?extra_ignored_subtrees () =
     if Path.Map.mem Path.root scopes then
       scopes
     else
-      Path.Map.add scopes ~key:Path.root ~data:Scope.empty
+      Path.Map.add scopes ~key:Path.root ~data:Scope.external_
   in
   let rec walk dir jbuilds scope =
     if File_tree.Dir.ignored dir then
@@ -231,7 +231,7 @@ let load ?extra_ignored_subtrees () =
           walk dir jbuilds scope)
     end
   in
-  let jbuilds = walk (File_tree.root ftree) [] Scope.empty in
+  let jbuilds = walk (File_tree.root ftree) [] Scope.anonymous in
   { file_tree = ftree
   ; jbuilds
   ; packages

@@ -226,7 +226,7 @@ Add it to your jbuild file to remove this warning.
            ~dir
            ~dep_kind:Required
            ~targets:Infer
-           ~scope:Scope.empty);
+           ~scope:Scope.anonymous);
       { intf with name = impl_fname } in
     String_map.merge impls intfs ~f:(fun name impl intf ->
       let impl =

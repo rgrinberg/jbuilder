@@ -92,8 +92,7 @@ let create
       List.map scopes ~f:(fun scope ->
         { scope with Scope.root = Path.append context.build_dir scope.Scope.root })
     in
-    Lib_db.create context.findlib internal_libraries
-      ~scopes
+    Lib_db.create context.findlib internal_libraries ~scopes
   in
   let stanzas_to_consider_for_install =
     if filter_out_optional_stanzas_with_missing_deps then

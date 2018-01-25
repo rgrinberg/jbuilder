@@ -10,16 +10,25 @@ module Jbuild_version : sig
 end
 
 module Scope : sig
+  module Kind : sig
+    type t =
+      | Anonymous
+      | External
+      | Named of string (** First package name in alphabetical order *)
+  end
+
   type t =
-    { name     : string option (** First package name in alphabetical order.  [None] for
-                                   the global scope. *)
-    ; packages : Package.t String_map.t
+    { kind     : Kind.t
     ; root     : Path.t
+    ; packages : Package.t String_map.t
     }
 
-  val make : Package.t list -> t
+  val anonymous : t
+  val external_ : t
 
-  val empty : t
+  val prefix_lib : t -> lib:string -> string
+
+  val make : Package.t list -> t
 
   (** [resolve t package_name] looks up [package_name] in [t] and returns the
       package description if it exists, otherwise it returns an error. *)
