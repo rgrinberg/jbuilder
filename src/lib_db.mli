@@ -7,9 +7,20 @@ open Import
 
 type t
 
+module Scope : sig
+  type t
+
+  val find : t -> string -> Lib.t option
+  val find_exn : t -> string -> Lib.t
+
+  val root : t -> Path.t
+  val resolve : t -> string -> (Package.t, string) result
+end
+
 val create
   :  Findlib.t
   -> scopes:Jbuild.Scope.t list
+  -> root:Path.t
   -> (Path.t * Jbuild.Library.t) list
   -> t
 
@@ -56,3 +67,8 @@ val local_public_libs : t -> Path.t String_map.t
 
 (** Unique name, even for internal libraries *)
 val unique_library_name : t -> Lib.t -> string
+
+val find_scope : t -> dir:Path.t -> Scope.t
+
+val anonymous : t -> Scope.t
+val external_ : t -> Scope.t

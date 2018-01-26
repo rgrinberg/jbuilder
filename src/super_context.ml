@@ -10,7 +10,7 @@ module Dir_with_jbuild = struct
     { src_dir : Path.t
     ; ctx_dir : Path.t
     ; stanzas : Stanzas.t
-    ; scope   : Scope.t
+    ; scope   : Lib_db.Scope.t
     }
 end
 
@@ -44,18 +44,18 @@ let host_sctx t = Option.value t.host ~default:t
 
 let expand_var_no_root t var = String_map.find var t.vars
 
-let expand_vars t ~scope ~dir s =
+let expand_vars t ~(scope : Lib_db.Scope.t) ~dir s =
   String_with_vars.expand s ~f:(fun _loc -> function
-  | "ROOT" -> Some (Path.reach ~from:dir t.context.build_dir)
-  | "SCOPE_ROOT" ->
-    Some (Path.reach ~from:dir (Path.append t.context.build_dir scope.Scope.root))
-  | var ->
-     let open Action.Var_expansion in
-     expand_var_no_root t var
-     |> Option.map ~f:(function
-            | Paths(p,_) -> let p = List.map p ~f:Path.to_string in
-                            String.concat ~sep:" " p
-            | Strings(s,_) -> String.concat ~sep:" " s))
+    | "ROOT" -> Some (Path.reach ~from:dir t.context.build_dir)
+    | "SCOPE_ROOT" ->
+      Some (Path.reach ~from:dir (Lib_db.Scope.root scope))
+    | var ->
+      let open Action.Var_expansion in
+      expand_var_no_root t var
+      |> Option.map ~f:(function
+        | Paths(p,_) -> let p = List.map p ~f:Path.to_string in
+          String.concat ~sep:" " p
+        | Strings(s,_) -> String.concat ~sep:" " s))
 
 let resolve_program t ?hint bin =
   Artifacts.binary ?hint t.artifacts bin
@@ -70,18 +70,9 @@ let create
       ~filter_out_optional_stanzas_with_missing_deps
       ~build_system
   =
-  let stanzas =
-    List.map stanzas
-      ~f:(fun (dir, scope, stanzas) ->
-        { Dir_with_jbuild.
-          src_dir = dir
-        ; ctx_dir = Path.append context.build_dir dir
-        ; stanzas
-        ; scope
-        })
-  in
   let internal_libraries =
-    List.concat_map stanzas ~f:(fun { ctx_dir;  stanzas; _ } ->
+    List.concat_map stanzas ~f:(fun (dir, _, stanzas) ->
+      let ctx_dir = Path.append context.build_dir dir in
       List.filter_map stanzas ~f:(fun stanza ->
         match (stanza : Stanza.t) with
         | Library lib -> Some (ctx_dir, lib)
@@ -93,7 +84,17 @@ let create
         { scope with Scope.root = Path.append context.build_dir scope.Scope.root })
     in
     Lib_db.create context.findlib internal_libraries
-      ~scopes
+      ~scopes ~root:context.build_dir
+  in
+  let stanzas =
+    List.map stanzas
+      ~f:(fun (dir, _, stanzas) ->
+        { Dir_with_jbuild.
+          src_dir = dir
+        ; ctx_dir = Path.append context.build_dir dir
+        ; stanzas
+        ; scope = Lib_db.find_scope libs ~dir
+        })
   in
   let stanzas_to_consider_for_install =
     if filter_out_optional_stanzas_with_missing_deps then
@@ -224,6 +225,9 @@ let unique_library_name t lib =
 module Libs = struct
   open Build.O
   open Lib_db
+
+  let anonymous t = Lib_db.anonymous t.libs
+  let external_ t = Lib_db.external_ t.libs
 
   let find t ~from name = find t.libs ~from name
 
@@ -584,7 +588,7 @@ module Action = struct
           add_lib_dep acc lib Optional;
           Some (str_exp (string_of_bool (Libs.lib_is_available sctx ~from:dir lib)))
         | Some ("version", s) -> begin
-            match Scope.resolve scope s with
+            match Lib_db.Scope.resolve scope s with
             | Ok p ->
               let x =
                 Pkg_version.read sctx p >>^ function
@@ -622,7 +626,7 @@ module Action = struct
         | _ ->
           match var with
           | "ROOT" -> Some (path_exp sctx.context.build_dir)
-          | "SCOPE_ROOT" -> Some (path_exp (Path.append sctx.context.build_dir scope.root))
+          | "SCOPE_ROOT" -> Some (path_exp (Lib_db.Scope.root scope))
           | "@" -> begin
               match targets_written_by_user with
               | Infer -> Loc.fail loc "You cannot use ${@} with inferred rules."

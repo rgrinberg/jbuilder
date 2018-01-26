@@ -16,7 +16,33 @@ type t =
        dependencies *)
     instalable_internal_libs : Lib.Internal.t String_map.t
   ; local_public_libs        : Path.t String_map.t
+  ; anonymous_root           : Path.t
   }
+
+module Scope = struct
+  type nonrec t =
+    { from  : Path.t
+    ; scope : scope
+    ; lib_db : t
+    }
+
+  let find_exn (t : t) name =
+    match String_map.find name t.scope.libs with
+    | Some l -> Lib.Internal l
+    | None ->
+      Hashtbl.find_or_add t.lib_db.by_public_name name
+        ~f:(fun name ->
+          External (Findlib.find_exn t.lib_db.findlib name
+                      ~required_by:[Utils.jbuild_name_in ~dir:t.from]))
+
+  let find t name =
+    match find_exn t name with
+    | exception (Findlib.Findlib _) -> None
+    | x -> Some x
+
+  let root t = t.scope.scope.root
+  let resolve t = Jbuild.Scope.resolve t.scope.scope
+end
 
 let local_public_libs t = t.local_public_libs
 
@@ -104,7 +130,7 @@ let compute_instalable_internal_libs t ~internal_libraries =
       else
         t)
 
-let create findlib ~scopes internal_libraries =
+let create findlib ~scopes ~root internal_libraries =
   let local_public_libs =
     List.fold_left internal_libraries ~init:String_map.empty ~f:(fun acc (dir, lib) ->
       match lib.Library.public with
@@ -117,11 +143,12 @@ let create findlib ~scopes internal_libraries =
     ; by_internal_name = Hashtbl.create 1024
     ; instalable_internal_libs = String_map.empty
     ; local_public_libs
+    ; anonymous_root = root
     }
   in
   (* Initializes the scopes, including [Path.root] so that when there are no <pkg>.opam
      files in parent directories, the scope is the whole workspace. *)
-  List.iter scopes ~f:(fun (scope : Scope.t) ->
+  List.iter scopes ~f:(fun (scope : Jbuild.Scope.t) ->
     Hashtbl.add t.by_internal_name ~key:scope.root
       ~data:{ libs = String_map.empty
             ; scope
@@ -274,3 +301,27 @@ let unique_library_name t (lib : Lib.t) =
       match scope.scope.name with
       | None -> lib.name ^ "@"
       | Some s -> lib.name ^ "@" ^ s
+
+let find_scope t ~dir =
+  let scope = Hashtbl.find_exn t.by_internal_name dir
+                ~string_of_key:Path.to_string
+                ~table_desc:(fun _ -> "t.by_internal_name") in
+  { Scope.from = dir
+  ; lib_db = t
+  ; scope
+  }
+
+let external_ t =
+  { Scope.from = Path.root
+  ; lib_db = t
+  ; scope =
+      { libs = String_map.empty
+      ; scope = Jbuild.Scope.empty
+      }
+  }
+
+let anonymous t =
+  { Scope.from = t.anonymous_root
+  ; lib_db = t
+  ; scope = internal_name_scope t ~dir:t.anonymous_root
+  }

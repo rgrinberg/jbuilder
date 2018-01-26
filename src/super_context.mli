@@ -14,7 +14,7 @@ module Dir_with_jbuild : sig
     { src_dir : Path.t
     ; ctx_dir : Path.t (** [_build/context-name/src_dir] *)
     ; stanzas : Stanzas.t
-    ; scope   : Scope.t
+    ; scope   : Lib_db.Scope.t
     }
 end
 
@@ -40,7 +40,7 @@ val stanzas_to_consider_for_install : t -> (Path.t * Stanza.t) list
 val cxx_flags : t -> string list
 val libs      : t -> Lib_db.t
 
-val expand_vars : t -> scope:Scope.t -> dir:Path.t -> String_with_vars.t -> string
+val expand_vars : t -> scope:Lib_db.Scope.t -> dir:Path.t -> String_with_vars.t -> string
 
 val add_rule
   :  t
@@ -103,6 +103,9 @@ module Libs : sig
   val find : t -> from:Path.t -> string -> Lib.t option
   val best_lib_dep_names_exn : t -> dir:Path.t -> Lib_dep.t list -> string list
 
+  val anonymous : t -> Lib_db.Scope.t
+  val external_ : t -> Lib_db.Scope.t
+
   val all_ppx_runtime_deps_exn
     :  t
     -> dir:Path.t
@@ -164,7 +167,7 @@ module Deps : sig
   (** Evaluates to the actual list of dependencies, ignoring aliases *)
   val interpret
     :  t
-    -> scope:Scope.t
+    -> scope:Lib_db.Scope.t
     -> dir:Path.t
     -> Dep_conf.t list
     -> (unit, Path.t list) Build.t
@@ -196,7 +199,7 @@ module Action : sig
     -> dir:Path.t
     -> dep_kind:Build.lib_dep_kind
     -> targets:targets
-    -> scope:Scope.t
+    -> scope:Lib_db.Scope.t
     -> (Path.t list, Action.t) Build.t
 end
 
@@ -213,7 +216,7 @@ module PP : sig
     -> preprocess:Preprocess_map.t
     -> preprocessor_deps:Dep_conf.t list
     -> lib_name:string option
-    -> scope:Scope.t
+    -> scope:Lib_db.Scope.t
     -> Module.t String_map.t
 
   (** Get a path to a cached ppx driver *)
@@ -228,7 +231,7 @@ end
 
 val expand_and_eval_set
   :  t
-  -> scope:Scope.t
+  -> scope:Lib_db.Scope.t
   -> dir:Path.t
   -> Ordered_set_lang.Unexpanded.t
   -> standard:string list
