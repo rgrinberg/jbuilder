@@ -30,6 +30,7 @@ end
 (* Directories with library names *)
 let dirs =
   [ "src/result"       , Some "Result"
+  ; "src/fiber"        , Some "Fiber"
   ; "vendor/boot"      , None
   ; "vendor/usexp/src" , Some "Usexp"
   ; "src"              , None
