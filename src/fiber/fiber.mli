@@ -1,4 +1,4 @@
-(** Fibers *)
+(** Concurrency library *)
 
 (** {1 Generals} *)
 
