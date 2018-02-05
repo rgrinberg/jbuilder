@@ -439,7 +439,7 @@ let create ~(kind : Kind.t) ~path ~base_env ~env_extra ~name ~merlin
 
   let implicit = not (List.mem ~set:targets Workspace.Context.Target.Native) in
   create_one () ~implicit ~name ~merlin >>= fun native ->
-  Fiber.nfork_and_join targets ~f:(function
+  Fiber.parallel_map targets ~f:(function
     | Native -> Fiber.return None
     | Named findlib_toolchain ->
       let name = sprintf "%s.%s" name findlib_toolchain in

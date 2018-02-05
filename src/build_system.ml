@@ -90,28 +90,22 @@ module Dependency_path = struct
     Fiber.Var.set var t (f ~dependency_path)
 end
 
-let report_build_errors_and_fill_ivar ~ivar ~dependency_path ~f =
+let report_build_errors ~dependency_path ~f =
   Fiber.with_error_handler f
     ~on_error:(fun exn ->
       Report_error.report exn
         ~dependency_path:(List.map dependency_path ~f:(fun x ->
           x.Dependency_path.requested_file)))
-  >>= fun res ->
-  Fiber.Ivar.fill ivar res
-  >>>
-  Fiber.return res
+
+let wrap_build_file requested_file ~targets ~f =
+  Dependency_path.push requested_file ~targets ~f:(fun ~dependency_path ->
+    report_build_errors ~dependency_path ~f)
 
 module Exec_status = struct
-  (* Ivar that holds the evaluation of a rule *)
-  type rule_evaluation = (Action.t * Pset.t) Fiber.Ivar.t
+  type rule_evaluation = (Action.t * Pset.t) Fiber.Future.t
+  type rule_execution = unit Fiber.Future.t
 
-  (* Ivar that holds the result of the execution of a rule *)
-  type rule_execution = unit Fiber.Ivar.t
-
-  (* Computation that evaluate a rule *)
   type eval_rule = unit -> (Action.t * Pset.t) Fiber.t
-
-  (* Computation that execute a rule *)
   type exec_rule = rule_evaluation -> unit Fiber.t
 
   module Evaluating_rule = struct
@@ -662,7 +656,7 @@ let rec compile_rule t ?(copy_source=false) pre_rule =
       (fun () ->
          wait_for_deps t static_deps)
       (fun () ->
-         Fiber.Ivar.read rule_evaluation >>= fun (action, dyn_deps) ->
+         Fiber.Future.wait rule_evaluation >>= fun (action, dyn_deps) ->
          wait_for_deps t (Pset.diff dyn_deps static_deps)
          >>| fun () ->
          (action, dyn_deps))
@@ -1014,42 +1008,31 @@ and wait_for_file t fn =
       die "File unavailable: %s" (Path.to_string_maybe_quoted fn)
 
 and wait_for_file_found fn (File_spec.T file) =
-  Dependency_path.push fn ~targets:file.rule.targets ~f:(fun ~dependency_path ->
+  wrap_build_file fn ~targets:file.rule.targets ~f:(fun () ->
     match file.rule.exec with
     | Not_started { eval_rule; exec_rule } ->
-      let running : Exec_status.Running.t =
-        { rule_evaluation = Fiber.Ivar.create ()
-        ; rule_execution  = Fiber.Ivar.create ()
-        }
-      in
-      file.rule.exec <- Running running;
-      Fiber.fork_and_join
-        (fun () ->
-           report_build_errors_and_fill_ivar
-             ~dependency_path
-             ~f:eval_rule
-             ~ivar:running.rule_evaluation)
-        (fun () ->
-           report_build_errors_and_fill_ivar
-             ~dependency_path
-             ~f:(fun () -> exec_rule running.rule_evaluation)
-             ~ivar:running.rule_execution)
-      >>| snd
-    | Running { rule_execution; _ } ->
-      Fiber.Ivar.read rule_execution
-    | Evaluating_rule { rule_evaluation; exec_rule } ->
-      let rule_execution = Fiber.Ivar.create () in
+      Fiber.fork eval_rule
+      >>= fun rule_evaluation ->
+      Fiber.fork (fun () -> exec_rule rule_evaluation)
+      >>= fun rule_execution ->
       file.rule.exec <-
         Running { rule_evaluation
                 ; rule_execution
                 };
-      report_build_errors_and_fill_ivar
-        ~dependency_path
-        ~f:(fun () -> exec_rule rule_evaluation)
-        ~ivar:rule_execution)
+      Fiber.Future.wait rule_execution
+    | Running { rule_execution; _ } ->
+      Fiber.Future.wait rule_execution
+    | Evaluating_rule { rule_evaluation; exec_rule } ->
+      Fiber.fork (fun () -> exec_rule rule_evaluation)
+      >>= fun rule_execution ->
+      file.rule.exec <-
+        Running { rule_evaluation
+                ; rule_execution
+                };
+      Fiber.Future.wait rule_execution)
 
 and wait_for_deps t deps =
-  Fiber.nfork_and_join_unit (Pset.elements deps) ~f:(wait_for_file t)
+  Fiber.parallel_iter (Pset.elements deps) ~f:(wait_for_file t)
 
 let stamp_file_for_files_of t ~dir ~ext =
   let files_of_dir =
@@ -1161,7 +1144,7 @@ let eval_request t ~request ~process_target =
   in
 
   let process_targets ts =
-    Fiber.nfork_and_join_unit (Pset.elements ts) ~f:process_target
+    Fiber.parallel_iter (Pset.elements ts) ~f:process_target
   in
 
   Fiber.fork_and_join_unit
@@ -1300,37 +1283,35 @@ let build_rules_internal ?(recursive=false) t ~request =
       Fiber.return ()
     else begin
       rules_seen := Id_set.add ir.id !rules_seen;
-      let ivar = Fiber.Ivar.create () in
-      rules := ivar :: !rules;
       (match ir.exec with
-      | Running { rule_evaluation; _ } | Evaluating_rule { rule_evaluation; _ } ->
-        Fiber.Ivar.read rule_evaluation
-      | Not_started { eval_rule; exec_rule } ->
-        let rule_evaluation = Fiber.Ivar.create () in
-        ir.exec <- Evaluating_rule { rule_evaluation
-                                   ; exec_rule
-                                   };
-        Dependency_path.push fn ~targets:ir.targets ~f:(fun ~dependency_path ->
-          report_build_errors_and_fill_ivar
-            ~dependency_path
-            ~ivar:rule_evaluation
-            ~f:eval_rule))
-      >>= fun (action, dyn_deps) ->
-      let rule =
+       | Running { rule_evaluation; _ } | Evaluating_rule { rule_evaluation; _ } ->
+         Fiber.return rule_evaluation
+       | Not_started { eval_rule; exec_rule } ->
+         Fiber.fork (fun () ->
+           wrap_build_file  fn ~targets:ir.targets ~f:eval_rule)
+         >>| fun rule_evaluation ->
+         ir.exec <- Evaluating_rule { rule_evaluation
+                                    ; exec_rule
+                                    };
+         rule_evaluation)
+      >>= fun rule_evaluation ->
+      Fiber.fork (fun () ->
+        Fiber.Future.wait rule_evaluation
+        >>| fun (action, dyn_deps) ->
         { Rule.
           id      = ir.id
         ; deps    = Pset.union ir.static_deps dyn_deps
         ; targets = ir.targets
         ; context = ir.context
         ; action  = action
-        }
-      in
-      Fiber.Ivar.fill ivar rule
-      >>= fun () ->
-      if recursive then
-        Fiber.nfork_and_join_unit (Pset.elements rule.deps) ~f:loop
-      else
+        })
+      >>= fun rule ->
+      rules := rule :: !rules;
+      if not recursive then
         Fiber.return ()
+      else
+        Fiber.Future.wait rule >>= fun rule ->
+        Fiber.parallel_iter (Pset.elements rule.deps) ~f:loop
     end
   in
   let targets = ref Pset.empty in
@@ -1338,7 +1319,7 @@ let build_rules_internal ?(recursive=false) t ~request =
     targets := Pset.add fn !targets;
     loop fn)
   >>= fun () ->
-  Fiber.nfork_and_join !rules ~f:Fiber.Ivar.read
+  Fiber.all (List.map !rules ~f:Fiber.Future.wait)
   >>| fun rules ->
   let rules =
     List.fold_left rules ~init:Pmap.empty ~f:(fun acc (r : Rule.t) ->

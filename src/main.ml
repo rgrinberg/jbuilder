@@ -47,7 +47,7 @@ let setup ?(log=Log.no_log)
         }
   in
 
-  Fiber.nfork_and_join workspace.contexts ~f:(fun ctx_def ->
+  Fiber.parallel_map workspace.contexts ~f:(fun ctx_def ->
     let name = Workspace.Context.name ctx_def in
     Context.create ctx_def ~merlin:(workspace.merlin_context = Some name) ~use_findlib)
   >>= fun contexts ->

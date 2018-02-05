@@ -29,26 +29,86 @@ module O : sig
   val (>>|) : 'a t -> ('a -> 'b) -> 'b t
 end
 
-(** {1 Combining} *)
+(** {1 Forking execution} *)
 
-(** The following functions allow to combine two or more fibers. Note that when the
-    execution of a fiber fails because of an exception, the other fibers will continue to
-    run.
+module Future : sig
+  type 'a fiber
 
-    This is why combining functions always take [unit -> _ t] functions rather than [_ t]
-    values directly.
+  (** A future represent a promise that will eventually yield a value. It is used to
+      represent the result of a fiber running in the background. *)
+  type 'a t
+
+  (** Wait for the given future to yield a value. *)
+  val wait : 'a t -> 'a fiber
+end with type 'a fiber := 'a t
+
+(** [fork f] creates a sub-fiber and return a [Future.t] to wait its result. *)
+val fork : (unit -> 'a t) -> 'a Future.t t
+
+(** [nfork l] is similar to [fork] but creates [n] sub-fibers. *)
+val nfork : (unit -> 'a t) list -> 'a Future.t list t
+
+(** [nfork_map l ~f] is the same as [nfork (List.map l ~f:(fun x () -> f x))] but more
+    efficient. *)
+val nfork_map : 'a list -> f:('a -> 'b t) -> 'b Future.t list t
+
+(** {1 Joining} *)
+
+(** The following combinators are helpers to combine the result of several fibers into
+    one. Note that they do not introduce parallelism. *)
+
+val both : 'a t -> 'b t -> ('a * 'b) t
+val all : 'a t list -> 'a list t
+val all_unit : unit t list -> unit t
+
+(** {1 Forking + joining} *)
+
+(** The following functions combine forking 2 or more fibers followed by joining the
+    results. For every function, we give an equivalent implementation using the more basic
+    functions as documentation. Note however that these functions are implemented as
+    primitives and so are more efficient that the suggested implementation. *)
+
+(** For two fibers and wait for their results:
+
+    {[
+      let fork_and_join f g =
+        fork f >>= fun a ->
+        fork g >>= fun b ->
+        both (Future.wait a) (Future.wait b)
+      ]}
 *)
-
 val fork_and_join : (unit -> 'a t) -> (unit -> 'b t) -> ('a * 'b) t
 
-(** [fork_and_join_unit f g] is the same as [fork_and_join f g >>| snd] but slightly more
-    efficient. *)
+(** Same but assume the first fiber returns [unit]:
+
+    {[
+      let fork_and_join_unit f g =
+        fork f >>= fun a ->
+        fork g >>= fun b ->
+        Future.wait a >>> Future.wait b
+    ]}
+*)
 val fork_and_join_unit : (unit -> unit t) -> (unit -> 'a t) -> 'a t
 
-val nfork_and_join : 'a list -> f:('a -> 'b t) -> 'b list t
+(** Map a list in parallel:
 
-(** Same as [nfork_and_join l ~f >>| ignore] bit more efficient. *)
-val nfork_and_join_unit : 'a list -> f:('a -> unit t) -> unit t
+    {[
+      let parallel_map l ~f =
+        nfork_map l ~f >>= fun futures ->
+        all (List.map futures ~f:Future.wait)
+    ]}
+*)
+val parallel_map : 'a list -> f:('a -> 'b t) -> 'b list t
+
+(** Iter over a list in parallel:
+
+    {[
+      let parallel_iter l ~f =
+        nfork_map l ~f >>= fun futures ->
+        all_unit (List.map futures ~f:Future.wait)
+    ]}
+*)
+val parallel_iter : 'a list -> f:('a -> unit t) -> unit t
 
 (** {1 Local storage} *)
 
@@ -106,6 +166,14 @@ val with_error_handler
            (fun () -> sleep 1 >>| fun () -> raise Exit)
            (fun () -> sleep 3))
     ]}
+
+    same for this code:
+
+    {[
+      wait_errors
+        (fork (fun () -> sleep 3) >>= fun _ ->
+         raise Exit)
+    }]
 *)
 val wait_errors : 'a t -> ('a, unit) result t
 
@@ -120,7 +188,7 @@ val fold_errors
   -> on_error:(exn -> 'b -> 'b)
   -> ('a, 'b) result t
 
-(** [catch_errors f] is:
+(** [collect_errors f] is:
 
     {[
       fold_errors f
@@ -128,7 +196,7 @@ val fold_errors
         ~on_error:(fun e l -> e :: l)
     ]}
 *)
-val catch_errors
+val collect_errors
   :  (unit -> 'a t)
   -> ('a, exn list) result t
 

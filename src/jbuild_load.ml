@@ -107,7 +107,7 @@ end
         | Literal x -> Inl x
         | Script  x -> Inr x)
     in
-    Fiber.nfork_and_join dynamic ~f:(fun { dir; scope } ->
+    Fiber.parallel_map dynamic ~f:(fun { dir; scope } ->
       let file = Path.relative dir "jbuild" in
       let generated_jbuild =
         Path.append (Path.relative generated_jbuilds_dir context.name) file

@@ -878,13 +878,13 @@ let install_uninstall ~what =
        let install_files_by_context =
          CMap.of_alist_multi install_files |> CMap.bindings
        in
-       Fiber.nfork_and_join_unit install_files_by_context
+       Fiber.parallel_iter install_files_by_context
          ~f:(fun (context, install_files) ->
            get_prefix context ~from_command_line:prefix_from_command_line
            >>= fun prefix ->
            get_libdir context ~libdir_from_command_line
            >>= fun libdir ->
-           Fiber.nfork_and_join_unit install_files ~f:(fun path ->
+           Fiber.parallel_iter install_files ~f:(fun path ->
              let purpose = Process.Build_job install_files in
              Process.run ~purpose Strict (Path.to_string opam_installer)
                ([ sprintf "-%c" what.[0]

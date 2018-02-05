@@ -138,6 +138,12 @@ let return x _ k = k x
 
 let never _ _ = ()
 
+let catch f ctx k =
+  try
+    f () ctx k
+  with exn ->
+    EC.forward_error ctx exn
+
 module O = struct
   let (>>>) a b ctx k =
     a ctx (fun () -> b ctx k)
@@ -151,7 +157,22 @@ end
 
 open O
 
-type ('a, 'b) both_state =
+let both a b =
+  a >>= fun x ->
+  b >>= fun y ->
+  return (x, y)
+
+let all l =
+  let rec loop l acc =
+    match l with
+    | [] -> return (List.rev acc)
+    | t :: l -> t >>= fun x -> loop l (x :: acc)
+  in
+  loop l []
+
+let all_unit l = List.fold_left l ~init:(return ()) ~f:(>>>)
+
+type ('a, 'b) fork_and_join_state =
   | Nothing_yet
   | Got_a of 'a
   | Got_b of 'b
@@ -207,7 +228,7 @@ let list_of_option_array =
   in
   fun a -> loop a (Array.length a) []
 
-let nfork_and_join l ~f ctx k =
+let parallel_map l ~f ctx k =
   match l with
   | [] -> k []
   | [x] -> f x ctx (fun x -> k [x])
@@ -228,7 +249,7 @@ let nfork_and_join l ~f ctx k =
       with exn ->
         EC.forward_error ctx exn)
 
-let nfork_and_join_unit l ~f ctx k =
+let parallel_iter l ~f ctx k =
   match l with
   | [] -> k ()
   | [x] -> f x ctx k
@@ -314,16 +335,10 @@ let fold_errors f ~init ~on_error =
   | Ok _ as ok -> ok
   | Error ()   -> Error !acc
 
-let catch_errors f =
+let collect_errors f =
   fold_errors f
     ~init:[]
     ~on_error:(fun e l -> e :: l)
-
-let catch f ctx k =
-  try
-    f () ctx k
-  with exn ->
-    EC.forward_error ctx exn
 
 let finalize f ~finally =
   wait_errors (catch f) >>= fun res ->
@@ -371,6 +386,45 @@ module Ivar = struct
     | Empty q ->
       Queue.push { Handler. run = k; ctx } q
 end
+
+module Future = struct
+  type 'a t = 'a Ivar.t
+
+  let wait = Ivar.read
+end
+
+let fork f ctx k =
+  let ivar = Ivar.create () in
+  EC.add_refs ctx 1;
+  begin
+    try
+      f () ctx (fun x -> Ivar.fill ivar x ctx ignore)
+    with exn ->
+      EC.forward_error ctx exn
+  end;
+  k ivar
+
+let nfork_map l ~f ctx k =
+  match l with
+  | [] -> k []
+  | [x] -> fork (fun () -> f x) ctx (fun ivar -> k [ivar])
+  | l ->
+    let n = List.length l in
+    EC.add_refs ctx (n - 1);
+    let ivars =
+      List.map l ~f:(fun x ->
+        let ivar = Ivar.create () in
+        begin
+          try
+            f x ctx (fun x -> Ivar.fill ivar x ctx ignore)
+          with exn ->
+            EC.forward_error ctx exn
+        end;
+        ivar)
+    in
+    k ivars
+
+let nfork l : _ Future.t list t = nfork_map l ~f:(fun f -> f ())
 
 module Mutex = struct
   type t =
