@@ -128,7 +128,9 @@ let bootstrap () =
   in
   try
     main ()
-  with exn ->
+  with
+  | Fiber.Scheduler.Never -> exit 1
+  | exn ->
     Report_error.report exn;
     exit 1
 

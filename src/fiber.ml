@@ -53,10 +53,16 @@ module Execution_context : sig
   val add_refs : t -> int -> unit
   val deref : t -> unit
 
+  (* Create a new context with a new referebce count. [on_release] is called when the
+     context is no longer used. *)
   val create_sub
     :  t
-    -> on_error:(exn -> unit)
     -> on_release:(unit -> unit)
+    -> t
+
+  val set_error_handler
+    :  t
+    -> on_error:(exn -> unit)
     -> t
 
   val vars : t -> Binding.t Int_map.t
@@ -75,7 +81,7 @@ end = struct
 
   let create_initial () =
     { on_error   = reraise
-    ; fibers     = ref 0
+    ; fibers     = ref 1
     ; vars       = Int_map.empty
     ; on_release = ignore
     }
@@ -117,8 +123,11 @@ end = struct
     forward_error t exn;
     deref t
 
-  let create_sub t ~on_error ~on_release =
-    { t with on_error; on_release; fibers = ref 1 }
+  let create_sub t ~on_release =
+    { t with on_release; fibers = ref 1 }
+
+  let set_error_handler t ~on_error =
+    { t with on_error }
 end
 
 module EC = Execution_context
@@ -126,6 +135,8 @@ module EC = Execution_context
 type 'a t = Execution_context.t -> ('a -> unit) -> unit
 
 let return x _ k = k x
+
+let never _ _ = ()
 
 module O = struct
   let (>>>) a b ctx k =
@@ -264,19 +275,23 @@ module Var = struct
     fiber ctx k
 end
 
-let iter_errors_internal (f : unit -> _ t) ~on_error ctx k =
+let with_error_handler f ~on_error ctx k =
   let on_error exn =
-    match on_error with
-    | None ->
+    try
+      on_error exn
+    with exn ->
+      (* Increase the ref-counter of the parent context since this error doesn't originate
+         from a fiber and so doesn't change the number of running fibers. *)
       EC.add_refs ctx 1;
       EC.forward_error ctx exn
-    | Some f ->
-      try
-        f exn
-      with exn ->
-        EC.add_refs ctx 1;
-        EC.forward_error ctx exn
   in
+  let ctx = EC.set_error_handler ctx ~on_error in
+  try
+    f () ctx k
+  with exn ->
+    EC.forward_error ctx exn
+
+let wait_errors t ctx k =
   let result = ref (Error ()) in
   let on_release () =
     try
@@ -284,39 +299,38 @@ let iter_errors_internal (f : unit -> _ t) ~on_error ctx k =
     with exn ->
       EC.forward_error ctx exn
   in
-  let sub_ctx = EC.create_sub ctx ~on_error ~on_release in
-  try
-    f () sub_ctx (fun x ->
-      result := Ok x;
-      EC.deref sub_ctx);
-  with exn ->
-    EC.forward_error sub_ctx exn
+  let sub_ctx = EC.create_sub ctx ~on_release in
+  t sub_ctx (fun x ->
+    result := Ok x;
+    EC.deref sub_ctx)
 
-let wait_errors f = iter_errors_internal f ~on_error:None
-let iter_errors f ~on_error = iter_errors_internal f ~on_error:(Some on_error)
-
-let fold_errors f ~init ~on_error ctx k =
+let fold_errors f ~init ~on_error =
   let acc = ref init in
   let on_error exn =
     acc := on_error exn !acc
   in
-  iter_errors f ~on_error ctx (function
-    | Ok _ as ok -> k ok
-    | Error ()   -> k (Error !acc))
+  wait_errors (with_error_handler f ~on_error)
+  >>| function
+  | Ok _ as ok -> ok
+  | Error ()   -> Error !acc
 
 let catch_errors f =
   fold_errors f
     ~init:[]
     ~on_error:(fun e l -> e :: l)
 
-let sink _ _ = ()
+let catch f ctx k =
+  try
+    f () ctx k
+  with exn ->
+    EC.forward_error ctx exn
 
 let finalize f ~finally =
-  wait_errors f >>= fun res ->
+  wait_errors (catch f) >>= fun res ->
   finally () >>= fun () ->
   match res with
   | Ok x -> return x
-  | Error () -> sink
+  | Error () -> never
 
 module Handler = struct
   type 'a t =
@@ -467,12 +481,13 @@ module Scheduler = struct
       ; handler = { Handler. ctx; run = k }
       }
 
+  exception Never
+
   let rec go_rec info result =
     match !result with
     | Some x -> x
     | None ->
-      if Running_jobs.count () = 0 then
-        code_errorf "Fiber.Scheduler.go: no more processes running";
+      if Running_jobs.count () = 0 then raise Never;
       let job, status = Running_jobs.wait () in
       if not (Queue.is_empty waiting_for_available_job) then
         Handler.run (Queue.pop waiting_for_available_job) info;
@@ -488,11 +503,9 @@ module Scheduler = struct
     let info = { log; original_cwd = cwd } in
     let fiber =
       Var.set info_var info
-        (iter_errors (fun () -> fiber) ~on_error:Report_error.report)
+        (with_error_handler (fun () -> fiber) ~on_error:Report_error.report)
     in
     let result = ref None in
     fiber (Execution_context.create_initial ()) (fun x -> result := Some x);
-    match go_rec info result with
-    | Ok x -> x
-    | Error _ -> raise Already_reported
+    go_rec info result
 end

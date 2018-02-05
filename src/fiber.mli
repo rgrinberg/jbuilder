@@ -12,6 +12,9 @@ type 'a t
 (** Create a fiber that has already terminated. *)
 val return : 'a -> 'a t
 
+(** Fiber that never completes. *)
+val never : 'a t
+
 module O : sig
   (** [>>>] is a sequencing operator. [a >>> b] is the fiber that
       first executes [a] and then [b]. *)
@@ -72,34 +75,45 @@ end with type 'a fiber := 'a t
 
 (** {1 Error handling} *)
 
+(** [with_error_handler f ~on_error] calls [on_error] for every exception raised during
+    the execution of [f]. This include exceptions raised when calling [f ()] or during the
+    execution of fibers after [f ()] has returned. Exceptions raised by [on_error] are
+    passed on to the parent error handler.
+
+    It is guaranteed that after the fiber has returned a value, [on_error] will never be
+    called.
+*)
+val with_error_handler
+  :  (unit -> 'a t)
+  -> on_error:(exn -> unit)
+  -> 'a t
+
+(** If [t] completes without raising, then [wait_errors t] is the same as [t () >>| fun x
+    -> Ok x]. However, if the execution of [t] is aborted by an exception, then
+    [wait_errors t] will complete and yield [Error ()].
+
+    Note that [wait_errors] only completes after all sub-fibers have completed. For
+    instance, in the following code [wait_errors] will only complete after 3s:
+
+    {[
+      wait_errors
+        (fork_and_join
+           (fun () -> sleep 1 >>| fun () -> raise Exit)
+           (fun () -> sleep 3))
+    ]}
+*)
+val wait_errors : 'a t -> ('a, unit) result t
+
 (** [fold_errors f ~init ~on_error] calls [on_error] for every exception raised during the
     execution of [f]. This include exceptions raised when calling [f ()] or during the
     execution of fibers after [f ()] has returned.
 
-    Exceptions raised by [on_error] are passed on to the parent
-    error handler. *)
+    Exceptions raised by [on_error] are passed on to the parent error handler. *)
 val fold_errors
   :  (unit -> 'a t)
   -> init:'b
   -> on_error:(exn -> 'b -> 'b)
   -> ('a, 'b) result t
-
-(** [iter_errors f ~on_error] is:
-
-    {[
-      fold_errors f ~init:() ~on_error:(fun e () ->
-        on_error e)
-    ]}
-*)
-val iter_errors
-  :  (unit -> 'a t)
-  -> on_error:(exn -> unit)
-  -> ('a, unit) result t
-
-(** Same as [iter_error f ~on_error:reraise]. *)
-val wait_errors
-  :  (unit -> 'a t)
-  -> ('a, unit) result t
 
 (** [catch_errors f] is:
 
@@ -151,8 +165,12 @@ end with type 'a fiber := 'a t
 (** {1 Running fibers} *)
 
 module Scheduler : sig
-  (** [go ?log t] runs the following fiber until it terminates. *)
+  (** [go ?log t] runs the following fiber until it terminates. If it becomes clear that
+      the fiber will never complete, for instance because of an uncaught exception,
+      {!Never} is raised. *)
   val go : ?log:Log.t -> 'a t -> 'a
+
+  exception Never
 
   (** Wait for the following process to terminate *)
   val wait_for_process : int -> Unix.process_status t

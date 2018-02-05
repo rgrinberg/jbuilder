@@ -17,6 +17,7 @@ exception Fatal_error of string
     error message shouldn't try to be developper friendly rather than user friendly.  *)
 exception Code_error of string
 
+(* CR-soon diml: we won't need this once we can generate rules dynamically *)
 (** Raised for errors that have already been reported to the user and shouldn't be
     reported again. This might happen when trying to build a dependency that has already
     failed. *)

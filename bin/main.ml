@@ -1200,6 +1200,8 @@ let () =
     match Term.eval_choice default all ~catch:false with
     | `Error _ -> exit 1
     | _ -> exit 0
-  with exn ->
+  with
+  | Fiber.Scheduler.Never -> exit 1
+  | exn ->
     Report_error.report exn;
     exit 1

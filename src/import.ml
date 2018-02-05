@@ -47,11 +47,6 @@ let map_result x ~f =
   | Ok x -> Ok (f x)
   | Error _ as x -> x
 
-(* CR-soon diml: move that in a [Errors] *)
-let ok_or_already_reported = function
-  | Ok x -> x
-  | Error () -> raise Already_reported
-
 type ('a, 'b) either =
   | Inl of 'a
   | Inr of 'b
