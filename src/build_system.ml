@@ -87,19 +87,13 @@ module Dependency_path = struct
       ; targets_seen = Pset.union targets t.targets_seen
       }
     in
-    Fiber.Var.set var t (f ~dependency_path)
-end
-
-let report_build_errors ~dependency_path ~f =
-  Fiber.with_error_handler f
-    ~on_error:(fun exn ->
+    let on_error exn =
       Report_error.report exn
         ~dependency_path:(List.map dependency_path ~f:(fun x ->
-          x.Dependency_path.requested_file)))
-
-let wrap_build_file requested_file ~targets ~f =
-  Dependency_path.push requested_file ~targets ~f:(fun ~dependency_path ->
-    report_build_errors ~dependency_path ~f)
+          x.requested_file))
+    in
+    Fiber.Var.set var t (Fiber.with_error_handler f ~on_error)
+end
 
 module Exec_status = struct
   type rule_evaluation = (Action.t * Pset.t) Fiber.Future.t
@@ -1008,7 +1002,7 @@ and wait_for_file t fn =
       die "File unavailable: %s" (Path.to_string_maybe_quoted fn)
 
 and wait_for_file_found fn (File_spec.T file) =
-  wrap_build_file fn ~targets:file.rule.targets ~f:(fun () ->
+  Dependency_path.push fn ~targets:file.rule.targets ~f:(fun () ->
     match file.rule.exec with
     | Not_started { eval_rule; exec_rule } ->
       Fiber.fork eval_rule
@@ -1288,7 +1282,7 @@ let build_rules_internal ?(recursive=false) t ~request =
          Fiber.return rule_evaluation
        | Not_started { eval_rule; exec_rule } ->
          Fiber.fork (fun () ->
-           wrap_build_file  fn ~targets:ir.targets ~f:eval_rule)
+           Dependency_path.push fn ~targets:ir.targets ~f:eval_rule)
          >>| fun rule_evaluation ->
          ir.exec <- Evaluating_rule { rule_evaluation
                                     ; exec_rule
