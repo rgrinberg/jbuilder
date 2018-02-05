@@ -1,11 +1,12 @@
-[@@@warning "-33"]
-open Result_compat
-open Pervasives
-[@@@warning "+33"]
+include struct
+  [@@@warning "-33"]
+  open Result_compat
+  open Pervasives
 
-type ('a, 'error) t = ('a, 'error) result =
-  | Ok    of 'a
-  | Error of 'error
+  type ('a, 'error) t = ('a, 'error) result =
+    | Ok    of 'a
+    | Error of 'error
+end
 
 let map x ~f =
   match x with
