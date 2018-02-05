@@ -1,17 +1,27 @@
 (** Value with a dependency path *)
 
-type 'a t =
-  { data : 'a
-  ; required_by : entry list
-  }
+module Entry : sig
+  type t =
+    | Path of Path.t
+    | Alias of Path.t
+    | Library of string
+    | Preprocess of string list
 
-and entry =
-  | Path of Path.t
-  | Virt of string
+  (** [jbuild_file_in ~dir = Path (Path.relative dir "jbuild")] *)
+  val jbuild_file_in : dir:Path.t -> t
+
+val to_string : t -> string
+  val pp : Format.formatter -> t -> unit
+end
+
+type 'a t =
+  { data        : 'a
+  ; required_by : Entry.t list
+  }
 
 (** Re-raise an exception and augment it's dependency path with the given entry. The
     raised exception will be wrapped. *)
-val reraise : exn -> entry -> _
+val reraise : exn -> Entry.t -> _
 
 (** Extract a wrapped exception *)
-val unwrap_exn : exn -> exn * entry list option
+val unwrap_exn : exn -> exn * Entry.t list option

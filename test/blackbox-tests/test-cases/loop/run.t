@@ -24,6 +24,6 @@ does show a cycle.
   --> _build/default/input
   --> _build/default/result2
   Dependency path:
-      input
-  --> result1
+      result1
+  --> input
   [1]

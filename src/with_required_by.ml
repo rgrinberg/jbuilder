@@ -1,15 +1,30 @@
 open Import
 
+module Entry = struct
+  type t =
+    | Path of Path.t
+    | Alias of Path.t
+    | Library of string
+    | Preprocess of string list
+
+  let jbuild_file_in ~dir = Path (Utils.jbuild_file_in ~dir)
+
+  let to_string = function
+    | Path p -> Utils.describe_target p
+    | Alias p -> "alias " ^ Utils.describe_target p
+    | Library s -> sprintf "%S" s
+    | Preprocess l -> Sexp.to_string (List [Atom "pps"; Sexp.To_sexp.(list string) l])
+
+  let pp ppf x =
+    Format.pp_print_string ppf (to_string x)
+end
+
 type 'a t =
   { data : 'a
-  ; required_by : entry list
+  ; required_by : Entry.t list
   }
 
-and entry =
-  | Path of Path.t
-  | Virt of string
-
-exception E of exn * entry list
+exception E of exn * Entry.t list
 
 let reraise exn entry =
   reraise (

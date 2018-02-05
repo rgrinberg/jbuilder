@@ -120,10 +120,9 @@ end
       in
       let context = Option.value context.for_host ~default:context in
       let pkgs =
-        List.map requires ~f:(Findlib.find_exn context.findlib
-                                ~required_by:[Utils.jbuild_name_in ~dir:dir])
-        |> Findlib.closure ~required_by:[Utils.jbuild_name_in ~dir]
-             ~local_public_libs:String_map.empty
+        let required_by = [With_required_by.Entry.jbuild_file_in ~dir] in
+        List.map requires ~f:(Findlib.find_exn context.findlib ~required_by)
+        |> Findlib.closure ~required_by ~local_public_libs:String_map.empty
       in
       let includes =
         List.fold_left pkgs ~init:Path.Set.empty ~f:(fun acc pkg ->

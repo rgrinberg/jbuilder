@@ -33,7 +33,8 @@ let report_with_backtrace ppf exn ~backtrace =
        | Not_found -> "not found"
        | Hidden    -> "is hidden"
        | _         -> "is unavailable");
-    List.iter required_by ~f:(Format.fprintf ppf "-> required by %S\n");
+    List.iter required_by ~f:(Format.fprintf ppf "-> required by %a\n"
+                                With_required_by.Entry.pp);
     begin match reason with
     | Not_found -> ()
     | Hidden ->
@@ -61,14 +62,16 @@ let report_with_backtrace ppf exn ~backtrace =
     Format.fprintf ppf
       "@{<error>Error@}: Conflict between internal and external version of library %S:\n\
        - it is defined locally in %s\n\
-       - it is required by external library %S\n\
+       - it is required by external library %a\n\
        %s\n\
        This cannot work.\n"
       package
-      (Utils.jbuild_name_in ~dir:(Path.drop_optional_build_context defined_locally_in))
-      required_by
+      (Utils.describe_target
+         (Utils.jbuild_file_in ~dir:(Path.drop_optional_build_context defined_locally_in)))
+      With_required_by.Entry.pp required_by
       (required_locally_in
-       |> List.map ~f:(sprintf "  -> required by %S")
+       |> List.map ~f:(fun x -> "  -> required by " ^
+                                With_required_by.Entry.to_string x)
        |> String.concat ~sep:"\n");
     false
   | Code_error msg ->
@@ -98,7 +101,8 @@ let report_aux ppf ?dependency_path exn =
   if !Clflags.debug_dep_path then
     Option.iter dependency_path ~f:(fun dep_path ->
       Format.fprintf ppf "Dependency path:\n    %s\n"
-        (String.concat ~sep:"\n--> " dep_path));
+        (String.concat ~sep:"\n--> "
+           (List.map dep_path ~f:With_required_by.Entry.to_string)));
   if not backtrace_printed && !Clflags.debug_backtraces then
     Format.fprintf ppf "Backtrace:\n%s"
       (Printexc.raw_backtrace_to_string backtrace);
@@ -112,11 +116,6 @@ let report exn =
   match exn with
   | Already_reported -> ()
   | _ ->
-    let dependency_path =
-      Option.map dependency_path ~f:(List.map ~f:(function
-        | With_required_by.Path p -> Utils.describe_target p
-        | With_required_by.Virt s -> s))
-    in
     report_aux err_ppf ?dependency_path exn;
     Format.pp_print_flush err_ppf ();
     let s = Buffer.contents err_buf in

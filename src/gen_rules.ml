@@ -53,7 +53,7 @@ module Gen(P : Params) = struct
       Path.relative dir (SC.expand_vars sctx ~dir ~scope s))
 
   let user_rule (rule : Rule.t) ~dir
-        ~(scope : Lib_db.Scope.t Lib_db.with_required_by) =
+        ~(scope : Lib_db.Scope.t With_required_by.t) =
     let targets : SC.Action.targets =
       match rule.targets with
       | Infer -> Infer
@@ -72,7 +72,7 @@ module Gen(P : Params) = struct
          ~scope)
 
   let copy_files_rules (def: Copy_files.t) ~src_dir ~dir
-        ~(scope : Lib_db.Scope.t Lib_db.with_required_by) =
+        ~(scope : Lib_db.Scope.t With_required_by.t) =
     let loc = String_with_vars.loc def.glob in
     let glob_in_src =
       let src_glob = SC.expand_vars sctx ~dir def.glob ~scope:scope.data in
@@ -456,7 +456,7 @@ Add it to your jbuild file to remove this warning.
      (fun a b -> a, b) <= (4, 02)
 
   let library_rules (lib : Library.t) ~dir ~files
-        ~(scope : Lib_db.Scope.t Lib_db.with_required_by) =
+        ~(scope : Lib_db.Scope.t With_required_by.t) =
     let dep_kind = if lib.optional then Build.Optional else Required in
     let flags = Ocaml_flags.make lib.buildable sctx ~scope:scope.data ~dir in
     let { modules; main_module_name; alias_module } = modules_by_lib ~dir lib in
@@ -731,7 +731,7 @@ Add it to your jbuild file to remove this warning.
       SC.add_rules sctx (List.map rules ~f:(fun r -> libs_and_cm_and_flags >>> r))
 
   let executables_rules (exes : Executables.t) ~dir ~all_modules
-    ~(scope : Lib_db.Scope.t Lib_db.with_required_by) =
+    ~(scope : Lib_db.Scope.t With_required_by.t) =
     let dep_kind = Build.Required in
     let flags = Ocaml_flags.make exes.buildable sctx ~scope:scope.data ~dir in
     let modules =
@@ -798,7 +798,7 @@ Add it to your jbuild file to remove this warning.
     SC.add_alias_action sctx alias ~locks ~stamp build
 
   let alias_rules (alias_conf : Alias_conf.t) ~dir
-        ~(scope : Lib_db.Scope.t Lib_db.with_required_by) =
+        ~(scope : Lib_db.Scope.t With_required_by.t) =
     let stamp =
       let module S = Sexp.To_sexp in
       Sexp.List
