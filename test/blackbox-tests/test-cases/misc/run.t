@@ -1,4 +1,4 @@
-  $ $JBUILDER runtest -j1 --root .
+  $ $JBUILDER runtest -j0 --root .
   File "jbuild", line 54, characters 10-209:
   Warning: Directory _build/default/dir-that-doesnt-exist doesn't exist.
           diff alias runtest

@@ -1,17 +1,17 @@
-  $ $JBUILDER runtest -j1 --root .
+  $ $JBUILDER runtest -j0 --root .
       ocamldep bar.depends.ocamldep-output
-      ocamldep foo_byte.depends.ocamldep-output
       ocamldep foo.depends.ocamldep-output
-        ocamlc foo_byte.{cmi,cmo,cmt}
         ocamlc foo.{cmi,cmo,cmt}
-        ocamlc foo_byte.cma
-      ocamlopt foo.{cmx,o}
         ocamlc bar.{cmi,cmo,cmt}
-        ocamlc foo.cma
-      ocamlopt foo.{a,cmxa}
+      ocamlopt foo.{cmx,o}
       ocamlopt bar.{cmx,o}
-      ocamlopt foo.cmxs
+      ocamlopt foo.{a,cmxa}
       ocamlopt bar.exe
+      ocamldep foo_byte.depends.ocamldep-output
+        ocamlc foo_byte.{cmi,cmo,cmt}
+        ocamlc foo_byte.cma
+        ocamlc foo.cma
+      ocamlopt foo.cmxs
   lib: [
     "_build/install/default/lib/foo/META" {"META"}
     "_build/install/default/lib/foo/opam" {"opam"}

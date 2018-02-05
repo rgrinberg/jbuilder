@@ -1,23 +1,23 @@
-  $ $JBUILDER build -j1 --root . @install
+  $ $JBUILDER build -j0 --root . @install
       ocamldep alib/alib.depends.ocamldep-output
-        ocamlc alib/alib__.{cmi,cmo,cmt}
       ocamldep blib/blib.depends.ocamldep-output
       ocamldep blib/sub/sub.depends.ocamldep-output
-      ocamlopt alib/alib__.{cmx,o}
         ocamlc blib/sub/sub.{cmi,cmo,cmt}
-      ocamlopt blib/sub/sub.{cmx,o}
         ocamlc blib/blib.{cmi,cmo,cmt}
-        ocamlc blib/sub/sub.cma
-      ocamlopt blib/sub/sub.{a,cmxa}
-      ocamlopt blib/blib.{cmx,o}
+        ocamlc alib/alib__.{cmi,cmo,cmt}
         ocamlc alib/alib.{cmi,cmo,cmt}
-        ocamlc alib/alib__Main.{cmi,cmo,cmt}
-        ocamlc blib/blib.cma
-      ocamlopt blib/sub/sub.cmxs
-      ocamlopt blib/blib.{a,cmxa}
+      ocamlopt blib/sub/sub.{cmx,o}
+      ocamlopt blib/blib.{cmx,o}
+      ocamlopt alib/alib__.{cmx,o}
       ocamlopt alib/alib.{cmx,o}
+        ocamlc alib/alib__Main.{cmi,cmo,cmt}
       ocamlopt alib/alib__Main.{cmx,o}
-        ocamlc alib/alib.cma
-      ocamlopt blib/blib.cmxs
       ocamlopt alib/alib.{a,cmxa}
+        ocamlc alib/alib.cma
       ocamlopt alib/alib.cmxs
+      ocamlopt blib/blib.{a,cmxa}
+        ocamlc blib/blib.cma
+      ocamlopt blib/blib.cmxs
+      ocamlopt blib/sub/sub.{a,cmxa}
+        ocamlc blib/sub/sub.cma
+      ocamlopt blib/sub/sub.cmxs

@@ -1,8 +1,8 @@
-  $ $JBUILDER runtest -j1 --root .
+  $ $JBUILDER runtest -j0 --root .
       ocamldep main.depends.ocamldep-output
         ocamlc bar.{cmi,cmo,cmt}
-        ocamlc foo.{cmi,cmo,cmt}
       ocamlopt bar.{cmx,o}
+        ocamlc foo.{cmi,cmo,cmt}
       ocamlopt foo.{cmx,o}
         ocamlc main.{cmi,cmo,cmt}
       ocamlopt main.{cmx,o}

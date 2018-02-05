@@ -66,7 +66,8 @@ let info_var : info Fiber.Var.t = Fiber.Var.create ()
 
 let waiting_for_available_job = Queue.create ()
 let wait_for_available_job () =
-  if Running_jobs.count () < !Clflags.concurrency then
+  let concurrency = !Clflags.concurrency in
+  if concurrency = 0 || Running_jobs.count () < concurrency then
     Fiber.Var.get_exn info_var
   else begin
     let ivar = Fiber.Ivar.create () in
@@ -75,9 +76,14 @@ let wait_for_available_job () =
   end
 
 let wait_for_process pid =
-  let ivar = Fiber.Ivar.create () in
-  Running_jobs.add { pid; ivar };
-  Fiber.Ivar.read ivar
+  if !Clflags.concurrency > 0 then
+    let ivar = Fiber.Ivar.create () in
+    Running_jobs.add { pid; ivar };
+    Fiber.Ivar.read ivar
+  else begin
+    let _pid, status = Unix.waitpid [] pid in
+    Fiber.return status
+  end
 
 let rec go_rec info =
   Fiber.yield ()

@@ -1,24 +1,24 @@
-  $ $JBUILDER build @doc -j1 --root .
+  $ $JBUILDER build @doc -j0 --root .
       ocamldep foo_byte.depends.ocamldep-output
       ocamldep foo_byte.dependsi.ocamldep-output
-      ocamldep foo.depends.ocamldep-output
-      ocamldep foo.dependsi.ocamldep-output
-          odoc _doc/odoc.css
         ocamlc foo_byte.{cmi,cmo,cmt}
+          odoc _doc/foo.byte/foo_byte.odoc
           odoc _doc/foo.byte/page-index.odoc
           odoc _doc/foo.byte/page-test.odoc
-        ocamlc foo.{cmi,cmo,cmt}
-          odoc _doc/foo/page-index.odoc
-          odoc _doc/foo/page-test.odoc
-          odoc _doc/foo.byte/foo_byte.odoc
-          odoc _doc/foo/foo.odoc
+          odoc _doc/foo.byte/Foo_byte/.jbuilder-keep,_doc/foo.byte/Foo_byte/index.html
           odoc _doc/foo.byte/index.html
           odoc _doc/foo.byte/test.html
-          odoc _doc/foo.byte/Foo_byte/.jbuilder-keep,_doc/foo.byte/Foo_byte/index.html
+      ocamldep foo.depends.ocamldep-output
+      ocamldep foo.dependsi.ocamldep-output
+        ocamlc foo.{cmi,cmo,cmt}
+          odoc _doc/foo/foo.odoc
+          odoc _doc/foo/page-index.odoc
+          odoc _doc/foo/page-test.odoc
+          odoc _doc/foo/Foo/.jbuilder-keep,_doc/foo/Foo/index.html
           odoc _doc/foo/index.html
           odoc _doc/foo/test.html
-          odoc _doc/foo/Foo/.jbuilder-keep,_doc/foo/Foo/index.html
-  $ $JBUILDER runtest -j1 --root .
+          odoc _doc/odoc.css
+  $ $JBUILDER runtest -j0 --root .
   <!DOCTYPE html>
   <html xmlns="http://www.w3.org/1999/xhtml">
     <head>

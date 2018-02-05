@@ -6,15 +6,15 @@ problem. So jbuilder shouldn't crash because of "plop.ca-marche-pas"
 
 We need ocamlfind to run this test
 
-  $ $JBUILDER build -j1 @install --root . --only hello
+  $ $JBUILDER build -j0 @install --root . --only hello
       ocamldep hello.depends.ocamldep-output
         ocamlc hello.{cmi,cmo,cmt}
       ocamlopt hello.{cmx,o}
-        ocamlc hello.cma
       ocamlopt hello.{a,cmxa}
+        ocamlc hello.cma
       ocamlopt hello.cmxs
 
-  $ $JBUILDER build -j1 @install --root . --only pas-de-bol
+  $ $JBUILDER build -j0 @install --root . --only pas-de-bol
   Error: External library "plop.ca-marche-pas" is unavailable.
   -> required by jbuild
   External library "plop.ca-marche-pas" is not available because it depends on the following libraries that are not available:

@@ -1,1 +1,1 @@
-  $ $JBUILDER build -j1 .merlin --root .
+  $ $JBUILDER build -j0 .merlin --root .
