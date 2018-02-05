@@ -1,7 +1,5 @@
 (** Fibers *)
 
-open Import
-
 (** {1 Generals} *)
 
 (** Type of fiber. A fiber represent a suspended computation. Note that using the same
@@ -175,7 +173,7 @@ val with_error_handler
          raise Exit)
     }]
 *)
-val wait_errors : 'a t -> ('a, unit) result t
+val wait_errors : 'a t -> ('a, unit) Result.t t
 
 (** [fold_errors f ~init ~on_error] calls [on_error] for every exception raised during the
     execution of [f]. This include exceptions raised when calling [f ()] or during the
@@ -186,7 +184,7 @@ val fold_errors
   :  (unit -> 'a t)
   -> init:'b
   -> on_error:(exn -> 'b -> 'b)
-  -> ('a, 'b) result t
+  -> ('a, 'b) Result.t t
 
 (** [collect_errors f] is:
 
@@ -198,7 +196,7 @@ val fold_errors
 *)
 val collect_errors
   :  (unit -> 'a t)
-  -> ('a, exn list) result t
+  -> ('a, exn list) Result.t t
 
 (** [finalize f ~finally] runs [finally] after [f ()] has terminated,
     whether it fails or succeeds. *)

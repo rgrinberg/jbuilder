@@ -29,9 +29,10 @@ end
 
 (* Directories with library names *)
 let dirs =
-  [ ("vendor/boot"      , None)
-  ; ("vendor/usexp/src" , Some "Usexp")
-  ; ("src"              , None)
+  [ "src/result"       , Some "Result"
+  ; "vendor/boot"      , None
+  ; "vendor/usexp/src" , Some "Usexp"
+  ; "src"              , None
   ]
 
 open Printf

@@ -37,19 +37,13 @@ let ksprintf = Printf.ksprintf
 
 let initial_cwd = Sys.getcwd ()
 
-(* CR-soon diml: move that in a [Result] module *)
-type ('a, 'b) result =
-  | Ok    of 'a
-  | Error of 'b
-
-let map_result x ~f =
-  match x with
-  | Ok x -> Ok (f x)
-  | Error _ as x -> x
-
 type ('a, 'b) either =
   | Inl of 'a
   | Inr of 'b
+
+type ('a, 'b) result = ('a, 'b) Result.t =
+  | Ok of 'a
+  | Error of 'b
 
 module List = struct
   type 'a t = 'a list

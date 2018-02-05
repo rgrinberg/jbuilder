@@ -1,0 +1,6 @@
+(jbuild_version 1)
+
+(library
+ ((name        result)
+  (public_name jbuilder.result)
+  (synopsis    "Result type library")))

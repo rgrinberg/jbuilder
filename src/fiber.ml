@@ -1,4 +1,42 @@
-open Import
+open StdLabels
+open MoreLabels
+
+external reraise : exn -> _ = "%reraise"
+
+module String = struct
+  include String
+
+  (* CR-someday jdimino: this should go somewhere else *)
+  let split_lines s =
+    let rec loop ~last_is_cr ~acc i j =
+      if j = length s then (
+        let acc =
+          if j = i || (j = i + 1 && last_is_cr) then
+            acc
+          else
+            sub s ~pos:i ~len:(j - i) :: acc
+        in
+        List.rev acc
+      ) else
+        match s.[j] with
+        | '\r' -> loop ~last_is_cr:true ~acc i (j + 1)
+        | '\n' ->
+          let line =
+            let len = if last_is_cr then j - i - 1 else j - i in
+            sub s ~pos:i ~len
+          in
+          loop ~acc:(line :: acc) (j + 1) (j + 1) ~last_is_cr:false
+        | _ ->
+          loop ~acc i (j + 1) ~last_is_cr:false
+    in
+    loop ~acc:[] 0 0 ~last_is_cr:false
+end
+
+module Eq = struct
+  type ('a, 'b) t = T : ('a, 'a) t
+
+  let cast (type a) (type b) (T : (a, b) t) (x : a) : b = x
+end
 
 module Var0 = struct
   module Key = struct
@@ -29,9 +67,9 @@ module Var0 = struct
 
   let eq (type a) (type b)
         (module A : T with type t = a)
-        (module B : T with type t = b) : (a, b) eq =
+        (module B : T with type t = b) : (a, b) Eq.t =
     match A.T with
-    | B.T -> Eq
+    | B.T -> Eq.T
     | _ -> assert false
 end
 
@@ -103,11 +141,11 @@ end = struct
          the error on stderr *)
       let bt2 = Printexc.get_backtrace () in
       let s =
-        (sprintf "%s\n%s\nOriginal exception was: %s\n%s"
+        (Printf.sprintf "%s\n%s\nOriginal exception was: %s\n%s"
            (Printexc.to_string exn2) bt2
            (Printexc.to_string exn) (Printexc.raw_backtrace_to_string bt))
         |> String.split_lines
-        |> List.map ~f:(sprintf "| %s")
+        |> List.map ~f:(Printf.sprintf "| %s")
         |> String.concat ~sep:"\n"
       in
       let line = String.make 71 '-' in
@@ -270,21 +308,19 @@ let parallel_iter l ~f ctx k =
 module Var = struct
   include Var0
 
-  let cast (type a) (type b) (Eq : (a, b) eq) (x : a) : b = x
-
   let find ctx var =
     match Int_map.find (id var) (EC.vars ctx) with
-    | None -> None
-    | Some (Binding.T (var', v)) ->
+    | exception Not_found -> None
+    | Binding.T (var', v) ->
       let eq = eq var' var in
-      Some (cast eq v)
+      Some (Eq.cast eq v)
 
   let find_exn ctx var =
     match Int_map.find (id var) (EC.vars ctx) with
-    | None -> failwith "Fiber.Var.find_exn"
-    | Some (Binding.T (var', v)) ->
+    | exception Not_found -> failwith "Fiber.Var.find_exn"
+    | Binding.T (var', v) ->
       let eq = eq var' var in
-      cast eq v
+      Eq.cast eq v
 
   let get     var ctx k = k (find     ctx var)
   let get_exn var ctx k = k (find_exn ctx var)
