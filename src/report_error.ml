@@ -98,8 +98,7 @@ let report_aux ppf ?dependency_path exn =
   if !Clflags.debug_dep_path then
     Option.iter dependency_path ~f:(fun dep_path ->
       Format.fprintf ppf "Dependency path:\n    %s\n"
-        (String.concat ~sep:"\n--> "
-           (List.map dep_path ~f:Utils.describe_target)));
+        (String.concat ~sep:"\n--> " dep_path));
   if not backtrace_printed && !Clflags.debug_backtraces then
     Format.fprintf ppf "Backtrace:\n%s"
       (Printexc.raw_backtrace_to_string backtrace);
@@ -108,10 +107,16 @@ let report_aux ppf ?dependency_path exn =
 
 let reported = ref String_set.empty
 
-let report ?dependency_path exn =
+let report exn =
+  let exn, dependency_path = With_required_by.unwrap_exn exn in
   match exn with
   | Already_reported -> ()
   | _ ->
+    let dependency_path =
+      Option.map dependency_path ~f:(List.map ~f:(function
+        | With_required_by.Path p -> Utils.describe_target p
+        | With_required_by.Virt s -> s))
+    in
     report_aux err_ppf ?dependency_path exn;
     Format.pp_print_flush err_ppf ();
     let s = Buffer.contents err_buf in

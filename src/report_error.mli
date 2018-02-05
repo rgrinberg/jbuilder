@@ -8,10 +8,7 @@
 
     We cache what is actually printed to the screen.
 *)
-val report
-  :  ?dependency_path:Path.t list
-  -> exn
-  -> unit
+val report : exn -> unit
 
 (**/**)
 val map_fname : (string -> string) ref
