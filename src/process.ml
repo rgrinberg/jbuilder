@@ -206,7 +206,7 @@ let gen_id =
   fun () -> incr next; !next
 
 let run_internal ?dir ?(stdout_to=Terminal) ?(stderr_to=Terminal) ?env ~purpose fail_mode prog args =
-  Fiber.Scheduler.wait_for_available_job >>= fun { Fiber.Scheduler. log; original_cwd } ->
+  Scheduler.wait_for_available_job () >>= fun { Scheduler. log; original_cwd } ->
   let dir =
     match dir with
     | Some "." -> None
@@ -244,7 +244,7 @@ let run_internal ?dir ?(stdout_to=Terminal) ?(stderr_to=Terminal) ?env ~purpose 
   Option.iter to_close ~f:Unix.close;
   close_std_output close_stdout;
   close_std_output close_stderr;
-  Fiber.Scheduler.wait_for_process pid
+  Scheduler.wait_for_process pid
   >>| fun status ->
   let output =
     match output_filename with

@@ -458,108 +458,30 @@ module Mutex = struct
     }
 end
 
-module Scheduler = struct
-  type running_job =
-    { pid             : int
-    ; handler         : Unix.process_status Handler.t
-    }
+let suspended = ref []
 
-  module Running_jobs : sig
-    val add : running_job -> unit
-    val wait : unit -> running_job * Unix.process_status
-    val count : unit -> int
-  end = struct
-    let all = Hashtbl.create 128
+let yield () ctx k = suspended := { Handler. ctx; run = k } :: !suspended
 
-    let add job = Hashtbl.add all ~key:job.pid ~data:job
+exception Never
 
-    let count () = Hashtbl.length all
-
-    let resolve_and_remove_job pid =
-      let job =
-        Hashtbl.find_exn all pid ~string_of_key:(sprintf "<pid:%d>")
-          ~table_desc:(fun _ -> "<running-jobs>")
-      in
-      Hashtbl.remove all pid;
-      job
-
-    exception Finished of running_job * Unix.process_status
-
-    let wait_nonblocking_win32 () =
-      match
-        Hashtbl.iter all ~f:(fun ~key:pid ~data:job ->
-          let pid, status = Unix.waitpid [WNOHANG] pid in
-          if pid <> 0 then
-            raise_notrace (Finished (job, status)))
-      with
-      | () -> None
-      | exception (Finished (job, status)) ->
-        Hashtbl.remove all job.pid;
-        Some (job, status)
-
-    let rec wait_win32 () =
-      match wait_nonblocking_win32 () with
-      | None ->
-        ignore (Unix.select [] [] [] 0.001);
-        wait_win32 ()
-      | Some x -> x
-
-    let wait_unix () =
-      let pid, status = Unix.wait () in
-      (resolve_and_remove_job pid, status)
-
-    let wait =
-      if Sys.win32 then
-        wait_win32
-      else
-        wait_unix
-  end
-
-  type info =
-    { log : Log.t
-    ; original_cwd : string
-    }
-
-  let info_var : info Var.t = Var.create ()
-
-  let waiting_for_available_job = Queue.create ()
-  let wait_for_available_job ctx k =
-    if Running_jobs.count () < !Clflags.concurrency then
-      k (Var.find_exn ctx info_var)
-    else
-      Queue.push { Handler. ctx; run = k } waiting_for_available_job
-
-  let wait_for_process pid ctx k =
-    Running_jobs.add
-      { pid
-      ; handler = { Handler. ctx; run = k }
-      }
-
-  exception Never
-
-  let rec go_rec info result =
+let run t =
+  let result = ref None in
+  let ctx = EC.create_initial () in
+  begin
+    try
+      t ctx (fun x -> result := Some x)
+    with exn ->
+      EC.forward_error ctx exn
+  end;
+  let rec loop () =
     match !result with
     | Some x -> x
     | None ->
-      if Running_jobs.count () = 0 then raise Never;
-      let job, status = Running_jobs.wait () in
-      if not (Queue.is_empty waiting_for_available_job) then
-        Handler.run (Queue.pop waiting_for_available_job) info;
-      Handler.run job.handler status;
-      go_rec info result
-
-  let go ?(log=Log.no_log) fiber =
-    Lazy.force Ansi_color.setup_env_for_colors;
-    Log.info log ("Workspace root: " ^ !Clflags.workspace_root);
-    let cwd = Sys.getcwd () in
-    if cwd <> initial_cwd then
-      Printf.eprintf "Entering directory '%s'\n%!" cwd;
-    let info = { log; original_cwd = cwd } in
-    let fiber =
-      Var.set info_var info
-        (with_error_handler (fun () -> fiber) ~on_error:Report_error.report)
-    in
-    let result = ref None in
-    fiber (Execution_context.create_initial ()) (fun x -> result := Some x);
-    go_rec info result
-end
+      match List.rev !suspended with
+      | [] -> raise Never
+      | to_run ->
+        suspended := [];
+        List.iter to_run ~f:(fun h -> Handler.run h ());
+        loop ()
+  in
+  loop ()

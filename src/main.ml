@@ -72,7 +72,7 @@ let setup ?(log=Log.no_log)
     }
 
 let external_lib_deps ?log ~packages () =
-  Fiber.Scheduler.go ?log
+  Scheduler.go ?log
     (setup () ~filter_out_optional_stanzas_with_missing_deps:false
      >>| fun setup ->
      let install_files =
@@ -104,7 +104,7 @@ let bootstrap () =
   let main () =
     let anon s = raise (Arg.Bad (Printf.sprintf "don't know what to do with %s\n" s)) in
     let subst () =
-      Fiber.Scheduler.go (Watermarks.subst () ~name:"jbuilder");
+      Scheduler.go (Watermarks.subst () ~name:"jbuilder");
       exit 0
     in
     Arg.parse
@@ -116,7 +116,7 @@ let bootstrap () =
       anon "Usage: boot.exe [-j JOBS] [--dev]\nOptions are:";
     Clflags.debug_dep_path := true;
     let log = Log.create () in
-    Fiber.Scheduler.go ~log
+    Scheduler.go ~log
       (setup ~log ~workspace:{ merlin_context = Some "default"
                              ; contexts = [Default [Native]] }
          ~use_findlib:false
@@ -129,7 +129,7 @@ let bootstrap () =
   try
     main ()
   with
-  | Fiber.Scheduler.Never -> exit 1
+  | Fiber.Never -> exit 1
   | exn ->
     Report_error.report exn;
     exit 1

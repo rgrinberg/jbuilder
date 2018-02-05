@@ -237,26 +237,11 @@ end with type 'a fiber := 'a t
 
 (** {1 Running fibers} *)
 
-module Scheduler : sig
-  (** [go ?log t] runs the following fiber until it terminates. If it becomes clear that
-      the fiber will never complete, for instance because of an uncaught exception,
-      {!Never} is raised. *)
-  val go : ?log:Log.t -> 'a t -> 'a
+(** Wait for one iteration of the scheduler *)
+val yield : unit -> unit t
 
-  exception Never
+(** [run t] runs a fiber until it yield a result. If it becomes clear that the execution
+    of the fiber will never terminate, raise [Never]. *)
+val run : 'a t -> 'a
 
-  (** Wait for the following process to terminate *)
-  val wait_for_process : int -> Unix.process_status t
-
-  (** Scheduler informations *)
-  type info =
-    { log : Log.t
-    (** Logger *)
-    ; original_cwd : string
-    (** Working directory at the time [go] was called *)
-    }
-
-  (** Wait until less tham [!Clflags.concurrency] external processes
-      are running and return the scheduler informations. *)
-  val wait_for_available_job : info t
-end
+exception Never

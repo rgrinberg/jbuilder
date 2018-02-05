@@ -398,7 +398,7 @@ let installed_libraries =
   let doc = "Print out libraries installed on the system." in
   let go common na =
     set_common common ~targets:[];
-    Fiber.Scheduler.go ~log:(Log.create ())
+    Scheduler.go ~log:(Log.create ())
       (Context.create (Default [Native])  >>= fun ctxs ->
        let ctx = List.hd ctxs in
        let findlib = ctx.findlib in
@@ -565,7 +565,7 @@ let build_targets =
   let go common targets =
     set_common common ~targets;
     let log = Log.create () in
-    Fiber.Scheduler.go ~log
+    Scheduler.go ~log
       (Main.setup ~log common >>= fun setup ->
        let targets = resolve_targets_exn ~log common setup targets in
        do_build setup targets) in
@@ -591,7 +591,7 @@ let runtest =
         | dir when dir.[String.length dir - 1] = '/' -> sprintf "@%sruntest" dir
         | dir -> sprintf "@%s/runtest" dir));
     let log = Log.create () in
-    Fiber.Scheduler.go ~log
+    Scheduler.go ~log
       (Main.setup ~log common >>= fun setup ->
        let check_path = check_path setup.contexts in
        let targets =
@@ -646,7 +646,7 @@ let external_lib_deps =
   let go common only_missing targets =
     set_common common ~targets:[];
     let log = Log.create () in
-    Fiber.Scheduler.go ~log
+    Scheduler.go ~log
       (Main.setup ~log common ~filter_out_optional_stanzas_with_missing_deps:false
        >>= fun setup ->
        let targets = resolve_targets_exn ~log common setup targets in
@@ -749,7 +749,7 @@ let rules =
   let go common out recursive makefile_syntax targets =
     set_common common ~targets;
     let log = Log.create () in
-    Fiber.Scheduler.go ~log
+    Scheduler.go ~log
       (Main.setup ~log common ~filter_out_optional_stanzas_with_missing_deps:false
        >>= fun setup ->
        let request =
@@ -843,7 +843,7 @@ let install_uninstall ~what =
     set_common common ~targets:[];
     let opam_installer = opam_installer () in
     let log = Log.create () in
-    Fiber.Scheduler.go ~log
+    Scheduler.go ~log
       (Main.setup ~log common >>= fun setup ->
        let pkgs =
          match pkgs with
@@ -953,7 +953,7 @@ let exec =
   let go common context prog no_rebuild args =
     set_common common ~targets:[];
     let log = Log.create () in
-    let setup = Fiber.Scheduler.go ~log (Main.setup ~log common) in
+    let setup = Scheduler.go ~log (Main.setup ~log common) in
     let context = Main.find_context_exn setup ~name:context in
     let prog_where =
       match Filename.analyze_program_name prog with
@@ -987,7 +987,7 @@ let exec =
         match Lazy.force targets with
         | [] -> ()
         | targets ->
-          Fiber.Scheduler.go ~log (do_build setup targets);
+          Scheduler.go ~log (do_build setup targets);
           Build_system.finalize setup.build_system
       end;
       match prog_where with
@@ -1086,7 +1086,7 @@ let subst =
   in
   let go common name =
     set_common common ~targets:[];
-    Fiber.Scheduler.go (Watermarks.subst ?name ())
+    Scheduler.go (Watermarks.subst ?name ())
   in
   ( Term.(const go
           $ common
@@ -1120,7 +1120,7 @@ let utop =
        in
        do_build setup [File target] >>| fun () ->
        (setup.build_system, context, Path.to_string target)
-      ) |> Fiber.Scheduler.go ~log in
+      ) |> Scheduler.go ~log in
     Build_system.finalize build_system;
     restore_cwd_and_execve common utop_path (Array.of_list (utop_path :: args))
       (Context.env_for_exec context)
@@ -1202,7 +1202,7 @@ let () =
     | `Error _ -> exit 1
     | _ -> exit 0
   with
-  | Fiber.Scheduler.Never -> exit 1
+  | Fiber.Never -> exit 1
   | exn ->
     Report_error.report exn;
     exit 1
