@@ -1,7 +1,6 @@
 (jbuild_version 1)
 
 (library
- ((name        fiber)
-  (public_name jbuilder.fiber)
-  (libraries   (result))
-  (synopsis    "Monadic concurrency library")))
+ ((name      fiber)
+  (libraries (result))
+  (synopsis  "Monadic concurrency library")))
