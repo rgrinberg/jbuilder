@@ -1176,7 +1176,7 @@ let gen ~contexts ~build_system
                String_set.mem package.name pkgs
              | _ -> true)))
     in
-    Fiber.fork host stanzas >>= fun (host, stanzas) ->
+    Fiber.fork_and_join host stanzas >>= fun (host, stanzas) ->
     let sctx =
       Super_context.create
         ?host
@@ -1193,7 +1193,7 @@ let gen ~contexts ~build_system
     >>| fun () ->
     (context.name, ((module M : Gen), stanzas))
   in
-  Fiber.nfork_map contexts ~f:make_sctx >>| fun l ->
+  Fiber.nfork_and_join contexts ~f:make_sctx >>| fun l ->
   let map = String_map.of_alist_exn l in
   Build_system.set_rule_generators build_system
     (String_map.map map ~f:(fun ((module M : Gen), _) -> M.gen_rules));

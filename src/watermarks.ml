@@ -205,9 +205,9 @@ let subst_git ?name () =
     | Some x -> Path.to_string x
     | None -> Utils.program_not_found "git"
   in
-  Fiber.fork
+  Fiber.fork_and_join
     (fun () ->
-       Fiber.fork
+       Fiber.fork_and_join
          (fun () ->
             Process.run_capture Strict git ["describe"; "--always"; "--dirty"])
          (fun () ->

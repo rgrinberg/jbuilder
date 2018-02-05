@@ -658,7 +658,7 @@ let rec compile_rule t ?(copy_source=false) pre_rule =
     Build_exec.exec t build ()
   in
   let exec_rule (rule_evaluation : Exec_status.rule_evaluation) =
-    Fiber.fork_unit
+    Fiber.fork_and_join_unit
       (fun () ->
          wait_for_deps t static_deps)
       (fun () ->
@@ -1023,7 +1023,7 @@ and wait_for_file_found fn (File_spec.T file) =
         }
       in
       file.rule.exec <- Running running;
-      Fiber.fork
+      Fiber.fork_and_join
         (fun () ->
            report_build_errors_and_fill_ivar
              ~dependency_path
@@ -1049,7 +1049,7 @@ and wait_for_file_found fn (File_spec.T file) =
         ~ivar:rule_execution)
 
 and wait_for_deps t deps =
-  Fiber.nfork_iter (Pset.elements deps) ~f:(wait_for_file t)
+  Fiber.nfork_and_join_unit (Pset.elements deps) ~f:(wait_for_file t)
 
 let stamp_file_for_files_of t ~dir ~ext =
   let files_of_dir =
@@ -1161,10 +1161,10 @@ let eval_request t ~request ~process_target =
   in
 
   let process_targets ts =
-    Fiber.nfork_iter (Pset.elements ts) ~f:process_target
+    Fiber.nfork_and_join_unit (Pset.elements ts) ~f:process_target
   in
 
-  Fiber.fork_unit
+  Fiber.fork_and_join_unit
     (fun () -> process_targets static_deps)
     (fun () ->
        wait_for_deps t rule_deps
@@ -1328,7 +1328,7 @@ let build_rules_internal ?(recursive=false) t ~request =
       Fiber.Ivar.fill ivar rule
       >>= fun () ->
       if recursive then
-        Fiber.nfork_iter (Pset.elements rule.deps) ~f:loop
+        Fiber.nfork_and_join_unit (Pset.elements rule.deps) ~f:loop
       else
         Fiber.return ()
     end
@@ -1338,7 +1338,7 @@ let build_rules_internal ?(recursive=false) t ~request =
     targets := Pset.add fn !targets;
     loop fn)
   >>= fun () ->
-  Fiber.nfork_map !rules ~f:Fiber.Ivar.read
+  Fiber.nfork_and_join !rules ~f:Fiber.Ivar.read
   >>| fun rules ->
   let rules =
     List.fold_left rules ~init:Pmap.empty ~f:(fun acc (r : Rule.t) ->

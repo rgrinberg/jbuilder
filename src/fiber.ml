@@ -156,7 +156,7 @@ type ('a, 'b) both_state =
   | Got_a of 'a
   | Got_b of 'b
 
-let fork fa fb ctx k =
+let fork_and_join fa fb ctx k =
   let state = ref Nothing_yet in
   EC.add_refs ctx 1;
   begin
@@ -175,7 +175,7 @@ let fork fa fb ctx k =
     | Got_a a -> k (a, b)
     | Got_b _ -> assert false)
 
-let fork_unit fa fb ctx k =
+let fork_and_join_unit fa fb ctx k =
   let state = ref Nothing_yet in
   EC.add_refs ctx 1;
   begin
@@ -207,7 +207,7 @@ let list_of_option_array =
   in
   fun a -> loop a (Array.length a) []
 
-let nfork_map l ~f ctx k =
+let nfork_and_join l ~f ctx k =
   match l with
   | [] -> k []
   | [x] -> f x ctx (fun x -> k [x])
@@ -228,7 +228,7 @@ let nfork_map l ~f ctx k =
       with exn ->
         EC.forward_error ctx exn)
 
-let nfork_iter l ~f ctx k =
+let nfork_and_join_unit l ~f ctx k =
   match l with
   | [] -> k ()
   | [x] -> f x ctx k

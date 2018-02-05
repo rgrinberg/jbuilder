@@ -31,19 +31,24 @@ end
 
 (** {1 Combining} *)
 
-(** The following functions allow to combine two or more fibers. Note
-    that when the execution of a fiber fails because of an exception,
-    the other fibers will continue to run.
+(** The following functions allow to combine two or more fibers. Note that when the
+    execution of a fiber fails because of an exception, the other fibers will continue to
+    run.
 
     This is why combining functions always take [unit -> _ t] functions rather than [_ t]
     values directly.
 *)
 
-val fork : (unit -> 'a t) -> (unit -> 'b t) -> ('a * 'b) t
-val fork_unit : (unit -> unit t) -> (unit -> 'a t) -> 'a t
+val fork_and_join : (unit -> 'a t) -> (unit -> 'b t) -> ('a * 'b) t
 
-val nfork_map  : 'a list -> f:('a -> 'b   t) -> 'b list t
-val nfork_iter : 'a list -> f:('a -> unit t) -> unit    t
+(** [fork_and_join_unit f g] is the same as [fork_and_join f g >>| snd] but slightly more
+    efficient. *)
+val fork_and_join_unit : (unit -> unit t) -> (unit -> 'a t) -> 'a t
+
+val nfork_and_join : 'a list -> f:('a -> 'b t) -> 'b list t
+
+(** Same as [nfork_and_join l ~f >>| ignore] bit more efficient. *)
+val nfork_and_join_unit : 'a list -> f:('a -> unit t) -> unit t
 
 (** {1 Local storage} *)
 
