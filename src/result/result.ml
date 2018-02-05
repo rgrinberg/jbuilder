@@ -1,9 +1,7 @@
-include struct
-  [@@@warning "-33"]
-  open Result_compat
-end
-
+[@@@warning "-33"]
+open Result_compat
 open Pervasives
+[@@@warning "+33"]
 
 type ('a, 'error) t = ('a, 'error) result =
   | Ok    of 'a

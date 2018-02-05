@@ -349,7 +349,7 @@ let with_error_handler f ~on_error ctx k =
     EC.forward_error ctx exn
 
 let wait_errors t ctx k =
-  let result = ref (Error ()) in
+  let result = ref (Result.Error ()) in
   let on_release () =
     try
       k !result

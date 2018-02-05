@@ -1,10 +1,8 @@
-include sig
-  (* This open is unused with OCaml >= 4.03 since the stdlib defines a result type *)
-  [@@@warning "-33"]
-  open Result_compat
-end
-
+(* This open is unused with OCaml >= 4.03 since the stdlib defines a result type *)
+[@@@warning "-33"]
+open Result_compat
 open Pervasives
+[@@@warning "+33"]
 
 (** The result type.
 
