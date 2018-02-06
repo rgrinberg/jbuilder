@@ -15,7 +15,7 @@
   No rule found for foo__X.cmo
   $ $JBUILDER build --root c -j1 foo.cma 2>&1 | grep -v Entering
   File "jbuild", line 1, characters 0-58:
-  Error: This module doesn't exist.
+  Error: Module X doesn't exist.
   $ $JBUILDER build --root d -j1 foo.cma 2>&1 | grep -v Entering
   File "jbuild", line 1, characters 0-58:
-  Error: This module has an implementation, it cannot be listed here
+  Error: Module X has an implementation, it cannot be listed here

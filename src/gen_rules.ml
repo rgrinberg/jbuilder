@@ -38,7 +38,7 @@ module Gen(P : Params) = struct
         let s = String.capitalize_ascii s in
         match String_map.find s all_modules with
         | Some m -> m
-        | None -> Loc.fail loc "This module doesn't exist."
+        | None -> Loc.fail loc "Module %s doesn't exist." s
     in
     let modules =
       Eval_modules.eval_unordered
@@ -112,8 +112,10 @@ module Gen(P : Params) = struct
             Option.is_some m.impl)
         in
         (* CR-soon jdimino for jdimino: report all errors *)
-        Loc.fail (List.hd shouldn't_be_listed |> fst)
-          "This module has an implementation, it cannot be listed here"
+        let loc, m = List.hd shouldn't_be_listed in
+        Loc.fail loc
+          "Module %s has an implementation, it cannot be listed here"
+          m.name
       end;
       modules
     end
