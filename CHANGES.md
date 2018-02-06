@@ -8,6 +8,8 @@ next
 - Make sure to not pass `-I <stdlib-dir>` to the compiler. It is
   useless and it causes problems in some cases (#488)
 
+- Better support for mli only modules (#490)
+
 1.0+beta17 (01/02/2018)
 -----------------------
 
