@@ -2,12 +2,15 @@ Successes:
 
   $ $JBUILDER build --root foo -j1 --debug-dep 2>&1 | grep -v Entering
       ocamldep foo.ml.d
-  No rule found for foo__Intf.cmx
-  Dependency path:
-      alias install
-  --> foo.install
-  --> default/lib/foo/foo.a (context install)
-  --> foo.a
+        ocamlc foo__.{cmi,cmo,cmt}
+      ocamldep intf.mli.d
+      ocamlopt foo__.{cmx,o}
+        ocamlc foo__Intf.{cmi,cmti}
+        ocamlc foo.{cmi,cmo,cmt}
+      ocamlopt foo.{cmx,o}
+        ocamlc foo.cma
+      ocamlopt foo.{a,cmxa}
+      ocamlopt foo.cmxs
 
 Errors:
 

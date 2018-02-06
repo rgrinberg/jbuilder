@@ -622,12 +622,8 @@ module Gen(P : Params) = struct
          Path.relative dir (header ^ ".h")));
 
     let top_sorted_modules =
-      Build.memoize "top sorted modules" (
-        let modules =
-          String_map.values modules
-          |> List.filter ~f:Module.has_impl
-        in
-        Ocamldep.Dep_graph.top_closed dep_graphs.impl modules)
+      Ocamldep.Dep_graph.top_closed_implementations dep_graphs.impl
+        (String_map.values modules)
     in
     List.iter Mode.all ~f:(fun mode ->
       build_lib lib ~scope:scope.data ~flags ~dir ~mode ~top_sorted_modules);
@@ -799,8 +795,8 @@ module Gen(P : Params) = struct
 
     List.iter programs ~f:(fun (name, unit) ->
       let top_sorted_modules =
-        Build.memoize "top sorted modules"
-          (Ocamldep.Dep_graph.top_closed dep_graphs.impl [unit])
+        Ocamldep.Dep_graph.top_closed_implementations dep_graphs.impl
+          [unit]
       in
       List.iter Mode.all ~f:(fun mode ->
         build_exe ~js_of_ocaml:exes.buildable.js_of_ocaml ~flags ~scope:scope.data

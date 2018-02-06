@@ -42,9 +42,11 @@ let build_cm sctx ?sandbox ~dynlink ~flags ~cm_kind ~dep_graphs
           (Ocamldep.Dep_graph.deps_of dep_graph m >>^ fun deps ->
            List.concat_map deps
              ~f:(fun m ->
-               match cm_kind with
-               | Cmi | Cmo -> [Module.cm_file m ~dir Cmi]
-               | Cmx -> [Module.cm_file m ~dir Cmi; Module.cm_file m ~dir Cmx]))
+               let deps = [Module.cm_file m ~dir Cmi] in
+               if Module.has_impl m && cm_kind = Cmx then
+                 Module.cm_file m ~dir Cmx :: deps
+               else
+                 deps))
       in
       let extra_targets, cmt_args =
         match cm_kind with
