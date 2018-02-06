@@ -1,3 +1,9 @@
+Successes:
+
+  $ $JBUILDER build --root foo -j1 foo.cma 2>&1 | grep -v Entering
+
+Errors:
+
   $ $JBUILDER build --root a -j1 foo.cma 2>&1 | grep -v Entering
   File "jbuild", line 2, characters 1-13:
   Warning: Some modules don't have an implementation.
