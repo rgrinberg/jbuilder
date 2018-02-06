@@ -95,17 +95,25 @@ module Gen(P : Params) = struct
             (list_modules should_be_listed)
       end;
       if shouldn't_be_listed <> [] then begin
-        let loc =
-          (* If some modules shouldn't be listed, it least that the users listed them, so
-             this is never [None] *)
-          Ordered_set_lang.loc conf.modules_without_implementation
-          |> Option.value_exn
+        (* Re-evaluate conf.modules_without_implementation but this time keep locations *)
+        let module Eval =
+          Ordered_set_lang.Make(struct
+            type t = Loc.t * Module.t
+            let name (_, m) = Module.name m
+          end)
         in
-        Loc.fail loc
-          "The following modules must be listed here as they don't \
-           have an implementation:\n\
-           %s"
-          (list_modules shouldn't_be_listed)
+        let parse ~loc s = (loc, parse ~loc s) in
+        let shouldn't_be_listed =
+          Eval.eval_unordered conf.modules_without_implementation
+            ~parse
+            ~standard:(String_map.map all_modules ~f:(fun m -> (Loc.none, m)))
+          |> String_map.values
+          |> List.filter ~f:(fun (_, (m : Module.t)) ->
+            Option.is_some m.impl)
+        in
+        (* CR-soon jdimino for jdimino: report all errors *)
+        Loc.fail (List.hd shouldn't_be_listed |> fst)
+          "This module has an implementation, it cannot be listed here"
       end;
       modules
     end

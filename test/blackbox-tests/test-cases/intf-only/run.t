@@ -17,6 +17,5 @@
   File "jbuild", line 1, characters 0-58:
   Error: This module doesn't exist.
   $ $JBUILDER build --root d -j1 foo.cma 2>&1 | grep -v Entering
-  File "jbuild", line 3, characters 34-37:
-  Error: The following modules must be listed here as they don't have an implementation:
-  - x
+  File "jbuild", line 1, characters 0-58:
+  Error: This module has an implementation, it cannot be listed here
