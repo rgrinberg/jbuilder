@@ -36,6 +36,8 @@ let name t = t.name
 
 let real_unit_name t = String.capitalize_ascii (Filename.basename t.obj_name)
 
+let has_impl t = Option.is_some t.impl
+
 let file t ~dir (kind : Ml_kind.t) =
   let file =
     match kind with
@@ -46,7 +48,13 @@ let file t ~dir (kind : Ml_kind.t) =
 
 let cm_source t ~dir kind = file t ~dir (Cm_kind.source kind)
 
-let cm_file t ~dir kind = Path.relative dir (t.obj_name ^ Cm_kind.ext kind)
+let cm_file_unsafe t ~dir kind =
+  Path.relative dir (t.obj_name ^ Cm_kind.ext kind)
+
+let cm_file t ~dir (kind : Cm_kind.t) =
+  match kind with
+  | (Cmx | Cmo) when not (has_impl t) -> None
+  | _ -> Some (cm_file_unsafe t ~dir kind)
 
 let cmt_file t ~dir (kind : Ml_kind.t) =
   match kind with
@@ -63,8 +71,6 @@ let cmti_file t ~dir =
 let iter t ~f =
   Option.iter t.impl ~f:(f Ml_kind.Impl);
   Option.iter t.intf ~f:(f Ml_kind.Intf)
-
-let has_impl t = Option.is_some t.impl
 
 let set_obj_name t ~wrapper =
   match wrapper with

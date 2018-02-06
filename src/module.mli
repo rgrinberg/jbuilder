@@ -28,10 +28,14 @@ val name : t -> string
 (** Real unit name once wrapped. This is always a valid module name. *)
 val real_unit_name : t -> string
 
-val file      : t -> dir:Path.t -> Ml_kind.t -> Path.t option
-val cm_source : t -> dir:Path.t -> Cm_kind.t -> Path.t option
-val cm_file   : t -> dir:Path.t -> Cm_kind.t -> Path.t
-val cmt_file  : t -> dir:Path.t -> Ml_kind.t -> Path.t option
+val file        : t -> dir:Path.t -> Ml_kind.t -> Path.t option
+val cm_source   : t -> dir:Path.t -> Cm_kind.t -> Path.t option
+val cm_file     : t -> dir:Path.t -> Cm_kind.t -> Path.t option
+val cmt_file    : t -> dir:Path.t -> Ml_kind.t -> Path.t option
+
+(** Same as [cm_file] but doesn't raise if [cm_kind] is [Cmo] or [Cmx] and the module has
+    no implementation. *)
+val cm_file_unsafe : t -> dir:Path.t -> Cm_kind.t -> Path.t
 
 val odoc_file : t -> doc_dir:Path.t -> Path.t
 

@@ -1,10 +1,9 @@
   $ $JBUILDER build -j1 --root . @install
       ocamldep alib/alib.ml.d
       ocamldep alib/main.ml.d
-        ocamlc alib/alib__.{cmi,cmo,cmt}
+        ocamlc alib/alib__.{cmi,cmti}
       ocamldep blib/blib.ml.d
       ocamldep blib/sub/sub.ml.d
-      ocamlopt alib/alib__.{cmx,o}
         ocamlc blib/sub/sub.{cmi,cmo,cmt}
       ocamlopt blib/sub/sub.{cmx,o}
         ocamlc blib/blib.{cmi,cmo,cmt}

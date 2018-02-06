@@ -296,20 +296,23 @@ module Gen(P : Params) = struct
              (String_map.cardinal modules = 1 &&
               String_map.mem main_module_name modules) then
             None
-          else
-            let suf =
-              if String_map.mem main_module_name modules then
-                "__"
-              else
-                ""
-            in
+          else if String_map.mem main_module_name modules then
             Some
-              { Module.name = main_module_name ^ suf
-              ; impl = Some { name   = lib.name ^ suf ^ ".ml-gen"
+              { Module.name = main_module_name ^ "__"
+              ; impl = None
+              ; intf = Some { name   = lib.name ^ "__.mli-gen"
+                            ; syntax = OCaml
+                            }
+              ; obj_name = lib.name ^ "__"
+              }
+          else
+            Some
+              { Module.name = main_module_name
+              ; impl = Some { name   = lib.name ^ ".ml-gen"
                             ; syntax = OCaml
                             }
               ; intf = None
-              ; obj_name = lib.name ^ suf
+              ; obj_name = lib.name
               }
         in
         { modules; alias_module; main_module_name })
@@ -379,7 +382,7 @@ module Gen(P : Params) = struct
       SC.add_rule sctx
         (Build.fanout4
            (top_sorted_modules >>^ List.map ~f:(fun m ->
-              Module.cm_file m ~dir (Mode.cm_kind mode)))
+              Module.cm_file_unsafe m ~dir (Mode.cm_kind mode)))
            (SC.expand_and_eval_set sctx ~scope ~dir lib.c_library_flags ~standard:[])
            (Ocaml_flags.get flags mode)
            (SC.expand_and_eval_set sctx ~scope ~dir lib.library_flags ~standard:[])
@@ -495,6 +498,11 @@ module Gen(P : Params) = struct
     in
 
     Option.iter alias_module ~f:(fun m ->
+      let file =
+        match m.impl with
+        | Some f -> f
+        | None -> Option.value_exn m.intf
+      in
       SC.add_rule sctx
         (Build.return
            (String_map.values (String_map.remove m.name modules)
@@ -504,8 +512,7 @@ module Gen(P : Params) = struct
                 main_module_name m.name
                 m.name (Module.real_unit_name m))
             |> String.concat ~sep:"\n")
-         >>> Build.write_file_dyn
-               (Path.relative dir (Option.value_exn m.impl).name)));
+         >>> Build.write_file_dyn (Path.relative dir file.name)));
 
     let requires, real_requires =
       SC.Libs.requires sctx ~dir ~scope ~dep_kind ~item:lib.name
@@ -612,7 +619,9 @@ module Gen(P : Params) = struct
     List.iter Cm_kind.all ~f:(fun cm_kind ->
       let files =
         String_map.fold modules ~init:[] ~f:(fun ~key:_ ~data:m acc ->
-          Module.cm_file m ~dir cm_kind :: acc)
+          match Module.cm_file m ~dir cm_kind with
+          | None -> acc
+          | Some fn -> fn :: acc)
       in
       SC.Libs.setup_file_deps_alias sctx (dir, lib) ~ext:(Cm_kind.ext cm_kind)
         files);
@@ -702,7 +711,7 @@ module Gen(P : Params) = struct
         (requires
          >>> Build.dyn_paths (Build.arr (Lib.archive_files ~mode ~ext_lib:ctx.ext_lib)))
         (top_sorted_modules >>^ List.map ~f:(fun m ->
-           Module.cm_file m ~dir (Mode.cm_kind mode)))
+           Module.cm_file_unsafe m ~dir (Mode.cm_kind mode)))
     in
     let objs (libs, cm) =
       if mode = Mode.Byte then
@@ -981,8 +990,8 @@ module Gen(P : Params) = struct
       List.concat
         [ List.concat_map modules ~f:(fun m ->
             List.concat
-              [ [ Module.cm_file m ~dir Cmi ]
-              ; if_ (native && Module.has_impl m) [ Module.cm_file m ~dir Cmx ]
+              [ [ Module.cm_file_unsafe m ~dir Cmi ]
+              ; if_ (native && Module.has_impl m) [ Module.cm_file_unsafe m ~dir Cmx ]
               ; List.filter_map Ml_kind.all ~f:(Module.cmt_file m ~dir)
               ; [ let file =
                     match m.intf with

@@ -10,14 +10,14 @@ let build_cm sctx ?sandbox ~dynlink ~flags ~cm_kind ~dep_graphs
   Option.iter (Mode.of_cm_kind cm_kind |> Context.compiler ctx) ~f:(fun compiler ->
     Option.iter (Module.cm_source ~dir m cm_kind) ~f:(fun src ->
       let ml_kind = Cm_kind.source cm_kind in
-      let dst = Module.cm_file m ~dir cm_kind in
+      let dst = Module.cm_file_unsafe m ~dir cm_kind in
       let extra_args, extra_deps, extra_targets =
         match cm_kind, m.intf with
         (* If there is no mli, [ocamlY -c file.ml] produces both the
            .cmY and .cmi. We choose to use ocamlc to produce the cmi
            and to produce the cmx we have to wait to avoid race
            conditions. *)
-        | Cmo, None -> [], [], [Module.cm_file m ~dir Cmi]
+        | Cmo, None -> [], [], [Module.cm_file_unsafe m ~dir Cmi]
         | Cmx, None ->
           (* Change [-intf-suffix] so that the compiler thinks the
              cmi exists and reads it instead of re-creating it, which
@@ -25,11 +25,11 @@ let build_cm sctx ?sandbox ~dynlink ~flags ~cm_kind ~dep_graphs
           ([ "-intf-suffix"
            ; Filename.extension (Option.value_exn m.impl).name
            ],
-           [Module.cm_file m ~dir Cmi], [])
+           [Module.cm_file_unsafe m ~dir Cmi], [])
         | Cmi, None -> assert false
         | Cmi, Some _ -> [], [], []
         (* We need the .cmi to build either the .cmo or .cmx *)
-        | (Cmo | Cmx), Some _ -> [], [Module.cm_file m ~dir Cmi], []
+        | (Cmo | Cmx), Some _ -> [], [Module.cm_file_unsafe m ~dir Cmi], []
       in
       let extra_targets =
         match cm_kind with
@@ -42,9 +42,9 @@ let build_cm sctx ?sandbox ~dynlink ~flags ~cm_kind ~dep_graphs
           (Ocamldep.Dep_graph.deps_of dep_graph m >>^ fun deps ->
            List.concat_map deps
              ~f:(fun m ->
-               let deps = [Module.cm_file m ~dir Cmi] in
+               let deps = [Module.cm_file_unsafe m ~dir Cmi] in
                if Module.has_impl m && cm_kind = Cmx then
-                 Module.cm_file m ~dir Cmx :: deps
+                 Module.cm_file_unsafe m ~dir Cmx :: deps
                else
                  deps))
       in
@@ -83,7 +83,7 @@ let build_module sctx ?sandbox ~dynlink ~js_of_ocaml ~flags m ~scope ~dir ~dep_g
     build_cm sctx ?sandbox ~dynlink ~flags ~dir ~dep_graphs m ~cm_kind
       ~requires ~alias_module);
   (* Build *.cmo.js *)
-  let src = Module.cm_file m ~dir Cm_kind.Cmo in
+  let src = Module.cm_file_unsafe m ~dir Cm_kind.Cmo in
   SC.add_rules sctx (Js_of_ocaml_rules.build_cm sctx ~scope ~dir ~js_of_ocaml ~src)
 
 let build_modules sctx ~dynlink ~js_of_ocaml ~flags ~scope ~dir ~dep_graphs
