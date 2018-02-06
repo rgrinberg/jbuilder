@@ -1,6 +1,11 @@
 Successes:
 
-  $ $JBUILDER build --root foo -j1 foo.cma 2>&1 | grep -v Entering
+  $ $JBUILDER build --root foo -j1 --debug-dep 2>&1 | grep -v Entering
+  No rule found for foo__Intf.cmx
+  Dependency path:
+      alias install
+  --> foo.install
+  --> default/lib/foo/foo__Intf.cmx (context install)
 
 Errors:
 
@@ -12,13 +17,15 @@ Errors:
     (modules_without_implementation (x y))
   
   This will become an error in the future.
-  No rule found for foo__X.cmo
+        ocamlc foo.{cmi,cmo,cmt}
+        ocamlc foo.cma
   $ $JBUILDER build --root b -j1 foo.cma 2>&1 | grep -v Entering
   File "jbuild", line 3, characters 34-37:
   Warning: The following modules must be listed here as they don't have an implementation:
   - y
   This will become an error in the future.
-  No rule found for foo__X.cmo
+        ocamlc foo.{cmi,cmo,cmt}
+        ocamlc foo.cma
   $ $JBUILDER build --root c -j1 foo.cma 2>&1 | grep -v Entering
   File "jbuild", line 1, characters 0-58:
   Error: Module X doesn't exist.

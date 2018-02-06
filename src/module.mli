@@ -40,5 +40,7 @@ val cmti_file : t -> dir:Path.t -> Path.t
 
 val iter : t -> f:(Ml_kind.t -> File.t -> unit) -> unit
 
+val has_impl : t -> bool
+
 (** Set the [obj_name] field of the module. [wrapper] might be a library name. *)
 val set_obj_name : t -> wrapper:string option -> t

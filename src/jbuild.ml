@@ -658,7 +658,7 @@ end
 
 module Executables = struct
   type t =
-    { names            : string list
+    { names            : (Loc.t * string) list
     ; link_executables : bool
     ; link_flags       : Ordered_set_lang.Unexpanded.t
     ; modes            : Mode.Dict.Set.t
@@ -687,7 +687,7 @@ module Executables = struct
     let to_install =
       let ext = if modes.native then ".exe" else ".bc" in
       List.map2 names public_names
-        ~f:(fun name pub ->
+        ~f:(fun (_, name) pub ->
           match pub with
           | None -> None
           | Some pub -> Some ({ Install_conf. src = name ^ ext; dst = Some pub }))
@@ -712,7 +712,7 @@ module Executables = struct
 
   let v1_multi pkgs =
     record
-      (field "names" (list string) >>= fun names ->
+      (field "names" (list (located string)) >>= fun names ->
        map_validate (field_o "public_names" (list public_name)) ~f:(function
          | None -> Ok (List.map names ~f:(fun _ -> None))
          | Some public_names ->
@@ -726,7 +726,7 @@ module Executables = struct
 
   let v1_single pkgs =
     record
-      (field   "name" string        >>= fun name ->
+      (field   "name" (located string) >>= fun name ->
        field_o "public_name" string >>= fun public_name ->
        common_v1 pkgs [name] [public_name] ~multi:false)
 end

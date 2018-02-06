@@ -623,7 +623,11 @@ module Gen(P : Params) = struct
 
     let top_sorted_modules =
       Build.memoize "top sorted modules" (
-        Ocamldep.Dep_graph.top_closed dep_graphs.impl (String_map.values modules))
+        let modules =
+          String_map.values modules
+          |> List.filter ~f:Module.has_impl
+        in
+        Ocamldep.Dep_graph.top_closed dep_graphs.impl modules)
     in
     List.iter Mode.all ~f:(fun mode ->
       build_lib lib ~scope:scope.data ~flags ~dir ~mode ~top_sorted_modules);
@@ -752,12 +756,15 @@ module Gen(P : Params) = struct
       String_map.map modules ~f:(Module.set_obj_name ~wrapper:None)
     in
     let programs =
-      List.map exes.names ~f:(fun name ->
-        match String_map.find (String.capitalize_ascii name) modules with
-        | Some m -> (name, m)
-        | None ->
-          die "executable %s in %s doesn't have a corresponding .ml file"
-            name (Path.to_string dir))
+      List.map exes.names ~f:(fun (loc, name) ->
+        let mod_name = String.capitalize_ascii name in
+        match String_map.find mod_name modules with
+        | Some m ->
+          if not (Module.has_impl m) then
+            Loc.fail loc "Module %s has no implementation." mod_name
+          else
+            (name, m)
+        | None -> Loc.fail loc "Module %s doesn't exist." mod_name)
     in
 
     let modules =
@@ -768,7 +775,7 @@ module Gen(P : Params) = struct
         ~lib_name:None
     in
 
-    let item = List.hd exes.names in
+    let item = snd (List.hd exes.names) in
     let dep_graphs =
       Ocamldep.rules sctx ~dir ~modules ~alias_module:None
         ~lib_interface_module:None

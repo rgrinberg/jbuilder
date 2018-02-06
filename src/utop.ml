@@ -37,7 +37,7 @@ let add_module_rules sctx ~dir lib_requires =
   Super_context.add_rule sctx utop_ml
 
 let utop_of_libs (libs : Library.t list) =
-  { Executables.names = [exe_name]
+  { Executables.names = [(Loc.none, exe_name)]
   ; link_executables = true
   ; link_flags = Ordered_set_lang.Unexpanded.t (
       Sexp.add_loc ~loc:Loc.none

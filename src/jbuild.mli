@@ -191,7 +191,7 @@ end
 
 module Executables : sig
   type t =
-    { names            : string list
+    { names            : (Loc.t * string) list
     ; link_executables : bool
     ; link_flags       : Ordered_set_lang.Unexpanded.t
     ; modes            : Mode.Dict.Set.t

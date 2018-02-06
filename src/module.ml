@@ -64,6 +64,8 @@ let iter t ~f =
   Option.iter t.impl ~f:(f Ml_kind.Impl);
   Option.iter t.intf ~f:(f Ml_kind.Intf)
 
+let has_impl t = Option.is_some t.impl
+
 let set_obj_name t ~wrapper =
   match wrapper with
   | Some s -> { t with obj_name = sprintf "%s__%s" s t.name }
