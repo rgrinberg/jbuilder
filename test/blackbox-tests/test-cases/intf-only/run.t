@@ -12,8 +12,6 @@ Successes:
         ocamlc test/bar.{cmi,cmo,cmt}
       ocamlopt foo.{a,cmxa}
       ocamlopt test/bar.{cmx,o}
-  [1mFile "[1m_none_", line 1[0m[0m:
-  [1;35mWarning[0m 58: no cmx file was found in path for module Foo__Intf, and its interface was not compiled with -opaque
         ocamlc test/bar.cma
       ocamlopt foo.cmxs
       ocamlopt test/bar.{a,cmxa}

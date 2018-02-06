@@ -55,6 +55,12 @@ let build_cm sctx ?sandbox ~dynlink ~flags ~cm_kind ~dep_graphs
           let fn = Option.value_exn (Module.cmt_file m ~dir ml_kind) in
           (fn :: extra_targets, A "-bin-annot")
       in
+      let opaque =
+        if cm_kind = Cmi && not (Module.has_impl m) && ctx.version >= (4, 03, 0) then
+          Arg_spec.A "-opaque"
+        else
+          As []
+      in
       SC.add_rule sctx ?sandbox
         (Build.paths extra_deps >>>
          other_cm_files >>>
@@ -67,7 +73,7 @@ let build_cm sctx ?sandbox ~dynlink ~flags ~cm_kind ~dep_graphs
            ; Dyn (fun (libs, _) -> Lib.include_flags libs ~stdlib_dir:ctx.stdlib_dir)
            ; As extra_args
            ; if dynlink || cm_kind <> Cmx then As [] else A "-nodynlink"
-           ; A "-no-alias-deps"
+           ; A "-no-alias-deps"; opaque
            ; A "-I"; Path dir
            ; (match alias_module with
               | None -> S []

@@ -466,8 +466,7 @@ module Gen(P : Params) = struct
   (* In 4.02, the compiler reads the cmi for module alias even with [-w -49
      -no-alias-deps], so we must sandbox the build of the alias module since the modules
      it references are built after. *)
-  let alias_module_build_sandbox = Scanf.sscanf ctx.version "%u.%u"
-     (fun a b -> a, b) <= (4, 02)
+  let alias_module_build_sandbox = ctx.version < (4, 03, 0)
 
   let library_rules (lib : Library.t) ~dir ~files
         ~(scope : Lib_db.Scope.t Lib_db.with_required_by) =

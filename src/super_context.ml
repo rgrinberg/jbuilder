@@ -157,7 +157,7 @@ let create
     ; "OCAML"          , Paths ([context.ocaml], Split)
     ; "OCAMLC"         , Paths ([context.ocamlc], Split)
     ; "OCAMLOPT"       , Paths ([ocamlopt], Split)
-    ; "ocaml_version"  , Strings ([context.version], Concat)
+    ; "ocaml_version"  , Strings ([context.version_string], Concat)
     ; "ocaml_where"    , Paths ([context.stdlib_dir], Concat)
     ; "ARCH_SIXTYFOUR" , Strings ([string_of_bool context.arch_sixtyfour],
                                   Concat)
