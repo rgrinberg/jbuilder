@@ -16,7 +16,7 @@ end
 type t =
   { name      : string (** Name of the module. This is always the basename of the filename
                            without the extension. *)
-  ; impl      : File.t
+  ; impl      : File.t option
   ; intf      : File.t option
 
   ; obj_name  : string (** Object name. It is different from [name] for wrapped
@@ -39,3 +39,6 @@ val odoc_file : t -> doc_dir:Path.t -> Path.t
 val cmti_file : t -> dir:Path.t -> Path.t
 
 val iter : t -> f:(Ml_kind.t -> File.t -> unit) -> unit
+
+(** Set the [obj_name] field of the module. [wrapper] might be a library name. *)
+val set_obj_name : t -> wrapper:string option -> t

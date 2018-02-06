@@ -444,7 +444,9 @@ end
 
 module Buildable = struct
   type t =
-    { modules                  : Ordered_set_lang.t
+    { loc                      : Loc.t
+    ; modules                  : Ordered_set_lang.t
+    ; modules_without_implementation : Ordered_set_lang.t
     ; libraries                : Lib_dep.t list
     ; preprocess               : Preprocess_map.t
     ; preprocessor_deps        : Dep_conf.t list
@@ -456,7 +458,11 @@ module Buildable = struct
     ; gen_dot_merlin           : bool
     }
 
+  let modules_field name =
+    field name Ordered_set_lang.t ~default:Ordered_set_lang.standard
+
   let v1 =
+    record_loc >>= fun loc ->
     field "preprocess" Preprocess_map.t ~default:Preprocess_map.default
     >>= fun preprocess ->
     field "preprocessor_deps" (list Dep_conf.t) ~default:[]
@@ -465,9 +471,10 @@ module Buildable = struct
        this *)
     field "lint" Lint.t ~default:Lint.default
     >>= fun lint ->
-    field "modules" (fun s -> Ordered_set_lang.(map (t s)) ~f:String.capitalize_ascii)
-      ~default:Ordered_set_lang.standard
+    modules_field "modules"
     >>= fun modules ->
+    modules_field "modules_without_implementation"
+    >>= fun modules_without_implementation ->
     field "libraries" Lib_deps.t ~default:[]
     >>= fun libraries ->
     field_oslu "flags"          >>= fun flags          ->
@@ -475,10 +482,12 @@ module Buildable = struct
     field_oslu "ocamlopt_flags" >>= fun ocamlopt_flags ->
     field "js_of_ocaml" (Js_of_ocaml.t) ~default:Js_of_ocaml.default >>= fun js_of_ocaml ->
     return
-      { preprocess
+      { loc
+      ; preprocess
       ; preprocessor_deps
       ; lint
       ; modules
+      ; modules_without_implementation
       ; libraries
       ; flags
       ; ocamlc_flags
@@ -1003,7 +1012,7 @@ module Stanzas = struct
 
   let rec v1 pkgs ~file ~include_stack : Stanza.t list Sexp.Of_sexp.t =
     sum
-      [ cstr "library"     (Library.v1 pkgs @> nil)      (fun x -> [Library     x])
+      [ cstr "library"     (Library.v1 pkgs @> nil) (fun x -> [Library x])
       ; cstr "executable"  (Executables.v1_single pkgs @> nil) execs
       ; cstr "executables" (Executables.v1_multi  pkgs @> nil) execs
       ; cstr_loc "rule"      (Rule.v1     @> nil) (fun loc x -> [Rule { x with loc }])
