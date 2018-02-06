@@ -986,7 +986,7 @@ module Gen(P : Params) = struct
         [ List.concat_map modules ~f:(fun m ->
             List.concat
               [ [ Module.cm_file m ~dir Cmi ]
-              ; if_ native [ Module.cm_file m ~dir Cmx ]
+              ; if_ (native && Module.has_impl m) [ Module.cm_file m ~dir Cmx ]
               ; List.filter_map Ml_kind.all ~f:(Module.cmt_file m ~dir)
               ; [ let file =
                     match m.intf with
