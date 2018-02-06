@@ -77,10 +77,12 @@ module Gen(P : Params) = struct
         match Ordered_set_lang.loc conf.modules_without_implementation with
         | None ->
           Loc.warn conf.loc
-            "Some modules don't have an implementation. You need to add the \
-             following field to this stanza:\n\
-             %s\n\
-             This will become an error in the future."
+            "Some modules don't have an implementation.\
+             \nYou need to add the following field to this stanza:\
+             \n\
+             \n  %s\
+             \n\
+             \nThis will become an error in the future."
             (Sexp.to_string (List [ Atom "modules_without_implementation"
                                   ; Sexp.To_sexp.(list string) should_be_listed
                                   ]))
