@@ -262,7 +262,7 @@ module Libs = struct
          findlib_closure externals
            ~required_by:scope.required_by
            ~local_public_libs:(local_public_libs t.libs)
-         |> List.map ~f:(fun pkg -> Lib.External pkg)
+         |> List.map ~f:Lib.external_
        in
        (internals, List.concat (externals :: internal_deps)))
 
@@ -274,7 +274,7 @@ module Libs = struct
       ~dep_kind
     >>^ fun (internals, deps) ->
     Lib.remove_dups_preserve_order
-      (deps @ List.map internals ~f:(fun x -> Lib.Internal x))
+      (deps @ List.map internals ~f:Lib.internal)
 
   let closed_ppx_runtime_deps_of t ~scope ~dep_kind lib_deps =
     closure_generic t lib_deps
@@ -373,7 +373,7 @@ module Doc = struct
   let root t = Path.relative t.context.Context.build_dir "_doc"
 
   let dir t lib =
-    let name = unique_library_name t (Lib.Internal lib) in
+    let name = unique_library_name t (Lib.internal lib) in
     Path.relative (root t) name
 
   let alias t ((_, lib) as ilib) =

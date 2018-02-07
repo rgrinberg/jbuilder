@@ -161,7 +161,7 @@ let setup_library_rules sctx (lib : Library.t) ~dir ~modules ~mld_files
       ~requires ~(dep_graphs:Ocamldep.Dep_graph.t Ml_kind.Dict.t) =
   let doc_dir = SC.Doc.dir sctx (dir, lib) in
   let obj_dir = Lib.lib_obj_dir dir lib in
-  let lib_unique_name = SC.unique_library_name sctx (Internal (dir, lib)) in
+  let lib_unique_name = SC.unique_library_name sctx (Lib.internal (dir, lib)) in
   let lib_name = Library.best_name lib in
   let odoc = get_odoc sctx in
   let includes =

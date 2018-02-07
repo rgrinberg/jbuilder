@@ -64,7 +64,7 @@ let link_rule ~sctx ~dir ~runtime ~target =
   let ctx = SC.context sctx in
   let get_all ((libs,cm),_) =
     (* Special case for the stdlib because it is not referenced in the META *)
-    let stdlib = Lib.External (Findlib.stdlib_with_archives ctx.findlib) in
+    let stdlib = Lib.external_ (Findlib.stdlib_with_archives ctx.findlib) in
     let all_libs =
       List.concat_map (stdlib :: libs) ~f:(function
         | Lib.External pkg ->

@@ -11,6 +11,9 @@ module T = struct
     | Internal of Internal.t
     | External of FP.t
 
+  let internal i = Internal i
+  let external_ i = External i
+
   let best_name = function
     | External pkg -> FP.name pkg
     | Internal (_, lib) -> Jbuild.Library.best_name lib
@@ -23,6 +26,14 @@ module Set = Set.Make(T)
 
 let lib_obj_dir dir lib =
   Path.relative dir ("." ^ lib.Jbuild.Library.name ^ ".objs")
+
+let get_internal = function
+  | Internal x -> Some x
+  | External _ -> None
+
+let to_either = function
+  | Internal x -> Inl x
+  | External x -> Inr x
 
 let dir = function
   | Internal (dir, _) -> dir
@@ -120,3 +131,10 @@ let remove_dups_preserve_order libs =
 let public_name = function
   | External pkg -> Some (FP.name pkg)
   | Internal (_, lib) -> Option.map lib.public ~f:(fun p -> p.name)
+
+let unique_id = function
+  | External pkg -> FP.name pkg
+  | Internal (dir, lib) ->
+    match lib.public with
+    | Some p -> p.name
+    | None -> Path.to_string dir ^ "\000" ^ lib.name

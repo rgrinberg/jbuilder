@@ -4,9 +4,16 @@ module Internal : sig
   type t = Path.t * Jbuild.Library.t
 end
 
-type t =
+type t = private
   | Internal of Internal.t
   | External of Findlib.Package.t
+
+val internal : Internal.t -> t
+val external_ : Findlib.Package.t -> t
+
+val to_either : t -> (Internal.t, Findlib.Package.t) either
+
+val get_internal : t -> Internal.t option
 
 module Set : Set.S with type elt := t
 
@@ -38,3 +45,5 @@ val remove_dups_preserve_order : t list -> t list
 *)
 
 val public_name : t -> string option
+
+val unique_id : t -> string

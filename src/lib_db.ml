@@ -50,12 +50,12 @@ module Scope = struct
 
   let find_exn (t : t With_required_by.t) name =
     match String_map.find name t.data.scope.libs with
-    | Some l -> Lib.Internal l
+    | Some l -> Lib.internal l
     | None ->
       Hashtbl.find_or_add t.data.lib_db.by_public_name name
         ~f:(fun name ->
-          External (Findlib.find_exn t.data.lib_db.findlib name
-                      ~required_by:t.required_by))
+          Lib.external_ (Findlib.find_exn t.data.lib_db.findlib name
+                          ~required_by:t.required_by))
 
   let find t name =
     match find_exn t name with
@@ -67,7 +67,7 @@ module Scope = struct
     | Some _ as some -> some
     | None ->
       match Hashtbl.find t.data.lib_db.by_public_name name with
-      | Some (Internal x) -> Some x
+      | Some l -> Lib.get_internal l
       | _ -> None
 
   let lib_is_available (t : t With_required_by.t) name =
@@ -118,9 +118,7 @@ module Scope = struct
       List.partition_map lib_deps ~f:(interpret_lib_dep t)
     in
     let internals, externals =
-      List.partition_map (List.concat libs) ~f:(function
-        | Internal x -> Inl x
-        | External x -> Inr x)
+      List.partition_map (List.concat libs) ~f:Lib.to_either
     in
     (internals, externals,
      match failures with
@@ -175,14 +173,7 @@ module Scope = struct
       | Inr fail -> fail.fail ()
       | Inl libs -> List.fold_left libs ~init:acc ~f:process
     and process acc (lib : Lib.t) =
-      let unique_id =
-        match lib with
-        | External pkg -> FP.name pkg
-        | Internal (dir, lib) ->
-          match lib.public with
-          | Some p -> p.name
-          | None -> Path.to_string dir ^ "\000" ^ lib.name
-      in
+      let unique_id = Lib.unique_id lib in
       if String_set.mem unique_id !seen then
         acc
       else begin
@@ -195,7 +186,7 @@ module Scope = struct
         | External pkg ->
           if deep_traverse_externals then
             List.fold_left (FP.requires pkg) ~init:acc ~f:(fun acc pkg ->
-              process acc (External pkg))
+              process acc (Lib.external_ pkg))
           else begin
             seen :=
               String_set.union !seen
@@ -246,7 +237,7 @@ let top_sort_internals t ~internal_libraries =
   | Ok l -> l
   | Error cycle ->
     die "dependency cycle between libraries:\n   %s"
-      (List.map cycle ~f:(fun lib -> Lib.describe (Internal lib))
+      (List.map cycle ~f:(fun lib -> Lib.describe (Lib.internal lib))
        |> String.concat ~sep:"\n-> ")
 
 let compute_instalable_internal_libs t ~internal_libraries =
@@ -302,7 +293,7 @@ let create findlib ~scopes ~root internal_libraries =
       match Hashtbl.find t.by_public_name name with
       | None
       | Some (External _) ->
-        Hashtbl.add t.by_public_name ~key:name ~data:(Internal internal)
+        Hashtbl.add t.by_public_name ~key:name ~data:(Lib.internal internal)
       | Some (Internal dup) ->
         let internal_path (path, _) = Path.relative path "jbuild" in
         die "Libraries with identical public names %s defined in %a and %a."
