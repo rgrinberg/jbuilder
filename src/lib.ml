@@ -104,15 +104,13 @@ let jsoo_runtime_files ts =
       List.map (FP.jsoo_runtime pkg) ~f:(Path.relative (FP.dir pkg))
     | Internal (dir, lib) ->
       List.map lib.buildable.js_of_ocaml.javascript_files ~f:(Path.relative dir))
-(*
-let ppx_runtime_libraries ts =
-  List.fold_left ts ~init:String_set.empty ~f:(fun acc t ->
+
+let ppx_runtime_libraries t =
+  String_set.of_list (
     match t with
-    | Internal (_, lib) ->
-      String_set.union acc (String_set.of_list lib.ppx_runtime_libraries)
-    | External pkg ->
-      String_set.union acc (String_set.of_list pkg.ppx_runtime_deps))
-*)
+    | Internal (_, lib) -> lib.ppx_runtime_libraries
+    | External pkg -> List.map ~f:FP.name (FP.ppx_runtime_deps pkg)
+  )
 
 let remove_dups_preserve_order libs =
   let rec loop seen libs acc =

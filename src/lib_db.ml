@@ -204,15 +204,16 @@ module Scope = struct
     fold_transitive_closure scope ~deep_traverse_externals lib_deps
       ~init:String_set.empty ~f:(fun lib acc ->
         let rt_deps =
-          match lib with
-          | Internal (dir, lib) ->
+          let ppx_runtime_libraries = Lib.ppx_runtime_libraries lib in
+          match Lib.src_dir lib with
+          | Some dir ->
             let scope = lazy (find_scope' scope.data.lib_db ~dir) in
-            List.map lib.ppx_runtime_libraries ~f:(fun name ->
+            String_set.map ppx_runtime_libraries ~f:(fun name ->
               Lib.best_name (find_exn (Lazy.force scope) name))
-          | External pkg ->
-            List.map (FP.ppx_runtime_deps pkg) ~f:FP.name
+          | None ->
+            ppx_runtime_libraries
         in
-        String_set.union acc (String_set.of_list rt_deps))
+        String_set.union acc rt_deps)
 end
 
 let find_scope = Scope.find_scope
