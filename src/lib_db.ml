@@ -66,9 +66,8 @@ module Scope = struct
     match String_map.find name t.data.scope.libs with
     | Some _ as some -> some
     | None ->
-      match Hashtbl.find t.data.lib_db.by_public_name name with
-      | Some l -> Lib.get_internal l
-      | _ -> None
+      let open Option.Infix in
+      Hashtbl.find t.data.lib_db.by_public_name name >>= Lib.get_internal
 
   let lib_is_available (t : t With_required_by.t) name =
     match find_internal t name with
