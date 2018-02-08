@@ -446,6 +446,13 @@ end
 module Option = struct
   type 'a t = 'a option
 
+  module Infix = struct
+    let (>>=) t f =
+      match t with
+      | None -> None
+      | Some a -> f a
+  end
+
   let map t ~f =
     match t with
     | None -> None

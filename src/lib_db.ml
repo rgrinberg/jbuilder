@@ -306,16 +306,15 @@ let internal_libs_without_non_installable_optional_ones t =
   String_map.values t.instalable_internal_libs
 
 let unique_library_name t (lib : Lib.t) =
-  match lib with
-  | External pkg -> FP.name pkg
-  | Internal (dir, lib) ->
-    match lib.public with
-    | Some x -> x.name
-    | None ->
-      let scope = internal_name_scope t ~dir in
-      match scope.scope.name with
-      | None -> lib.name ^ "@"
-      | Some s -> lib.name ^ "@" ^ s
+  match Lib.public_name lib with
+  | Some p -> p
+  | None ->
+    let dir = Option.value_exn (Lib.src_dir lib) in
+    let scope = internal_name_scope t ~dir in
+    let name = Lib.best_name lib in
+    match scope.scope.name with
+    | None -> name ^ "@"
+    | Some s -> name ^ "@" ^ s
 
 let external_scope t =
   { Scope.

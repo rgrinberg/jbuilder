@@ -136,3 +136,7 @@ let unique_id = function
     match lib.public with
     | Some p -> p.name
     | None -> Path.to_string dir ^ "\000" ^ lib.name
+
+let src_dir = function
+  | External _ -> None
+  | Internal (dir, _) -> Some dir

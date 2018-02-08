@@ -278,6 +278,6 @@ let gen_rules sctx ~dir:_ rest =
         data = scope
       ; required_by = [Alias (Path.of_string "doc")]
       } in
-    match Lib_db.Scope.find scope lib with
-    | None | Some (External _) -> ()
-    | Some (Internal (dir, _)) -> SC.load_dir sctx ~dir
+    let open Option.Infix in
+    Option.iter (Lib_db.Scope.find scope lib >>= Lib.src_dir)
+      ~f:(fun dir -> SC.load_dir sctx ~dir)
