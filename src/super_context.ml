@@ -375,24 +375,28 @@ module Doc = struct
   let root t = Path.relative t.context.Context.build_dir "_doc"
 
   let dir t lib =
-    let name = unique_library_name t (Lib.internal lib) in
+    let name = unique_library_name t lib in
     Path.relative (root t) name
 
-  let alias t ((_, lib) as ilib) =
-    let doc_dir = dir t ilib in
-    Alias.make (sprintf "odoc-%s%s-all" lib.name ".odoc") ~dir:doc_dir
+  let alias = Alias.make ".doc-all"
 
   let deps t =
     Build.dyn_paths (Build.arr (
       List.fold_left ~init:[] ~f:(fun acc (lib : Lib.t) ->
-        match lib with
-        | External _ -> acc
-        | Internal lib -> (Alias.stamp_file (alias t lib)) :: acc
+        if Lib.is_local lib then (
+          Alias.stamp_file (alias ~dir:(dir t lib)) :: acc
+        ) else (
+          acc
+        )
       )))
+
+  let alias t lib = alias ~dir:(dir t (Lib.internal lib))
 
   let static_deps t lib = Alias.dep (alias t lib)
 
   let setup_deps t lib files = add_alias_deps t (alias t lib) files
+
+  let dir t lib = dir t (Lib.internal lib)
 end
 
 module Deps = struct
