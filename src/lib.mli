@@ -37,6 +37,7 @@ val link_flags : t list -> mode:Mode.t -> stdlib_dir:Path.t -> _ Arg_spec.t
 val archive_files : t list -> mode:Mode.t -> ext_lib:string -> Path.t list
 
 val jsoo_runtime_files : t list -> Path.t list
+val jsoo_archives : t -> Path.t list
 
 (** [public_name] if present, [name] if not *)
 val best_name : t -> string

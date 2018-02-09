@@ -83,22 +83,34 @@ let link_flags ts ~mode ~stdlib_dir =
        | Internal (dir, lib) ->
          Dep (Path.relative dir (lib.name ^ Mode.compiled_lib_ext mode))))
 
+let stub_archives t ~ext_lib =
+  match t with
+  | External _ -> None
+  | Internal (dir, lib) ->
+    if Jbuild.Library.has_stubs lib then
+      Some (Jbuild.Library.stubs_archive lib ~dir ~ext_lib)
+    else
+      None
+
+let ml_archives t ~mode ~ext_lib =
+  match t with
+  | External pkg -> FP.archives pkg mode
+  | Internal (dir, lib) ->
+    let l =
+      [Path.relative dir (lib.name ^ Mode.compiled_lib_ext mode)]
+    in
+    match mode with
+    | Byte -> l
+    | Native -> Path.relative dir (lib.name ^ ext_lib) :: l
+
 let archive_files ts ~mode ~ext_lib =
-  List.concat_map ts ~f:(function
-    | External pkg -> FP.archives pkg mode
-    | Internal (dir, lib) ->
-      let l =
-        [Path.relative dir (lib.name ^ Mode.compiled_lib_ext mode)]
-      in
-      let l =
-        match mode with
-        | Byte -> l
-        | Native -> Path.relative dir (lib.name ^ ext_lib) :: l
-      in
-      if Jbuild.Library.has_stubs lib then
-        Jbuild.Library.stubs_archive lib ~dir ~ext_lib :: l
-      else
-        l)
+  List.concat_map ts ~f:(fun lib ->
+    ml_archives lib ~mode ~ext_lib @
+    Option.to_list (stub_archives lib ~ext_lib))
+
+let jsoo_archives t =
+  ml_archives t ~mode:Mode.Byte ~ext_lib:".cma"
+  |> List.map ~f:(Path.extend_basename ~suffix:".js")
 
 let jsoo_runtime_files ts =
   List.concat_map ts ~f:(function
