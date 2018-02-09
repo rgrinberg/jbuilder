@@ -52,4 +52,11 @@ val scope : t -> [`Dir of Path.t | `External]
 
 val public_name : t -> string option
 
+type local =
+  { src: Path.t
+  ; name: string
+  }
+
+val local : t -> local option
+
 val unique_id : t -> string

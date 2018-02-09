@@ -35,13 +35,18 @@ let to_either = function
   | Internal x -> Inl x
   | External x -> Inr x
 
-let dir = function
-  | Internal (dir, _) -> dir
-  | External pkg -> FP.dir pkg
+let src_dir = function
+  | External _ -> None
+  | Internal (dir, _) -> Some dir
 
 let obj_dir = function
-  | Internal (dir, lib) -> lib_obj_dir dir lib
   | External pkg -> FP.dir pkg
+  | Internal (dir, lib) -> lib_obj_dir dir lib
+
+let src_or_obj_dir t =
+  match src_dir t with
+  | None -> obj_dir t
+  | Some dir -> dir
 
 let is_local lib = Path.is_local (obj_dir lib)
 
@@ -58,7 +63,7 @@ let include_flags ts ~stdlib_dir =
 let c_include_flags ts ~stdlib_dir =
   let dirs =
     List.fold_left ts ~init:Path.Set.empty ~f:(fun acc t ->
-      Path.Set.add (dir t) acc)
+      Path.Set.add (src_or_obj_dir t) acc)
     |> Path.Set.remove stdlib_dir
   in
   Arg_spec.S (List.concat_map (Path.Set.elements dirs) ~f:(fun dir ->
@@ -161,10 +166,11 @@ let unique_id = function
     | Some p -> p.name
     | None -> Path.to_string dir ^ "\000" ^ lib.name
 
-let src_dir = function
-  | External _ -> None
-  | Internal (dir, _) -> Some dir
+type local =
+  { src: Path.t
+  ; name: string
+  }
 
-let obj_dir = function
-  | External pkg -> FP.dir pkg
-  | Internal (dir, lib) -> lib_obj_dir dir lib
+let local = function
+  | Internal (dir, lib) -> Some { src = dir; name = lib.name }
+  | External _ -> None
