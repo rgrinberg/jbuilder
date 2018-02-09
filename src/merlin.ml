@@ -49,17 +49,18 @@ let dot_merlin sctx ~dir ~scope ({ requires; flags; _ } as t) =
       >>^ (fun (libs, flags) ->
         let ppx_flags = ppx_flags sctx ~dir ~scope ~src_dir:remaindir t in
         let internals, externals =
-          List.fold_left libs ~init:([], []) ~f:(fun (internals, externals) (lib : Lib.t) ->
-            match Lib.public_name lib with
-            | Some pkg ->
-              internals, ("PKG " ^ pkg) :: externals
-            | None ->
-              let src_dir = Option.value_exn (Lib.src_dir lib) in
+          List.fold_left ~f:(fun (internals, externals) (lib : Lib.t) ->
+            match Lib.src_dir lib, Lib.public_name lib with
+            | None, None ->
+              assert false (* must have a source dir or be a findlib pkg *)
+            | None, Some name ->
+              internals, ("PKG " ^ name) :: externals
+            | Some src_dir, (None | Some _) ->
               let nice_path = Path.reach ~from:remaindir in
               let spath = nice_path (Path.drop_optional_build_context src_dir) in
               let bpath = nice_path (Lib.obj_dir lib) in
               ("S " ^ spath) :: ("B " ^ bpath) :: internals, externals
-          )
+          ) libs ~init:([], [])
         in
         let source_dirs =
           Path.Set.fold t.source_dirs ~init:[] ~f:(fun path acc ->
