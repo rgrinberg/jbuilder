@@ -49,17 +49,16 @@ let dot_merlin sctx ~dir ~scope ({ requires; flags; _ } as t) =
       >>^ (fun (libs, flags) ->
         let ppx_flags = ppx_flags sctx ~dir ~scope ~src_dir:remaindir t in
         let internals, externals =
-          List.fold_left libs ~init:([], []) ~f:(fun (internals, externals) ->
-            function
-            | Lib.Internal (path, lib) ->
-              let spath =
-                Path.drop_optional_build_context path
-                |> Path.reach ~from:remaindir
-              in
-              let bpath = Path.reach (Lib.lib_obj_dir path lib) ~from:remaindir in
+          List.fold_left libs ~init:([], []) ~f:(fun (internals, externals) (lib : Lib.t) ->
+            match Lib.public_name lib with
+            | Some pkg ->
+              internals, ("PKG " ^ pkg) :: externals
+            | None ->
+              let src_dir = Option.value_exn (Lib.src_dir lib) in
+              let nice_path = Path.reach ~from:remaindir in
+              let spath = nice_path (Path.drop_optional_build_context src_dir) in
+              let bpath = nice_path (Lib.obj_dir lib) in
               ("S " ^ spath) :: ("B " ^ bpath) :: internals, externals
-            | Lib.External pkg ->
-              internals, ("PKG " ^ Findlib.Package.name pkg) :: externals
           )
         in
         let source_dirs =

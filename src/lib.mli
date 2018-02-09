@@ -16,6 +16,7 @@ val to_either : t -> (Internal.t, Findlib.Package.t) either
 val get_internal : t -> Internal.t option
 
 val src_dir : t -> Path.t option
+val obj_dir : t -> Path.t
 
 module Set : Set.S with type elt := t
 

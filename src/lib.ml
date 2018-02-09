@@ -140,3 +140,7 @@ let unique_id = function
 let src_dir = function
   | External _ -> None
   | Internal (dir, _) -> Some dir
+
+let obj_dir = function
+  | External pkg -> FP.dir pkg
+  | Internal (dir, lib) -> lib_obj_dir dir lib
