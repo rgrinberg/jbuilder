@@ -4,9 +4,7 @@ module Internal : sig
   type t = Path.t * Jbuild.Library.t
 end
 
-type t = private
-  | Internal of Internal.t
-  | External of Findlib.Package.t
+type t
 
 val internal : Internal.t -> t
 val external_ : Findlib.Package.t -> t
