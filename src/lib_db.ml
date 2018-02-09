@@ -310,13 +310,15 @@ let create findlib ~scopes ~root internal_libraries =
     scope.libs <- String_map.add scope.libs ~key:lib.Library.name ~data:internal;
     Option.iter lib.public ~f:(fun { name; _ } ->
       match Hashtbl.find t.by_public_name name with
-      | None
-      | Some (External _) ->
+      | None ->
         Hashtbl.add t.by_public_name ~key:name ~data:(Lib.internal internal)
-      | Some (Internal dup) ->
-        let internal_path (path, _) = Path.relative path "jbuild" in
+      | Some lib ->
+        (* We only populated this table with internal libraries, who always have
+           source dir *)
+        let dup_path = Option.value_exn (Lib.src_dir lib) in
+        let internal_path d = Path.relative d "jbuild" in
         die "Libraries with identical public names %s defined in %a and %a."
-          name Path.pp (internal_path internal) Path.pp (internal_path dup)
+          name Path.pp (internal_path dir) Path.pp (internal_path dup_path)
     ));
   compute_instalable_internal_libs t ~internal_libraries
 
