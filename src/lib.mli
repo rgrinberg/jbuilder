@@ -14,7 +14,7 @@ val external_ : Findlib.Package.t -> t
 val to_either : t -> (Internal.t, Findlib.Package.t) either
 
 val get_internal : t -> Internal.t option
-val is_internal : t -> bool
+val is_local : t -> bool
 
 val src_dir : t -> Path.t option
 val obj_dir : t -> Path.t

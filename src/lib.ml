@@ -31,8 +31,6 @@ let get_internal = function
   | Internal x -> Some x
   | External _ -> None
 
-let is_internal x = get_internal x <> None
-
 let to_either = function
   | Internal x -> Inl x
   | External x -> Inr x
@@ -44,6 +42,8 @@ let dir = function
 let obj_dir = function
   | Internal (dir, lib) -> lib_obj_dir dir lib
   | External pkg -> FP.dir pkg
+
+let is_local lib = Path.is_local (obj_dir lib)
 
 let include_paths ts ~stdlib_dir =
   List.fold_left ts ~init:Path.Set.empty ~f:(fun acc t ->

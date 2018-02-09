@@ -68,7 +68,7 @@ let link_rule ~sctx ~dir ~runtime ~target =
     let all_libs =
       List.concat_map (stdlib :: libs) ~f:(fun (lib : Lib.t) ->
         let jsoo_archives = Lib.jsoo_archives lib in
-        if Lib.is_internal lib then (
+        if Lib.is_local lib then (
           jsoo_archives
         ) else (
           let lib_name = Option.value_exn (Lib.public_name lib) in

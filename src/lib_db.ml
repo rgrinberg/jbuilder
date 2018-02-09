@@ -201,7 +201,7 @@ module Scope = struct
             }
           | `Dir dir ->
             find_scope' scope.data.lib_db ~dir in
-        if deep_traverse_externals || Lib.is_internal lib then (
+        if deep_traverse_externals || Lib.is_local lib then (
           List.fold_left requires ~init:acc ~f:(loop scope)
         ) else (
           seen := String_set.union !seen (
