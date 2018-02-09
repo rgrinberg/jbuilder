@@ -31,6 +31,8 @@ let get_internal = function
   | Internal x -> Some x
   | External _ -> None
 
+let is_internal x = get_internal x <> None
+
 let to_either = function
   | Internal x -> Inl x
   | External x -> Inr x
@@ -111,6 +113,16 @@ let ppx_runtime_libraries t =
     | Internal (_, lib) -> lib.ppx_runtime_libraries
     | External pkg -> List.map ~f:FP.name (FP.ppx_runtime_deps pkg)
   )
+
+let requires = function
+  | Internal (_, lib) ->
+    lib.buildable.libraries
+  | External pkg ->
+    List.map ~f:(fun fp -> Jbuild.Lib_dep.direct (FP.name fp)) (FP.requires pkg)
+
+let scope = function
+  | Internal (dir, _) -> `Dir dir
+  | External _ -> `External
 
 let remove_dups_preserve_order libs =
   let rec loop seen libs acc =

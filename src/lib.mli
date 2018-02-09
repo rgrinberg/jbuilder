@@ -14,6 +14,7 @@ val external_ : Findlib.Package.t -> t
 val to_either : t -> (Internal.t, Findlib.Package.t) either
 
 val get_internal : t -> Internal.t option
+val is_internal : t -> bool
 
 val src_dir : t -> Path.t option
 val obj_dir : t -> Path.t
@@ -45,8 +46,9 @@ val describe : t -> string
 val remove_dups_preserve_order : t list -> t list
 
 val ppx_runtime_libraries : t -> String_set.t
+val requires : t -> Jbuild.Lib_deps.t
+val scope : t -> [`Dir of Path.t | `External]
 
 val public_name : t -> string option
 
 val unique_id : t -> string
-

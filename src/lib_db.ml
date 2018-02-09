@@ -48,6 +48,14 @@ module Scope = struct
     ; lib_db : t
     }
 
+  let external_scope t =
+    { lib_db = t
+    ; scope =
+        { libs = String_map.empty
+        ; scope = Jbuild.Scope.empty
+        }
+    }
+
   let find_exn (t : t With_required_by.t) name =
     match String_map.find name t.data.scope.libs with
     | Some l -> Lib.internal l
@@ -112,6 +120,11 @@ module Scope = struct
           Loc.fail loc "No solution found for this select form"
         }
 
+  let interpret_lib_dep_exn t lib_dep =
+    match interpret_lib_dep t lib_dep with
+    | Inr fail -> fail.fail ()
+    | Inl r -> r
+
   let interpret_lib_deps t lib_deps =
     let libs, failures =
       List.partition_map lib_deps ~f:(interpret_lib_dep t)
@@ -165,12 +178,12 @@ module Scope = struct
     required_in_jbuild scope ~jbuild_dir:dir
 
   (* Fold the transitive closure, not necessarily in topological order *)
-  let fold_transitive_closure scope ~deep_traverse_externals lib_deps ~init ~f =
+  let fold_transitive_closure (scope : t With_required_by.t)
+        ~deep_traverse_externals lib_deps ~init ~f =
     let seen = ref String_set.empty in
     let rec loop scope acc lib_dep =
-      match interpret_lib_dep scope lib_dep with
-      | Inr fail -> fail.fail ()
-      | Inl libs -> List.fold_left libs ~init:acc ~f:process
+      interpret_lib_dep_exn scope lib_dep
+      |> List.fold_left ~init:acc ~f:process
     and process acc (lib : Lib.t) =
       let unique_id = Lib.unique_id lib in
       if String_set.mem unique_id !seen then
@@ -178,21 +191,27 @@ module Scope = struct
       else begin
         seen := String_set.add unique_id !seen;
         let acc = f lib acc in
-        match lib with
-        | Internal (dir, lib) ->
-          let scope = find_scope' scope.With_required_by.data.lib_db ~dir in
-          List.fold_left lib.buildable.libraries ~init:acc ~f:(loop scope)
-        | External pkg ->
-          if deep_traverse_externals then
-            List.fold_left (FP.requires pkg) ~init:acc ~f:(fun acc pkg ->
-              process acc (Lib.external_ pkg))
-          else begin
-            seen :=
-              String_set.union !seen
-                (String_set.of_list
-                   (List.map (FP.requires pkg) ~f:FP.name));
-            acc
-          end
+        let requires = Lib.requires lib in
+        let scope =
+          match Lib.scope lib with
+          | `External ->
+            { With_required_by.
+              data = external_scope scope.data.lib_db
+            ; required_by = scope.required_by
+            }
+          | `Dir dir ->
+            find_scope' scope.data.lib_db ~dir in
+        if deep_traverse_externals || Lib.is_internal lib then (
+          List.fold_left requires ~init:acc ~f:(loop scope)
+        ) else (
+          seen := String_set.union !seen (
+            String_set.of_list (List.concat_map ~f:(fun lib_dep ->
+              interpret_lib_dep_exn scope lib_dep
+              |> List.map ~f:Lib.unique_id
+            ) requires)
+          );
+          acc
+        )
       end
     in
     List.fold_left lib_deps ~init ~f:(loop scope)
@@ -315,14 +334,7 @@ let unique_library_name t (lib : Lib.t) =
     | None -> name ^ "@"
     | Some s -> name ^ "@" ^ s
 
-let external_scope t =
-  { Scope.
-    lib_db = t
-  ; scope =
-      { libs = String_map.empty
-      ; scope = Jbuild.Scope.empty
-      }
-  }
+let external_scope = Scope.external_scope
 
 let anonymous_scope t =
   { Scope.
