@@ -60,3 +60,5 @@ type local =
 val local : t -> local option
 
 val unique_id : t -> string
+
+val exists_name : t -> f:(string -> bool) -> bool

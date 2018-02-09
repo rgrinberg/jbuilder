@@ -790,14 +790,7 @@ module PP = struct
         let is_driver name = name = driver || name = migrate_driver_main in
         let libs, drivers =
           List.partition_map libs ~f:(fun lib ->
-            if (match lib with
-              | External pkg -> is_driver (Findlib.Package.name pkg)
-              | Internal (_, lib) ->
-                is_driver lib.name ||
-                match lib.public with
-                | None -> false
-                | Some { name; _ } -> is_driver name)
-            then
+            if Lib.exists_name lib ~f:is_driver then
               Inr lib
             else
               Inl lib)

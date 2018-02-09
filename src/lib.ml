@@ -174,3 +174,13 @@ type local =
 let local = function
   | Internal (dir, lib) -> Some { src = dir; name = lib.name }
   | External _ -> None
+
+let exists_name t ~f =
+  match t with
+  | External pkg -> f (FP.name pkg)
+  | Internal (_, lib) ->
+    (f lib.name) || (
+      match lib.public with
+      | None -> false
+      | Some p -> f p.name
+    )
