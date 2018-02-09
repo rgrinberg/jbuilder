@@ -344,29 +344,31 @@ module Libs = struct
        >>>
        Build.store_vfile vruntime_deps)
 
-  let lib_files_alias ((dir, lib) : Lib.Internal.t) ~ext =
-    Alias.make (sprintf "lib-%s%s-all" lib.name ext) ~dir
+  let lib_files_alias ~dir ~name ~ext =
+    Alias.make (sprintf "lib-%s%s-all" name ext) ~dir
 
-  let setup_file_deps_alias t lib ~ext files =
-    add_alias_deps t (lib_files_alias lib ~ext) files
+  let setup_file_deps_alias t ((dir, lib) : Lib.Internal.t) ~ext files =
+    add_alias_deps t (lib_files_alias ~dir ~name:lib.name ~ext) files
 
-  let setup_file_deps_group_alias t lib ~exts =
-    setup_file_deps_alias t lib
+  let setup_file_deps_group_alias t ((dir, lib) : Lib.Internal.t) ~exts =
+    setup_file_deps_alias t (dir, lib)
       ~ext:(String.concat exts ~sep:"-and-")
-      (List.map exts ~f:(fun ext -> Alias.stamp_file (lib_files_alias lib ~ext)))
+      (List.map exts ~f:(fun ext ->
+         Alias.stamp_file (lib_files_alias ~dir ~name:lib.name ~ext)))
 
   let file_deps t ~ext =
     Build.dyn_paths (Build.arr (fun libs ->
       List.fold_left libs ~init:[] ~f:(fun acc (lib : Lib.t) ->
-        match lib with
-        | External pkg ->
+        match Lib.local lib with
+        | None ->
           Build_system.stamp_file_for_files_of t.build_system
-            ~dir:(Findlib.Package.dir pkg) ~ext :: acc
-        | Internal lib ->
-          Alias.stamp_file (lib_files_alias lib ~ext) :: acc)))
+            ~dir:(Lib.obj_dir lib) ~ext :: acc
+        | Some { Lib .src ; name } ->
+          Alias.stamp_file (lib_files_alias ~dir:src ~name ~ext) :: acc
+      )))
 
-  let static_file_deps ~ext lib =
-    Alias.dep (lib_files_alias lib ~ext)
+  let static_file_deps ~ext ((dir, lib) : Lib.Internal.t) =
+    Alias.dep (lib_files_alias ~dir ~name:lib.name ~ext)
 end
 
 module Doc = struct
