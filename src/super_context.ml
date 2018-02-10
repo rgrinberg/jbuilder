@@ -247,6 +247,11 @@ module Libs = struct
     | None -> build
     | Some f -> Build.fail f >>> build
 
+  let with_fail' ~fail build =
+    match fail with
+    | None -> Ok build
+    | Some f -> Error f
+
   let closure_generic t ~findlib_closure ~load_deps ~scope ~dep_kind lib_deps =
     let internals, externals, fail =
       Lib_db.Scope.interpret_lib_deps scope lib_deps
@@ -258,6 +263,22 @@ module Libs = struct
          (List.map internals ~f:(fun ((dir, lib) : Lib.Internal.t) ->
             load_deps t ~dir ~item:lib.name))
        >>^ fun internal_deps ->
+       let externals =
+         findlib_closure externals
+           ~required_by:scope.required_by
+           ~local_public_libs:(local_public_libs t.libs)
+         |> List.map ~f:(fun pkg -> Lib.External pkg)
+       in
+       (internals, List.concat (externals :: internal_deps)))
+
+  let closure_generic' t ~findlib_closure ~load_deps ~scope lib_deps =
+    let internals, externals, fail =
+      Lib_db.Scope.interpret_lib_deps scope lib_deps
+    in
+    with_fail' ~fail
+      (let internal_deps =
+         List.map internals ~f:(fun ((dir, lib) : Lib.Internal.t) ->
+           load_deps t ~dir ~item:lib.name) in
        let externals =
          findlib_closure externals
            ~required_by:scope.required_by
@@ -284,6 +305,23 @@ module Libs = struct
       ~dep_kind
     >>^ fun (_, deps) ->
     Lib.remove_dups_preserve_order deps
+
+  let closure' t ~scope lib_deps =
+    closure_generic' t lib_deps
+      ~load_deps:(fun _ ~dir:_ ~item:_ -> failwith "")
+      ~findlib_closure:Findlib.closure
+      ~scope
+    |> Result.map ~f:(fun (internals, deps) ->
+      Lib.remove_dups_preserve_order
+        (deps @ List.map internals ~f:(fun x -> Lib.Internal x)))
+
+  let closed_ppx_runtime_deps_of' t ~scope lib_deps =
+    closure_generic' t lib_deps
+      ~load_deps:(fun _ ~dir:_ ~item:_ -> failwith "")
+      ~findlib_closure:Findlib.closed_ppx_runtime_deps_of
+      ~scope
+    |> Result.map ~f:(fun (_, deps) ->
+      Lib.remove_dups_preserve_order deps)
 
   let add_select_rules t ~dir ~scope lib_deps =
     Lib_db.Scope.resolve_selects scope lib_deps
@@ -315,6 +353,15 @@ module Libs = struct
        >>>
        Build.store_vfile vrequires);
     Build.vpath vrequires
+
+  let real_requires' t ~dir ~scope ~libraries ~preprocess =
+    let all_pps = List.map (Preprocess_map.pps preprocess) ~f:Pp.to_string in
+    let open Result.Infix in
+    closure' t ~scope libraries
+    >>= fun libs ->
+    closed_ppx_runtime_deps_of' t ~scope (List.map all_pps ~f:Lib_dep.direct)
+    >>| fun rt_deps ->
+    Lib.remove_dups_preserve_order (libs @ rt_deps)
 
   let requires t ~dir ~scope ~dep_kind ~item ~libraries ~preprocess ~virtual_deps
         ~has_dot_merlin =

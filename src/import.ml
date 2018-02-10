@@ -45,6 +45,22 @@ type ('a, 'b) result = ('a, 'b) Result.t =
   | Ok of 'a
   | Error of 'b
 
+module Result = struct
+  include Result
+
+  module Infix = struct
+    let (>>=) t f =
+      match t with
+      | Error x -> Error x
+      | Ok x -> f x
+
+    let (>>|) t f =
+      match t with
+      | Error x -> Error x
+      | Ok x -> Ok (f x)
+  end
+end
+
 module List = struct
   type 'a t = 'a list
 
