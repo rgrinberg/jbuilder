@@ -493,6 +493,7 @@ module Gen(P : Params) = struct
 
     let dep_graphs =
       Ocamldep.rules sctx ~dir ~modules ~alias_module
+        ~suffix:(Some lib.name)
         ~lib_interface_module:(if lib.wrapped then
                                  String_map.find main_module_name modules
                                else
@@ -794,7 +795,7 @@ module Gen(P : Params) = struct
 
     let dep_graphs =
       Ocamldep.rules sctx ~dir ~modules ~alias_module:None
-        ~lib_interface_module:None
+        ~lib_interface_module:None ~suffix:None
     in
 
     let requires, real_requires =

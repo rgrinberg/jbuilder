@@ -112,13 +112,18 @@ let parse_deps ~dir ~file ~(unit : Module.t)
       in
       deps
 
-let rules sctx ~(ml_kind:Ml_kind.t) ~dir ~modules ~alias_module ~lib_interface_module =
+let rules sctx ~(ml_kind:Ml_kind.t) ~dir ~modules ~alias_module
+      ~lib_interface_module ~suffix =
+  let suffix =
+    match suffix with
+    | None -> ".d"
+    | Some s -> sprintf ".%s.d" s in
   let per_module =
     String_map.map modules ~f:(fun unit ->
       match Module.file ~dir unit ml_kind with
       | None -> Build.return []
       | Some file ->
-        let ocamldep_output = Path.extend_basename file ~suffix:".d" in
+        let ocamldep_output = Path.extend_basename file ~suffix in
         let context = SC.context sctx in
         SC.add_rule sctx
           (Build.run ~context (Ok context.ocamldep)
@@ -138,5 +143,6 @@ let rules sctx ~(ml_kind:Ml_kind.t) ~dir ~modules ~alias_module ~lib_interface_m
   ; per_module
   }
 
-let rules sctx ~dir ~modules ~alias_module ~lib_interface_module =
-  Ml_kind.Dict.of_func (rules sctx ~dir ~modules ~alias_module ~lib_interface_module)
+let rules sctx ~dir ~modules ~alias_module ~lib_interface_module ~suffix =
+  Ml_kind.Dict.of_func (rules sctx ~dir ~modules ~alias_module
+                          ~lib_interface_module ~suffix)

@@ -35,4 +35,5 @@ val rules
   -> modules:Module.t String_map.t
   -> alias_module:Module.t option
   -> lib_interface_module:Module.t option
+  -> suffix:string option
   -> Dep_graphs.t
