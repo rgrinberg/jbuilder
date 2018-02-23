@@ -548,7 +548,7 @@ module Sub_system_info = struct
     val of_sexp : t Sexp.Of_sexp.t
   end
 
-  let all = Sub_system_name.Table.create ()
+  let all = Sub_system_name.Table.create ~default_value:None
 
   (* For parsing config files in the workspace *)
   let record_parser = ref return
@@ -562,7 +562,7 @@ module Sub_system_info = struct
         Sexp.code_error "Sub_system_info.register: already registered"
           [ "name", Sexp.To_sexp.atom (Sub_system_name.to_string name) ];
       | None ->
-        Sub_system_name.Table.set all ~key:name ~data:(module M : S);
+        Sub_system_name.Table.set all ~key:name ~data:(Some (module M : S));
         let p = !record_parser in
         let name_s = Sub_system_name.to_string name in
         record_parser := (fun acc ->
