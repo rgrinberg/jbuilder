@@ -63,20 +63,24 @@ let setup sctx ~dir ~(libs : Library.t list) ~scope =
         ; intf = None
         ; obj_name = "" } in
     let utop_exe_dir = utop_exe_dir ~dir in
-    let _obj_dir, libs =
+    let requires, _ =
+      Lib.DB.find_many (Scope.libs scope)
+        ("utop" :: List.map libs ~f:(fun (lib : Library.t) -> lib.name))
+        ~required_by:[]
+      |> Lib.Compile.make
+      |> Super_context.Libs.requires sctx ~loc ~dir
+           ~has_dot_merlin:false
+    in
+    let (_obj_dir : Path.t) =
       Exe.build_and_link sctx
-        ~loc
+        ~dir
         ~obj_dir:utop_exe_dir
-        ~dir:utop_exe_dir
         ~program:{ name = exe_name ; main_module_name }
         ~modules
         ~scope
         ~linkages:[Exe.Linkage.custom]
-        ~libraries:(
-          Lib_dep.direct "utop"::
-          (List.map ~f:(fun (lib : Library.t) ->
-             Lib_dep.direct lib.name) libs)
-        )
+        ~requires
+        ~flags:(Ocaml_flags.append_common (Ocaml_flags.default ()) ["-w"; "-24"])
         ~link_flags:(Build.return ["-linkall"; "-warn-error"; "-31"])
     in
-    add_module_rules sctx ~dir:utop_exe_dir libs
+    add_module_rules sctx ~dir:utop_exe_dir requires
