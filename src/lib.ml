@@ -376,7 +376,7 @@ module Sub_system = struct
     val for_instance : t Sub_system0.s
   end
 
-  let all = Sub_system_name.Table.create ()
+  let all = Sub_system_name.Table.create ~default_value:None
 
   module Register(M : S) = struct
     let get lib =
@@ -391,7 +391,8 @@ module Sub_system = struct
         include M
         let for_instance = (module M : Sub_system0.S with type t = t)
       end in
-      Sub_system_name.Table.set all ~key:M.Info.name ~data:(module M : S')
+      Sub_system_name.Table.set all ~key:M.Info.name
+        ~data:(Some (module M : S'))
   end
 
   let instantiate_many db sub_systems =
