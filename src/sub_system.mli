@@ -2,7 +2,9 @@ open! Import
 
 include module type of struct include Sub_system_intf end
 
-val register_multi_backends : (module Multi_backends) -> unit
+module Register_backend(M : Backend) : Registered_backend with type t = M.t
+
+module Register_with_backend(M : With_backend) : sig end
 
 (** Scan the sub-systems used by the library and generate rules for
     all of the ones that needs it. *)

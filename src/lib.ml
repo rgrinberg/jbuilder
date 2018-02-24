@@ -196,7 +196,7 @@ module Sub_system0 = struct
   end
 end
 
-module Init = struct
+module Id = struct
   type t =
     { unique_id : int
     ; path      : Path.t
@@ -236,7 +236,7 @@ and db =
   }
 
 and resolve_status =
-  | Initializing of Init.t
+  | Initializing of Id.t
   | Done         of (t, Error0.Library_not_available.Reason.t) result
 
 and error =
@@ -302,7 +302,7 @@ let is_local t = Path.is_local t.obj_dir
 
 let status t = t.status
 
-let to_init t : Init.t =
+let to_id t : Id.t =
   { unique_id = t.unique_id
   ; path      = t.src_dir
   ; name      = t.name
@@ -373,6 +373,7 @@ module Sub_system = struct
     val instantiate
       :  resolve:(Loc.t * string -> (lib, exn) result)
       -> get:(lib -> t option)
+      -> Id.t
       -> Info.t
       -> t
     val to_sexp : t Sexp.To_sexp.t option
@@ -404,14 +405,14 @@ module Sub_system = struct
         ~data:(Some (module M : S'))
   end
 
-  let instantiate_many sub_systems ~resolve =
+  let instantiate_many sub_systems id ~resolve =
     Sub_system_name.Map.mapi sub_systems ~f:(fun name info ->
       let impl = Option.value_exn (Sub_system_name.Table.get all name) in
       let (module M : S') = impl in
       match info with
       | M.Info.T info ->
         Sub_system0.Instance.T
-          (M.for_instance, lazy (M.instantiate ~resolve ~get:M.get info))
+          (M.for_instance, lazy (M.instantiate ~resolve ~get:M.get id info))
       | _ -> assert false)
 
   let dump_config lib =
@@ -437,7 +438,7 @@ let gen_unique_id =
    that was just returned by the [resolve] callback *)
 module Dep_stack = struct
   type t =
-    { stack : Init.t list
+    { stack : Id.t list
     ; seen  : Int_set.t
     }
 
@@ -454,17 +455,17 @@ module Dep_stack = struct
       else
         match l with
         | [] -> assert false
-        | { Init.path; name; _ } :: l ->
+        | { Id.path; name; _ } :: l ->
           loop (Dep_path.Entry.Library (path, name) :: acc) l
     in
     loop [] t.stack
 
-  let dependency_cycle t (last : Init.t) =
+  let dependency_cycle t (last : Id.t) =
     assert (Int_set.mem t.seen last.unique_id);
     let rec build_loop acc stack =
       match stack with
       | [] -> assert false
-      | (x : Init.t) :: stack ->
+      | (x : Id.t) :: stack ->
         let acc = (x.path, x.name) :: acc in
         if x.unique_id = last.unique_id then
           acc
@@ -476,13 +477,13 @@ module Dep_stack = struct
 
   let create_and_push t name path =
     let unique_id = gen_unique_id () in
-    let init = { Init. unique_id; name; path } in
+    let init = { Id. unique_id; name; path } in
     (init,
      { stack = init :: t.stack
      ; seen  = Int_set.add t.seen unique_id
      })
 
-  let push t (x : Init.t) : (_, _) result =
+  let push t (x : Id.t) : (_, _) result =
     if Int_set.mem t.seen x.unique_id then
       Error (dependency_cycle t x)
     else
@@ -518,7 +519,7 @@ let map_find_result ~loc name res : (_, _) result =
   | Error reason ->
     Error (Error (Error.Library_not_available { loc; name; reason }))
 
-let rec make db name (info : Info.t) ~unique_id ~stack =
+let rec make db name (info : Info.t) (id : Id.t) ~stack =
   let requires, pps, resolved_selects =
     resolve_user_deps db info.requires ~pps:info.pps ~stack
   in
@@ -536,7 +537,7 @@ let rec make db name (info : Info.t) ~unique_id ~stack =
   in
   { loc               = info.loc
   ; name              = name
-  ; unique_id         = unique_id
+  ; unique_id         = id.unique_id
   ; kind              = info.kind
   ; status            = info.status
   ; src_dir           = info.src_dir
@@ -553,7 +554,7 @@ let rec make db name (info : Info.t) ~unique_id ~stack =
   ; resolved_selects  = resolved_selects
   ; optional          = info.optional
   ; user_written_deps = Info.user_written_deps info
-  ; sub_systems       = Sub_system.instantiate_many info.sub_systems ~resolve
+  ; sub_systems       = Sub_system.instantiate_many info.sub_systems id ~resolve
   }
 
 and find db name =
@@ -591,14 +592,14 @@ and resolve_name db name ~stack =
     Hashtbl.replace db.table ~key:name ~data:(Done res);
     res
   | Ok (Info info) ->
-    let init, stack =
+    let id, stack =
       Dep_stack.create_and_push stack name info.src_dir
     in
     Option.iter (Hashtbl.find db.table name) ~f:(fun x ->
       already_in_table info name x);
-    (* Add [init] to the table, to detect loops *)
-    Hashtbl.add db.table ~key:name ~data:(Initializing init);
-    let t = make db name info ~unique_id:init.unique_id ~stack in
+    (* Add [id] to the table, to detect loops *)
+    Hashtbl.add db.table ~key:name ~data:(Initializing id);
+    let t = make db name info id ~stack in
     let res =
       if not info.optional ||
          (Result.is_ok t.requires && Result.is_ok t.ppx_runtime_deps) then
@@ -744,7 +745,7 @@ and closure ts ~stack =
                            }))
     | None ->
       visited := String_map.add !visited ~key:t.name ~data:(t, stack);
-      Dep_stack.push stack (to_init t) >>= fun stack ->
+      Dep_stack.push stack (to_id t) >>= fun stack ->
       t.requires >>= fun deps ->
       iter deps ~stack >>| fun () ->
       res := t :: !res
@@ -773,7 +774,8 @@ module Compile = struct
   module Resolved_select = Resolved_select
 
   type nonrec t =
-    { requires          : t list or_error
+    { direct_requires   : t list or_error
+    ; requires          : t list or_error
     ; pps               : t list or_error
     ; resolved_selects  : Resolved_select.t list
     ; optional          : bool
@@ -782,7 +784,8 @@ module Compile = struct
     }
 
   let make libs =
-    { requires          = libs >>= closure
+    { direct_requires   = libs
+    ; requires          = libs >>= closure
     ; resolved_selects  = []
     ; pps               = Ok []
     ; optional          = false
@@ -791,7 +794,8 @@ module Compile = struct
     }
 
   let for_lib (t : lib) =
-    { requires          = t.requires >>= closure
+    { direct_requires   = t.requires
+    ; requires          = t.requires >>= closure
     ; resolved_selects  = t.resolved_selects
     ; pps               = t.pps
     ; optional          = t.optional
@@ -824,14 +828,21 @@ module Compile = struct
     let resolve (loc, name) =
       find_internal db name ~loc ~stack:Dep_stack.empty
     in
-    { requires          = Error error
+    { direct_requires   = Error error
+    ; requires          = Error error
     ; pps               = Error error
     ; resolved_selects  = resolved_selects
     ; optional          = info.optional
     ; user_written_deps = Info.user_written_deps info
-    ; sub_systems       = Sub_system.instantiate_many info.sub_systems ~resolve
+    ; sub_systems       = Sub_system.instantiate_many info.sub_systems
+                            { Id. unique_id = gen_unique_id ()
+                            ; name
+                            ; path = info.src_dir
+                            }
+                            ~resolve
     }
 
+  let direct_requires   t = t.direct_requires
   let requires          t = t.requires
   let resolved_selects  t = t.resolved_selects
   let pps               t = t.pps
@@ -921,18 +932,22 @@ module DB = struct
 
   let find = find
 
+  let resolve t (loc, name) =
+    match find t name with
+    | Ok _ as res -> res
+    | Error reason ->
+      Error (Error (Library_not_available
+                      { loc
+                      ; name
+                      ; reason
+                      }))
+
   let find_many =
     let rec loop t acc = function
       | [] -> Ok (List.rev acc)
       | name :: names ->
-        match find t name with
-        | Ok lib -> loop t (lib ::acc) names
-        | Error reason ->
-          Error (Error (Library_not_available
-                          { loc = Loc.none
-                          ; name
-                          ; reason
-                          }))
+        resolve t (Loc.none, name) >>= fun lib ->
+        loop t (lib ::acc) names
     in
     fun t names -> loop t [] names
 
@@ -952,7 +967,8 @@ module DB = struct
         ~stack:Dep_stack.empty
     in
     { Compile.
-      requires = res >>= closure
+      direct_requires = res
+    ; requires        = res >>= closure
     ; pps
     ; resolved_selects
     ; optional          = false
