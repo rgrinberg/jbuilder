@@ -47,8 +47,6 @@ module type Multi_backends = sig
   module Info : sig
     include Info
 
-    val loc : t -> Loc.t
-
     (** Additional backends specified by the user at use-site *)
     val backends : t -> (Loc.t * string) list
   end

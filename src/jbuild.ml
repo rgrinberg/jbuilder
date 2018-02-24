@@ -549,7 +549,8 @@ module Sub_system_info = struct
     type t
     type sub_system += T of t
     val name    : Sub_system_name.t
-    val short   : t Sexp.Of_sexp.Short_syntax.t
+    val loc     : t -> Loc.t
+    val short   : (Loc.t -> t) option
     val of_sexp : t Sexp.Of_sexp.t
   end
 
@@ -561,6 +562,11 @@ module Sub_system_info = struct
   module Register(M : S) : sig end = struct
     open M
 
+    let short =
+      match M.short with
+      | None -> Short_syntax.Not_allowed
+      | Some f -> Located f
+
     let () =
       match Sub_system_name.Table.get all name with
       | Some _ ->
@@ -571,7 +577,7 @@ module Sub_system_info = struct
         let p = !record_parser in
         let name_s = Sub_system_name.to_string name in
         record_parser := (fun acc ->
-          field_o name_s ~short:M.short M.of_sexp >>= function
+          field_o name_s ~short M.of_sexp >>= function
           | None   -> p acc
           | Some x ->
             let acc = Sub_system_name.Map.add acc ~key:name ~data:(T x) in
