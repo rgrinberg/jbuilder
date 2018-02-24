@@ -176,8 +176,11 @@ module Sub_system_info : sig
     (** Name of the sub-system *)
     val name : Sub_system_name.t
 
+    (** Location of the S-expression passed to [of_sexp] or [short]. *)
+    val loc : t -> Loc.t
+
     (** Value when the sub-system has no argument *)
-    val short : t Sexp.Of_sexp.Short_syntax.t
+    val short : (Loc.t -> t) option
 
     (** Parse the argument *)
     val of_sexp : t Sexp.Of_sexp.t
