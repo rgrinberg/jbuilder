@@ -251,8 +251,8 @@ and info_or_redirect =
   | Proxy    of t
 
 and conflict =
-  { lib1 : t * With_required_by.Entry.t list
-  ; lib2 : t * With_required_by.Entry.t list
+  { lib1 : t * Dep_path.Entry.t list
+  ; lib2 : t * Dep_path.Entry.t list
   }
 
 and 'a or_error = ('a, exn) result
@@ -264,8 +264,8 @@ module Error = struct
 
   module Conflict = struct
     type nonrec t = conflict =
-      { lib1 : t * With_required_by.Entry.t list
-      ; lib2 : t * With_required_by.Entry.t list
+      { lib1 : t * Dep_path.Entry.t list
+      ; lib2 : t * Dep_path.Entry.t list
       }
   end
 
@@ -447,7 +447,7 @@ module Dep_stack = struct
         match l with
         | [] -> assert false
         | { Init.path; name; _ } :: l ->
-          loop (With_required_by.Entry.Library (path, name) :: acc) l
+          loop (Dep_path.Entry.Library (path, name) :: acc) l
     in
     loop [] t.stack
 
@@ -498,7 +498,7 @@ let rec make db name (info : Info.t) ~unique_id ~stack =
   in
   let map_error x =
     Result.map_error x ~f:(fun e ->
-      With_required_by.prepend_exn e (Library (info.src_dir, name)))
+      Dep_path.prepend_exn e (Library (info.src_dir, name)))
   in
   let requires         = map_error requires         in
   let ppx_runtime_deps = map_error ppx_runtime_deps in
@@ -1004,9 +1004,9 @@ let report_lib_error ppf (e : Error.t) =
       \    %a@,\
        This cannot work.@\n"
       lib1.name (Path.to_string_maybe_quoted lib1.src_dir)
-      With_required_by.Entries.pp rb1
+      Dep_path.Entries.pp rb1
       lib2.name (Path.to_string_maybe_quoted lib2.src_dir)
-      With_required_by.Entries.pp rb2
+      Dep_path.Entries.pp rb2
   | No_solution_found_for_select { loc } ->
     Format.fprintf ppf
       "%a@{<error>Error@}: No solution found for this select form.\n"

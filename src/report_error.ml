@@ -77,7 +77,7 @@ let report_with_backtrace exn =
 let reported = ref String_set.empty
 
 let report exn =
-  let exn, dependency_path = With_required_by.unwrap_exn exn in
+  let exn, dependency_path = Dep_path.unwrap_exn exn in
   match exn with
   | Already_reported -> ()
   | _ ->
@@ -104,7 +104,7 @@ let report exn =
           dependency_path
         else
           (* Only keep the part that doesn't come from the build system *)
-          let rec drop : With_required_by.Entries.t -> _ = function
+          let rec drop : Dep_path.Entries.t -> _ = function
             | (Path _ | Alias _) :: l -> drop l
             | l -> l
           in
@@ -119,7 +119,7 @@ let report exn =
               drop dependency_path
       in
       if dependency_path <> [] then
-        Format.fprintf ppf "%a@\n" With_required_by.Entries.pp
+        Format.fprintf ppf "%a@\n" Dep_path.Entries.pp
           (List.rev dependency_path);
       Option.iter p.hint ~f:(fun s -> Format.fprintf ppf "Hint: try: %s\n" s);
       Format.pp_print_flush ppf ();
