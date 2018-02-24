@@ -74,40 +74,6 @@ let report_with_backtrace exn =
             Format.fprintf ppf "@{<error>Error@}: exception %s\n" s
       }
 
-let report_aux ppf ?(dependency_path=[]) exn =
-  let backtrace = Printexc.get_raw_backtrace () in
-  let p = report_with_backtrace exn in
-  let loc = if p.loc = Some Loc.none then None else p.loc in
-  Option.iter loc ~f:(fun loc -> Loc.print ppf loc);
-  p.pp ppf;
-  if p.backtrace || !Clflags.debug_backtraces then
-    Format.fprintf ppf "Backtrace:\n%s"
-      (Printexc.raw_backtrace_to_string backtrace);
-  let dependency_path =
-    if !Clflags.debug_dep_path then
-      dependency_path
-    else
-      (* Only keep the part that doesn't come from the build system *)
-      let rec drop : With_required_by.Entries.t -> _ = function
-        | (Path _ | Alias _) :: l -> drop l
-        | l -> l
-      in
-      match loc with
-      | None -> drop dependency_path
-      | Some loc ->
-        if Filename.is_relative loc.start.pos_fname then
-          (* If the error points to a local file, no need to print the
-             dependency stack *)
-          []
-        else
-          drop dependency_path
-  in
-  if dependency_path <> [] then
-    Format.fprintf ppf "%a@\n" With_required_by.Entries.pp
-      (List.rev dependency_path);
-  Option.iter p.hint ~f:(fun s -> Format.fprintf ppf "Hint: try: %s\n" s);
-  Format.pp_print_flush ppf ()
-
 let reported = ref String_set.empty
 
 let report exn =
@@ -115,13 +81,49 @@ let report exn =
   match exn with
   | Already_reported -> ()
   | _ ->
-    report_aux err_ppf ?dependency_path exn;
-    Format.pp_print_flush err_ppf ();
+    let backtrace = Printexc.get_raw_backtrace () in
+    let ppf = err_ppf in
+    let p = report_with_backtrace exn in
+    let loc = if p.loc = Some Loc.none then None else p.loc in
+    Option.iter loc ~f:(fun loc -> Loc.print ppf loc);
+    p.pp ppf;
+    Format.pp_print_flush ppf ();
     let s = Buffer.contents err_buf in
-    Buffer.clear err_buf;
-    (* To avoid keeping huge errors in memory *)
+    (* Hash to avoid keeping huge errors in memory *)
     let hash = Digest.string s in
-    if not (String_set.mem hash !reported) then begin
+    if String_set.mem hash !reported then
+      Buffer.clear err_buf
+    else begin
       reported := String_set.add hash !reported;
+      if p.backtrace || !Clflags.debug_backtraces then
+        Format.fprintf ppf "Backtrace:\n%s"
+          (Printexc.raw_backtrace_to_string backtrace);
+      let dependency_path =
+        let dependency_path = Option.value dependency_path ~default:[] in
+        if !Clflags.debug_dep_path then
+          dependency_path
+        else
+          (* Only keep the part that doesn't come from the build system *)
+          let rec drop : With_required_by.Entries.t -> _ = function
+            | (Path _ | Alias _) :: l -> drop l
+            | l -> l
+          in
+          match loc with
+          | None -> drop dependency_path
+          | Some loc ->
+            if Filename.is_relative loc.start.pos_fname then
+              (* If the error points to a local file, no need to print the
+                 dependency stack *)
+              []
+            else
+              drop dependency_path
+      in
+      if dependency_path <> [] then
+        Format.fprintf ppf "%a@\n" With_required_by.Entries.pp
+          (List.rev dependency_path);
+      Option.iter p.hint ~f:(fun s -> Format.fprintf ppf "Hint: try: %s\n" s);
+      Format.pp_print_flush ppf ();
+      let s = Buffer.contents err_buf in
+      Buffer.clear err_buf;
       print_to_console s
     end
