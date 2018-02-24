@@ -368,13 +368,18 @@ module Sub_system = struct
     module Info : Jbuild.Sub_system_info.S
     type t
     type sub_system += T of t
-    val instantiate : db -> Info.t -> t
+    val instantiate
+      :  resolve:(Loc.t * string -> (lib, exn) result)
+      -> get:(lib -> t option)
+      -> Info.t
+      -> t
     val to_sexp : t Sexp.To_sexp.t option
   end
 
   module type S' = sig
     include S
     val for_instance : t Sub_system0.s
+    val get : lib -> t option
   end
 
   let all = Sub_system_name.Table.create ~default_value:None
@@ -391,19 +396,20 @@ module Sub_system = struct
       let module M = struct
         include M
         let for_instance = (module M : Sub_system0.S with type t = t)
+        let get = get
       end in
       Sub_system_name.Table.set all ~key:M.Info.name
         ~data:(Some (module M : S'))
   end
 
-  let instantiate_many db sub_systems =
+  let instantiate_many sub_systems ~resolve =
     Sub_system_name.Map.mapi sub_systems ~f:(fun name info ->
       let impl = Option.value_exn (Sub_system_name.Table.get all name) in
       let (module M : S') = impl in
       match info with
       | M.Info.T info ->
         Sub_system0.Instance.T
-          (M.for_instance, lazy (M.instantiate db info))
+          (M.for_instance, lazy (M.instantiate ~resolve ~get:M.get info))
       | _ -> assert false)
 
   let dump_config lib =
@@ -520,6 +526,9 @@ let rec make db name (info : Info.t) ~unique_id ~stack =
   in
   let requires         = map_error requires         in
   let ppx_runtime_deps = map_error ppx_runtime_deps in
+  let resolve (loc, name) =
+    find_internal db name ~loc ~stack
+  in
   { loc               = info.loc
   ; name              = name
   ; unique_id         = unique_id
@@ -539,7 +548,7 @@ let rec make db name (info : Info.t) ~unique_id ~stack =
   ; resolved_selects  = resolved_selects
   ; optional          = info.optional
   ; user_written_deps = Info.user_written_deps info
-  ; sub_systems       = Sub_system.instantiate_many db info.sub_systems
+  ; sub_systems       = Sub_system.instantiate_many info.sub_systems ~resolve
   }
 
 and find db name =
@@ -807,12 +816,15 @@ module Compile = struct
       |> resolve_complex_deps db ~stack:Dep_stack.empty
       |> snd
     in
+    let resolve (loc, name) =
+      find_internal db name ~loc ~stack:Dep_stack.empty
+    in
     { requires          = Error error
     ; pps               = Error error
     ; resolved_selects  = resolved_selects
     ; optional          = info.optional
     ; user_written_deps = Info.user_written_deps info
-    ; sub_systems       = Sub_system.instantiate_many db info.sub_systems
+    ; sub_systems       = Sub_system.instantiate_many info.sub_systems ~resolve
     }
 
   let requires          t = t.requires
