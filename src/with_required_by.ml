@@ -36,14 +36,6 @@ module Entries = struct
       t
 end
 
-type 'a t =
-  { data : 'a
-  ; required_by : Entries.t
-  }
-
-let prepend_one t entry = { t with required_by = entry :: t.required_by }
-let append t entries = { t with required_by = t.required_by @ entries }
-
 exception E of exn * Entry.t list
 
 let prepend_exn exn entry =
