@@ -549,8 +549,7 @@ module Gen(P : Params) = struct
     let compile_info = Lib.DB.get_compile_info (Scope.libs scope) lib.name in
     let requires, real_requires =
       SC.Libs.requires sctx compile_info
-        ~loc:lib.buildable.loc ~dir
-        ~has_dot_merlin:lib.buildable.gen_dot_merlin
+        ~dir ~has_dot_merlin:lib.buildable.gen_dot_merlin
     in
 
     let dynlink = lib.dynlink in
@@ -800,7 +799,7 @@ module Gen(P : Params) = struct
         ~pps:(Jbuild.Preprocess_map.pps exes.buildable.preprocess)
     in
     let requires, real_requires =
-      SC.Libs.requires sctx ~loc:exes.buildable.loc ~dir
+      SC.Libs.requires sctx ~dir
         ~has_dot_merlin:exes.buildable.gen_dot_merlin
         compile_info
     in
@@ -991,7 +990,6 @@ module Gen(P : Params) = struct
           Gen_meta.gen
             ~package:pkg.name
             ~version
-            ~meta_path:meta
             libs
         in
         SC.add_rule sctx
@@ -1072,18 +1070,20 @@ module Gen(P : Params) = struct
       match lib.kind with
       | Normal | Ppx_deriver -> []
       | Ppx_rewriter ->
-        let pps = [Pp.of_string lib.name] in
+        let pps = [(lib.buildable.loc, Pp.of_string lib.name)] in
         let pps =
           (* This is a temporary hack until we get a standard driver *)
-          let deps = List.concat_map lib.buildable.libraries ~f:Lib_dep.to_lib_names in
+          let deps =
+            List.concat_map lib.buildable.libraries ~f:Lib_dep.to_lib_names
+          in
           if List.exists deps ~f:(function
             | "ppx_driver" | "ppx_type_conv" -> true
             | _ -> false) then
             pps @ [match Scope.name scope with
               | Some "ppx_base" ->
-                Pp.of_string "ppx_base.runner"
+                (Loc.none, Pp.of_string "ppx_base.runner")
               | _ ->
-                Pp.of_string "ppx_driver.runner"]
+                (Loc.none, Pp.of_string "ppx_driver.runner")]
           else
             pps
         in

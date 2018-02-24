@@ -36,5 +36,8 @@ val append : 'a t -> Entry.t list -> 'a t
     raised exception will be wrapped. *)
 val reraise : exn -> Entry.t -> _
 
+(** Extend the required_by stack of an exception *)
+val prepend_exn : exn -> Entry.t -> exn
+
 (** Extract a wrapped exception *)
 val unwrap_exn : exn -> exn * Entry.t list option

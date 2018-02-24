@@ -28,23 +28,20 @@ let register_multi_backends (module M : Multi_backends) =
           (List.map more_backends ~f:(fun (loc, name) ->
              match Lib.DB.find (Scope.libs c.scope) name with
              | Error reason ->
-               Error { With_required_by.
-                       data = Lib.Error.Library_not_available
-                                { name
-                                ; reason
-                                }
-                     ; required_by = [Loc loc]
-                     }
+               Error (Lib.Error (Lib.Error.Library_not_available
+                                   { loc
+                                   ; name
+                                   ; reason
+                                   }))
              | Ok lib ->
                match Backend.get lib with
                | Some x -> Ok x
                | None ->
-                 (* XXX this should raise immediately, but the error
-                    is of the wrong type. *)
-                 Loc.fail loc
-                   "Library %S is not a backend for the %S sub-system"
-                   name
-                   (Sub_system_name.to_string M.Info.name)))
+                 Error
+                   (Loc.exnf loc
+                      "Library %S is not a backend for the %S sub-system"
+                      name
+                      (Sub_system_name.to_string M.Info.name))))
         >>= fun more_backends ->
         Lib.Compile.requires c.compile_info >>= fun deps ->
         Lib.Compile.pps      c.compile_info >>= fun pps  ->
@@ -63,7 +60,7 @@ let register_multi_backends (module M : Multi_backends) =
            [])
         | Ok backends -> (None, backends)
         | Error e ->
-          (Some { fail = fun () -> raise (Lib.Error e) },
+          (Some { fail = fun () -> raise e },
            [])
       in
       match fail with
