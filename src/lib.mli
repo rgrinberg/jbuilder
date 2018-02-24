@@ -91,6 +91,14 @@ module Info : sig
   val of_findlib_package : Findlib.Package.t -> t
 end
 
+module Id : sig
+  type t =
+    { unique_id : int
+    ; path      : Path.t
+    ; name      : string
+    }
+end
+
 (** {1 Errors} *)
 
 module Error : sig
@@ -162,6 +170,9 @@ module Compile : sig
 
   (** Return the list of dependencies needed for compiling this library *)
   val requires : t -> (L.t, exn) result
+
+  (** Dependencies listed by the user + runtime dependencies from ppx *)
+  val direct_requires : t -> (L.t, exn) result
 
   module Resolved_select : sig
     type t =
@@ -236,6 +247,8 @@ module DB : sig
       for libraries that are optional and not available as well. *)
   val get_compile_info : t -> string -> Compile.t
 
+  val resolve : t -> Loc.t * string -> (lib, exn) result
+
   (** Resolve libraries written by the user in a jbuild file. The
       resulting list of libraries is transitively closed and sorted by
       order of dependencies.
@@ -276,6 +289,7 @@ module Sub_system : sig
     val instantiate
       :  resolve:(Loc.t * string -> (lib, exn) result)
       -> get:(lib -> t option)
+      -> Id.t
       -> Info.t
       -> t
     val to_sexp : t Sexp.To_sexp.t option
