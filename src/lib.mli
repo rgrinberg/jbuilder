@@ -225,7 +225,6 @@ module DB : sig
   val create_from_findlib : Findlib.t -> t
 
   val find : t -> string -> (lib, Error.Library_not_available.Reason.t) result
-
   val find_many
     :  t
     -> string list
@@ -274,7 +273,11 @@ module Sub_system : sig
     module Info : Jbuild.Sub_system_info.S
     type t
     type sub_system += T of t
-    val instantiate : DB.t -> Info.t -> t
+    val instantiate
+      :  resolve:(Loc.t * string -> (lib, exn) result)
+      -> get:(lib -> t option)
+      -> Info.t
+      -> t
     val to_sexp : t Sexp.To_sexp.t option
   end
 

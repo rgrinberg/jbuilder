@@ -10,7 +10,11 @@ module type S = sig
   type t
 
   (** Create an instance of the sub-system *)
-  val instantiate : Lib.DB.t -> Info.t -> t
+  val instantiate
+    :  resolve:(Loc.t * string -> (Lib.t, exn) result)
+    -> get:(Lib.t -> t option)
+    -> Info.t
+    -> t
 end
 
 (** Representation of the sub-system backend *)
