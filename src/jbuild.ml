@@ -465,7 +465,6 @@ module Buildable = struct
     ; ocamlc_flags             : Ordered_set_lang.Unexpanded.t
     ; ocamlopt_flags           : Ordered_set_lang.Unexpanded.t
     ; js_of_ocaml              : Js_of_ocaml.t
-    ; gen_dot_merlin           : bool
     }
 
   let modules_field name =
@@ -503,7 +502,6 @@ module Buildable = struct
       ; ocamlc_flags
       ; ocamlopt_flags
       ; js_of_ocaml
-      ; gen_dot_merlin = true
       }
 
   let single_preprocess t =

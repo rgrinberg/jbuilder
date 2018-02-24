@@ -549,7 +549,7 @@ module Gen(P : Params) = struct
     let compile_info = Lib.DB.get_compile_info (Scope.libs scope) lib.name in
     let requires, real_requires =
       SC.Libs.requires sctx compile_info
-        ~dir ~has_dot_merlin:lib.buildable.gen_dot_merlin
+        ~dir ~has_dot_merlin:true
     in
 
     let dynlink = lib.dynlink in
@@ -800,7 +800,7 @@ module Gen(P : Params) = struct
     in
     let requires, real_requires =
       SC.Libs.requires sctx ~dir
-        ~has_dot_merlin:exes.buildable.gen_dot_merlin
+        ~has_dot_merlin:true
         compile_info
     in
 
