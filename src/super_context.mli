@@ -131,7 +131,6 @@ module Libs : sig
       has_dot_merlin] is [true]. *)
   val requires
     :  t
-    -> loc:Loc.t
     -> dir:Path.t
     -> has_dot_merlin:bool
     -> Lib.Compile.t
@@ -225,7 +224,7 @@ module PP : sig
   val get_ppx_driver
     : t
     -> scope:Scope.t
-    -> Pp.t list
+    -> (Loc.t * Pp.t) list
     -> Path.t
 
   (** [cookie_library_name lib_name] is ["--cookie"; lib_name] if [lib_name] is not

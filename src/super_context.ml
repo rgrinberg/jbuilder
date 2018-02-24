@@ -223,14 +223,10 @@ let source_files t ~src_path =
 module Libs = struct
   open Build.O
 
-  let requires_to_build requires ~required_by =
+  let requires_to_build requires =
     match requires with
-    | Ok x -> Build.return x
-    | Error e ->
-      Build.fail
-        { fail = fun () ->
-            raise (Lib.Error (With_required_by.append e required_by))
-        }
+    | Ok    x -> Build.return x
+    | Error e -> Build.fail { fail = fun () -> raise e }
 
   let add_select_rules t ~dir resolved_selects =
     List.iter resolved_selects ~f:(fun rs ->
@@ -244,16 +240,13 @@ module Libs = struct
          | Error e ->
            Build.fail ~targets:[dst]
              { fail = fun () ->
-                 raise (Lib.Error { data        = No_solution_found_for_select e
-                                  ; required_by = []
-                                  })
+                 raise (Lib.Error (No_solution_found_for_select e))
              }))
 
-  let requires t ~loc ~dir ~has_dot_merlin compile_info =
+  let requires t ~dir ~has_dot_merlin compile_info =
     add_select_rules t ~dir (Lib.Compile.resolved_selects compile_info);
     let requires =
       requires_to_build (Lib.Compile.requires compile_info)
-        ~required_by:[Loc loc]
     in
     let requires =
       Build.record_lib_deps (Lib.Compile.user_written_deps compile_info)
@@ -738,7 +731,15 @@ module PP = struct
     let compiler = Option.value_exn (Context.compiler ctx mode) in
     let pps = pps @ [Pp.of_string migrate_driver_main] in
     let driver, libs =
-      let resolved_pps = Lib.DB.resolve_pps lib_db pps in
+      let resolved_pps =
+        Lib.DB.resolve_pps lib_db
+          (List.map pps ~f:(fun x -> (Loc.none, x)))
+        (* Extend the dependency stack as we don't have locations at
+           this point *)
+        |> Result.map_error ~f:(fun e ->
+          With_required_by.prepend_exn e
+            (Preprocess (pps : Jbuild.Pp.t list :> string list)))
+      in
       let driver =
         match resolved_pps with
         | Ok    l -> List.last l
@@ -746,11 +747,11 @@ module PP = struct
       in
       (driver,
        Result.bind resolved_pps ~f:Lib.closure
-       |> Libs.requires_to_build
-            ~required_by:[Preprocess (pps : Jbuild.Pp.t list :> string list)])
+       |> Libs.requires_to_build)
     in
     let libs =
-      Build.record_lib_deps ~kind:dep_kind (List.map pps ~f:Lib_dep.of_pp)
+      Build.record_lib_deps ~kind:dep_kind
+        (List.map pps ~f:(fun pp -> Lib_dep.of_pp (Loc.none, pp)))
       >>>
       libs
     in
@@ -776,8 +777,8 @@ module PP = struct
         in
         libs @ user_driver @ migrate_driver
     in
-    (* Provide a better error for migrate_driver_main given that this is an implicit
-       dependency *)
+    (* Provide a better error for migrate_driver_main given that this
+       is an implicit dependency *)
     let libs =
       match Lib.DB.available lib_db migrate_driver_main with
       | false ->
@@ -843,7 +844,7 @@ module PP = struct
 
   let get_ppx_driver sctx ~scope pps =
     let driver, names =
-      match List.rev_map pps ~f:Pp.to_string with
+      match List.rev_map pps ~f:(fun (_loc, pp) -> Pp.to_string pp) with
       | [] -> (None, [])
       | driver :: rest -> (Some driver, rest)
     in
@@ -924,8 +925,8 @@ module PP = struct
     }
 
   let uses_ppx_driver ~pps =
-    match Option.map ~f:Pp.to_string (List.last pps) with
-    | Some ("ppx_driver.runner" | "ppx_base.runner") -> true
+    match (List.last pps : (_ * Pp.t) option :> (_ * string) option) with
+    | Some (_, ("ppx_driver.runner" | "ppx_base.runner")) -> true
     | Some _ | None -> false
 
   let promote_correction ~uses_ppx_driver fn build =
