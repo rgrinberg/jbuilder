@@ -75,7 +75,7 @@ let register_multi_backends (module M : Multi_backends) =
           module Info = M.Info
           type t = Library_compilation_context.t -> unit
           type Lib.Sub_system.t += T = Gen
-          let instantiate _db info = gen info
+          let instantiate ~resolve:_ ~get:_ info = gen info
           let to_sexp = None
         end)
   end in
