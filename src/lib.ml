@@ -483,6 +483,24 @@ module Dep_stack = struct
          }
 end
 
+let already_in_table (info : Info.t) name x =
+  let to_sexp = Sexp.To_sexp.(pair Path.sexp_of_t atom) in
+  let sexp =
+    match x with
+    | Initializing x ->
+      Sexp.List [Atom "Initializing"; Path.sexp_of_t x.path]
+    | Done (Ok t) -> List [Atom "Ok"; Path.sexp_of_t t.src_dir]
+    | Done (Error Not_found) -> Atom "Not_found"
+    | Done (Error (Hidden { info; reason; _ })) ->
+      List [Atom "Hidden"; Path.sexp_of_t info.src_dir; Atom reason]
+  in
+  Sexp.code_error
+    "Lib_db.DB: resolver returned name that's already in the table"
+    [ "name"            , Atom name
+    ; "returned_lib"    , to_sexp (info.src_dir, name)
+    ; "conflicting_with", sexp
+    ]
+
 let map_find_result ~loc name res : (_, _) result =
   match res with
   | Ok _ as res -> res
@@ -562,24 +580,9 @@ and resolve_name db name ~stack =
     let init, stack =
       Dep_stack.create_and_push stack name info.src_dir
     in
-    (* Add [init] to the table, to detect loops *)
     Option.iter (Hashtbl.find db.table name) ~f:(fun x ->
-      let to_sexp = Sexp.To_sexp.(pair Path.sexp_of_t atom) in
-      let sexp =
-        match x with
-        | Initializing x ->
-          Sexp.List [Atom "Initializing"; Path.sexp_of_t x.path]
-        | Done (Ok t) -> List [Atom "Ok"; Path.sexp_of_t t.src_dir]
-        | Done (Error Not_found) -> Atom "Not_found"
-        | Done (Error (Hidden { info; reason; _ })) ->
-          List [Atom "Hidden"; Path.sexp_of_t info.src_dir; Atom reason]
-      in
-        Sexp.code_error
-          "Lib_db.DB: resolver returned name that's already in the table"
-          [ "name"            , Atom name
-          ; "returned_lib"    , to_sexp (info.src_dir, name)
-          ; "conflicting_with", sexp
-          ]);
+      already_in_table info name x);
+    (* Add [init] to the table, to detect loops *)
     Hashtbl.add db.table ~key:name ~data:(Initializing init);
     let t = make db name info ~unique_id:init.unique_id ~stack in
     let res =
