@@ -485,6 +485,27 @@ module Dep_stack = struct
          }
 end
 
+let already_in_table (info : Info.t) name x =
+  let to_sexp = Sexp.To_sexp.(pair Path.sexp_of_t string) in
+  let sexp =
+    match x with
+    | Initializing x ->
+      Sexp.List [Sexp.unsafe_atom_of_string "Initializing";
+                 Path.sexp_of_t x.path]
+    | Done (Ok t) -> List [Sexp.unsafe_atom_of_string "Ok";
+                           Path.sexp_of_t t.src_dir]
+    | Done (Error Not_found) -> Sexp.unsafe_atom_of_string "Not_found"
+    | Done (Error (Hidden { info; reason; _ })) ->
+      List [Sexp.unsafe_atom_of_string "Hidden";
+            Path.sexp_of_t info.src_dir; Sexp.atom reason]
+  in
+  Sexp.code_error
+    "Lib_db.DB: resolver returned name that's already in the table"
+    [ "name"            , Sexp.atom name
+    ; "returned_lib"    , to_sexp (info.src_dir, name)
+    ; "conflicting_with", sexp
+    ]
+
 let map_find_result ~loc name res : (_, _) result =
   match res with
   | Ok _ as res -> res
@@ -564,28 +585,10 @@ and resolve_name db name ~stack =
     let init, stack =
       Dep_stack.create_and_push stack name info.src_dir
     in
-    (* Add [init] to the table, to detect loops *)
     Option.iter (Hashtbl.find db.table name) ~f:(fun x ->
-      let to_sexp = Sexp.To_sexp.(pair Path.sexp_of_t string) in
-      let sexp =
-        match x with
-        | Initializing x ->
-          Sexp.List [Sexp.unsafe_atom_of_string "Initializing";
-                     Path.sexp_of_t x.path]
-        | Done (Ok t) -> List [Sexp.unsafe_atom_of_string "Ok";
-                               Path.sexp_of_t t.src_dir]
-        | Done (Error Not_found) -> Sexp.unsafe_atom_of_string "Not_found"
-        | Done (Error (Hidden { info; reason; _ })) ->
-          List [Sexp.unsafe_atom_of_string "Hidden";
-                Path.sexp_of_t info.src_dir; Sexp.atom reason]
-      in
-        Sexp.code_error
-          "Lib_db.DB: resolver returned name that's already in the table"
-          [ "name"            , Sexp.atom name
-          ; "returned_lib"    , to_sexp (info.src_dir, name)
-          ; "conflicting_with", sexp
-          ]);
-    Hashtbl.add db.table name (Initializing init);
+      already_in_table info name x);
+    (* Add [init] to the table, to detect loops *)
+    Hashtbl.add db.table ~key:name ~data:(Initializing init);
     let t = make db name info ~unique_id:init.unique_id ~stack in
     let res =
       if not info.optional ||
