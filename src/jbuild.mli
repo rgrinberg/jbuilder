@@ -51,7 +51,7 @@ end
 
 module Preprocess : sig
   type pps =
-    { pps   : Pp.t list
+    { pps   : (Loc.t * Pp.t) list
     ; flags : string list
     }
 
@@ -73,7 +73,7 @@ module Preprocess_map : sig
       given module *)
   val find : string -> t -> Preprocess.t
 
-  val pps : t -> Pp.t list
+  val pps : t -> (Loc.t * Pp.t) list
 end
 
 module Lint : sig
@@ -106,12 +106,12 @@ module Lib_dep : sig
     }
 
   type t =
-    | Direct of string
+    | Direct of (Loc.t * string)
     | Select of select
 
   val to_lib_names : t -> string list
-  val direct : string -> t
-  val of_pp : Pp.t -> t
+  val direct : Loc.t * string -> t
+  val of_pp : Loc.t * Pp.t -> t
 end
 
 module Lib_deps : sig
@@ -198,7 +198,7 @@ module Library : sig
     ; public                   : Public_lib.t option
     ; synopsis                 : string option
     ; install_c_headers        : string list
-    ; ppx_runtime_libraries    : string list
+    ; ppx_runtime_libraries    : (Loc.t * string) list
     ; modes                    : Mode.Dict.Set.t
     ; kind                     : Kind.t
     ; c_flags                  : Ordered_set_lang.Unexpanded.t
@@ -208,7 +208,7 @@ module Library : sig
     ; library_flags            : Ordered_set_lang.Unexpanded.t
     ; c_library_flags          : Ordered_set_lang.Unexpanded.t
     ; self_build_stubs_archive : string option
-    ; virtual_deps             : string list
+    ; virtual_deps             : (Loc.t * string) list
     ; wrapped                  : bool
     ; optional                 : bool
     ; buildable                : Buildable.t
@@ -219,7 +219,6 @@ module Library : sig
 
   val has_stubs : t -> bool
   val stubs_archive : t -> dir:Path.t -> ext_lib:string -> Path.t
-  val all_lib_deps : t -> Lib_deps.t
   val best_name : t -> string
 end
 

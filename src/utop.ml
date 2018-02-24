@@ -49,8 +49,7 @@ let utop_exe dir =
 let setup sctx ~dir ~(libs : Library.t list) ~scope =
   match libs with
   | [] -> ()
-  | lib::_ ->
-    let loc = lib.buildable.loc in
+  | _ :: _ ->
     let modules =
       String_map.singleton
         main_module_name
@@ -66,10 +65,8 @@ let setup sctx ~dir ~(libs : Library.t list) ~scope =
     let requires, _ =
       Lib.DB.find_many (Scope.libs scope)
         ("utop" :: List.map libs ~f:(fun (lib : Library.t) -> lib.name))
-        ~required_by:[]
       |> Lib.Compile.make
-      |> Super_context.Libs.requires sctx ~loc ~dir
-           ~has_dot_merlin:false
+      |> Super_context.Libs.requires sctx ~dir ~has_dot_merlin:false
     in
     let (_obj_dir : Path.t) =
       Exe.build_and_link sctx

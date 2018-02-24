@@ -46,11 +46,12 @@ let append t entries = { t with required_by = t.required_by @ entries }
 
 exception E of exn * Entry.t list
 
-let reraise exn entry =
-  reraise (
-    match exn with
-    | E (exn, entries) -> E (exn, entry :: entries)
-    | exn -> E (exn, [entry]))
+let prepend_exn exn entry =
+  match exn with
+  | E (exn, entries) -> E (exn, entry :: entries)
+  | exn -> E (exn, [entry])
+
+let reraise exn entry = reraise (prepend_exn exn entry)
 
 let unwrap_exn = function
   | E (exn, entries) -> (exn, Some entries)
