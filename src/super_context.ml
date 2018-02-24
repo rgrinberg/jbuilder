@@ -737,7 +737,7 @@ module PP = struct
         (* Extend the dependency stack as we don't have locations at
            this point *)
         |> Result.map_error ~f:(fun e ->
-          With_required_by.prepend_exn e
+          Dep_path.prepend_exn e
             (Preprocess (pps : Jbuild.Pp.t list :> string list)))
       in
       let driver =

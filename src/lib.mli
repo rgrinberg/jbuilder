@@ -126,8 +126,8 @@ module Error : sig
   module Conflict : sig
     (** When two libraries in a transitive closure conflict *)
     type nonrec t =
-      { lib1 : t * With_required_by.Entry.t list
-      ; lib2 : t * With_required_by.Entry.t list
+      { lib1 : t * Dep_path.Entry.t list
+      ; lib2 : t * Dep_path.Entry.t list
       }
   end
 
