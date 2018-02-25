@@ -164,6 +164,14 @@ module Sub_system_info : sig
   type t = ..
   type sub_system = t = ..
 
+  type 'a parser =
+    { version : Syntax_version.t
+    ; (** Value when the sub-system has no argument *)
+      short   : (Loc.t -> 'a) option
+    ; (** Parse the argument *)
+      of_Sexp : 'a Sexp.Of_sexp.t
+    }
+
   (** What the user must provide in order to define the parsing part
       of a sub-system. *)
   module type S = sig
