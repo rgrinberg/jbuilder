@@ -940,7 +940,7 @@ module Gen(P : Params) = struct
            (Format.pp_print_list
               (fun ppf (name, sexp) ->
                  Sexp.pp ppf
-                   (List [Atom (Sub_system_name.to_string name); sexp])))
+                   (List [Sexp.atom (Sub_system_name.to_string name); sexp])))
            (Lib.Sub_system.dump_config lib
             |> Sub_system_name.Map.to_list))
        >>> Build.write_file_dyn

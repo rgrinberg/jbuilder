@@ -70,7 +70,7 @@ module Register_backend(M : Backend) = struct
              "Too many independant %s found:\n%s"
              M.desc
              (String.concat ~sep:"\n"
-                (List.map (Set.elements roots) ~f:(fun t ->
+                (List.map (Set.to_list roots) ~f:(fun t ->
                    sprintf "- %S in %s"
                      (M.id t).name
                      (Path.to_string_maybe_quoted (M.id t).path)))))
