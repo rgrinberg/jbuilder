@@ -108,6 +108,12 @@ module Info = struct
     let module P = Findlib.Package in
     let loc = Loc.in_file (Path.to_string (P.meta_file pkg)) in
     let add_loc x = (loc, x) in
+    let sub_systems =
+      match P.dune_file pkg with
+      | None -> Sub_system_name.Map.empty
+      | Some fn ->
+        Installed_dune_file.load ~fname:(Path.to_string fn)
+    in
     { loc              = loc
     ; kind             = Normal
     ; src_dir          = P.dir pkg
@@ -125,11 +131,7 @@ module Info = struct
     ; status           = Installed
     ; (* We don't know how these are named for external libraries *)
       foreign_archives = Mode.Dict.make_both []
-    ; sub_systems      =
-        Sub_system_name.Map.mapi (P.sub_systems pkg)
-          ~f:(fun name sexp ->
-            let (module M) = Jbuild.Sub_system_info.get name in
-            M.T (M.of_sexp sexp))
+    ; sub_systems      = sub_systems
     }
 end
 

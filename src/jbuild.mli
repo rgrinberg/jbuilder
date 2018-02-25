@@ -173,6 +173,9 @@ module Sub_system_info : sig
     (** Name of the sub-system *)
     val name : Sub_system_name.t
 
+    (** Version, for installed [dune] files *)
+    val version : string
+
     (** Location of the S-expression passed to [of_sexp] or [short]. *)
     val loc : t -> Loc.t
 
