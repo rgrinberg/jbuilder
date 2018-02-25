@@ -935,14 +935,8 @@ module Gen(P : Params) = struct
   let gen_lib_dune_file lib =
     SC.add_rule sctx
       (Build.arr (fun () ->
-         Format.asprintf
-           "@[<v>%a@]@."
-           (Format.pp_print_list
-              (fun ppf (name, sexp) ->
-                 Sexp.pp ppf
-                   (List [Sexp.atom (Sub_system_name.to_string name); sexp])))
-           (Lib.Sub_system.dump_config lib
-            |> Sub_system_name.Map.to_list))
+         Format.asprintf "%a@." Sexp.pp
+           (Lib.Sub_system.dump_config lib |> Installed_dune_file.gen))
        >>> Build.write_file_dyn
              (lib_dune_file ~dir:(Lib.src_dir lib) ~name:(Lib.name lib)))
 

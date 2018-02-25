@@ -549,6 +549,7 @@ module Sub_system_info = struct
     type t
     type sub_system += T of t
     val name    : Sub_system_name.t
+    val version : string
     val loc     : t -> Loc.t
     val short   : (Loc.t -> t) option
     val of_sexp : t Sexp.Of_sexp.t
