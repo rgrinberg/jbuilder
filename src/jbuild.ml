@@ -545,14 +545,17 @@ module Sub_system_info = struct
   type t = ..
   type sub_system = t = ..
 
+  type 'a parser =
+    { short : (Loc.t -> 'a) option
+    ; parse : 'a Sexp.Of_sexp.t
+    }
+
   module type S = sig
     type t
     type sub_system += T of t
     val name    : Sub_system_name.t
-    val version : string
     val loc     : t -> Loc.t
-    val short   : (Loc.t -> t) option
-    val of_sexp : t Sexp.Of_sexp.t
+    val parsers : t parser Syntax.Versioned_parser.t
   end
 
   let all = Sub_system_name.Table.create ~default_value:None
@@ -563,8 +566,10 @@ module Sub_system_info = struct
   module Register(M : S) : sig end = struct
     open M
 
+    let { short; parse } = snd (Syntax.Versioned_parser.last M.parsers)
+
     let short =
-      match M.short with
+      match short with
       | None -> Short_syntax.Not_allowed
       | Some f -> Located f
 
@@ -578,7 +583,7 @@ module Sub_system_info = struct
         let p = !record_parser in
         let name_s = Sub_system_name.to_string name in
         record_parser := (fun acc ->
-          field_o name_s ~short M.of_sexp >>= function
+          field_o name_s ~short parse >>= function
           | None   -> p acc
           | Some x ->
             let acc = Sub_system_name.Map.add acc name (T x) in

@@ -34,7 +34,7 @@ module type Backend = sig
 
   (** Dump the sub-system configuration. This is used to generate META
       files. *)
-  val to_sexp : t Sexp.To_sexp.t
+  val to_sexp : t -> Syntax.Version.t * Sexp.t
 end
 
 module type Registered_backend = sig

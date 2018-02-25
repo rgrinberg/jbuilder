@@ -165,11 +165,9 @@ module Sub_system_info : sig
   type sub_system = t = ..
 
   type 'a parser =
-    { version : Syntax_version.t
-    ; (** Value when the sub-system has no argument *)
-      short   : (Loc.t -> 'a) option
-    ; (** Parse the argument *)
-      of_Sexp : 'a Sexp.Of_sexp.t
+    { short : (Loc.t -> 'a) option (** Value when the sub-system has
+                                       no argument *)
+    ; parse : 'a Sexp.Of_sexp.t    (** Parse the argument *)
     }
 
   (** What the user must provide in order to define the parsing part
@@ -181,17 +179,10 @@ module Sub_system_info : sig
     (** Name of the sub-system *)
     val name : Sub_system_name.t
 
-    (** Version, for installed [dune] files *)
-    val version : string
-
     (** Location of the S-expression passed to [of_sexp] or [short]. *)
     val loc : t -> Loc.t
 
-    (** Value when the sub-system has no argument *)
-    val short : (Loc.t -> t) option
-
-    (** Parse the argument *)
-    val of_sexp : t Sexp.Of_sexp.t
+    val parsers : t parser Syntax.Versioned_parser.t
   end
 
   module Register(M : S) : sig end
