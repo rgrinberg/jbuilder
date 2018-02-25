@@ -69,7 +69,7 @@ let setup sctx ~dir ~(libs : Library.t list) ~scope =
       |> Super_context.Libs.requires sctx ~dir ~has_dot_merlin:false
     in
     Exe.build_and_link sctx
-      ~dir
+      ~dir:utop_exe_dir
       ~obj_dir:utop_exe_dir
       ~program:{ name = exe_name ; main_module_name }
       ~modules
