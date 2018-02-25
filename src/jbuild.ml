@@ -571,7 +571,7 @@ module Sub_system_info = struct
       match Sub_system_name.Table.get all name with
       | Some _ ->
         Sexp.code_error "Sub_system_info.register: already registered"
-          [ "name", Sexp.To_sexp.atom (Sub_system_name.to_string name) ];
+          [ "name", Sexp.To_sexp.string (Sub_system_name.to_string name) ];
       | None ->
         Sub_system_name.Table.set all ~key:name ~data:(Some (module M : S));
         let p = !record_parser in
@@ -580,7 +580,7 @@ module Sub_system_info = struct
           field_o name_s ~short M.of_sexp >>= function
           | None   -> p acc
           | Some x ->
-            let acc = Sub_system_name.Map.add acc ~key:name ~data:(T x) in
+            let acc = Sub_system_name.Map.add acc name (T x) in
             p acc)
   end
 

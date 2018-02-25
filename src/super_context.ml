@@ -59,7 +59,7 @@ let expand_vars t ~scope ~dir ?(extra_vars=String_map.empty) s =
       Option.map ~f:(fun e -> Action.Var_expansion.to_string dir e)
         (match expand_var_no_root t var with
          | Some _ as x -> x
-         | None -> String_map.find var extra_vars))
+         | None -> String_map.find extra_vars var))
 
 let resolve_program t ?hint bin =
   Artifacts.binary ?hint t.artifacts bin
@@ -557,7 +557,7 @@ module Action = struct
       | _ ->
         match expand_var_no_root sctx var with
         | Some _ as x -> x
-        | None -> String_map.find var extra_vars
+        | None -> String_map.find extra_vars var
     in
     let t =
       U.partial_expand t ~dir ~map_exe ~f:(fun loc key ->

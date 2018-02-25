@@ -162,7 +162,7 @@ module Package = struct
         | Some name -> Some (name, data)
       in
       List.filter_map sexps ~f:entry
-      |> Sub_system_name.Map.of_alist
+      |> Sub_system_name.Map.of_list
       |> function
       | Ok x -> x
       | Error (name, _, sexp) ->

@@ -389,7 +389,7 @@ module Sub_system = struct
 
   module Register(M : S) = struct
     let get lib =
-      Option.map (Sub_system_name.Map.find M.Info.name lib.sub_systems)
+      Option.map (Sub_system_name.Map.find lib.sub_systems M.Info.name)
         ~f:(fun (Sub_system0.Instance.T ((module X), lazy t)) ->
           match X.T t with
           | M.T t -> t
@@ -416,7 +416,7 @@ module Sub_system = struct
       | _ -> assert false)
 
   let dump_config lib =
-    Sub_system_name.Map.filter_map lib.sub_systems ~f:(fun ~key:_ ~data:inst ->
+    Sub_system_name.Map.filter_map lib.sub_systems ~f:(fun inst ->
       let (Sub_system0.Instance.T ((module M), lazy t)) = inst in
       match M.to_sexp with
       | None -> None
@@ -598,7 +598,7 @@ and resolve_name db name ~stack =
     Option.iter (Hashtbl.find db.table name) ~f:(fun x ->
       already_in_table info name x);
     (* Add [id] to the table, to detect loops *)
-    Hashtbl.add db.table ~key:name ~data:(Initializing id);
+    Hashtbl.add db.table name (Initializing id);
     let t = make db name info id ~stack in
     let res =
       if not info.optional ||
@@ -733,7 +733,7 @@ and closure ts ~stack =
   let res = ref [] in
   let orig_stack = stack in
   let rec loop t ~stack =
-    match String_map.find t.name !visited with
+    match String_map.find !visited t.name with
     | Some (t', stack') ->
       if t.unique_id = t'.unique_id then
         Ok ()
@@ -744,7 +744,7 @@ and closure ts ~stack =
                            ; lib2 = (t , req_by stack )
                            }))
     | None ->
-      visited := String_map.add !visited ~key:t.name ~data:(t, stack);
+      visited := String_map.add !visited t.name (t, stack);
       Dep_stack.push stack (to_id t) >>= fun stack ->
       t.requires >>= fun deps ->
       iter deps ~stack >>| fun () ->
@@ -957,7 +957,7 @@ module DB = struct
     match find t name with
     | Error Not_found ->
       Sexp.code_error "Lib.DB.get_compile_info got library that doesn't exist"
-        [ "name", Atom name ]
+        [ "name", Sexp.To_sexp.string name ]
     | Error (Hidden hidden) -> Compile.for_hidden t hidden
     | Ok lib -> Compile.for_lib lib
 
