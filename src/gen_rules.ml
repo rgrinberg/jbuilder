@@ -142,7 +142,7 @@ module Gen(P : Install_rules.Params) = struct
       modules
     end
 
-  let _parse_mlds ~dir ~(all_mlds : string String_map.t) ~mlds_written_by_user =
+  let parse_mlds ~dir ~(all_mlds : string String_map.t) ~mlds_written_by_user =
     let module Eval_mlds =
       Ordered_set_lang.Make(struct
         type t = string
@@ -727,13 +727,7 @@ module Gen(P : Install_rules.Params) = struct
       );
 
     (* Odoc *)
-    let mld_files =
-      String_set.fold files ~init:[] ~f:(fun fn acc ->
-        if Filename.check_suffix fn ".mld" then fn :: acc else acc)
-    in
-    Odoc.setup_library_rules sctx lib ~dir ~requires ~modules ~dep_graphs
-      ~mld_files ~scope
-    ;
+    Odoc.setup_library_rules sctx lib ~dir ~requires ~modules ~dep_graphs ~scope;
 
     let flags =
       match alias_module with
