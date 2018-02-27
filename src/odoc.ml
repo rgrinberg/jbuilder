@@ -51,6 +51,19 @@ module Doc = struct
   let setup_deps t lib files = SC.add_alias_deps t (alias t lib) files
 
   let dir t lib = dir t lib
+
+  let register_mld t ~mld ~pkg =
+    match Hashtbl.find t.mlds_by_package pkg with
+    | None ->
+      Hashtbl.add t.mlds_by_package pkg (String_set.singleton mld)
+    | Some s ->
+      Hashtbl.replace t.mlds_by_package ~key:pkg ~data:(String_set.add s mld)
+
+  let mlds t ~pkg =
+    match Hashtbl.find t.mlds_by_package pkg with
+    | Some s -> s
+    | None -> Sexp.code_error "Super_context.mlds: invalid pacakge"
+                ["pkg", Sexp.To_sexp.string pkg]
 end
 
 

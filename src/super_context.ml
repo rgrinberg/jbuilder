@@ -29,6 +29,7 @@ type t =
   ; vars                             : Action.Var_expansion.t String_map.t
   ; chdir                            : (Action.t, Action.t) Build.t
   ; host                             : t option
+  ; mlds_by_package                  : (string, String_set.t) Hashtbl.t
   }
 
 let context t = t.context
@@ -181,6 +182,7 @@ let create
       match action with
       | Chdir _ -> action
       | _ -> Chdir (context.build_dir, action))
+  ; mlds_by_package = Hashtbl.create 256
   }
 
 let prefix_rules t prefix ~f =
