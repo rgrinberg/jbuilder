@@ -291,7 +291,7 @@ The backend for such a framework looks like this:
 .. code:: scheme
 
           (library
-           ((name simlpe_tests)
+           ((name simple_tests)
             (inline_tests.backend
              ((generate_runner (run sed "s/(\\*TEST:\\(.*\\)\\*)/let () = \1;;/" ${impl-files}))
              ))))
