@@ -72,6 +72,33 @@ let ( ++ ) = Path.relative
 let get_odoc sctx = SC.resolve_program sctx "odoc" ~hint:"opam install odoc"
 let odoc_ext = ".odoc"
 
+module Dir (P : sig val sctx : Super_context.t end) = struct
+  open P
+
+  let root = Path.relative (SC.context sctx).Context.build_dir "_doc"
+
+  let mld_dir ~pkg = Path.relative root (sprintf "_mlds/%s" pkg)
+
+  let odoc_dir_pkg pkg = Path.relative root (sprintf "_odoc/pkg/%s" pkg)
+
+  let odoc_dir_lib ~scope (lib : Jbuild.Library.t) =
+    let name, status =
+      match Lib.DB.find (Scope.libs scope) lib.name with
+      | Error Not_found -> assert false
+      | Error (Hidden { name; info; _ }) ->
+        (name, info.status)
+      | Ok lib ->
+        (Lib.name lib, Lib.status lib)
+    in
+    let name =
+      match status with
+      | Installed -> assert false
+      | Public    -> name
+      | Private scope_name ->
+        sprintf "%s@%s" name (Scope_info.Name.to_string scope_name) in
+    Path.relative root (sprintf "_odoc/lib/%s" name)
+end
+
 module Mld : sig
   type t
   val create : name:string -> t
@@ -257,7 +284,7 @@ let setup_css_rule sctx =
        (get_odoc sctx)
        [ A "css"; A "-o"; Path doc_dir ])
 
-let setup_package_rules =
+let setup_package_odoc_rules =
   let mld_glob =
     Re.compile (
       Re.seq [Re.(rep1 any) ; Re.str ".mld" ; Re.eos]
@@ -352,12 +379,14 @@ let gen_rules sctx ~dir rest =
         SC.add_rule sctx (Build.write_file index "Generated index");
       )
     end
-  | "_package" :: pkg :: _ ->
+  | "_odoc" :: "pkg" :: pkg :: _ ->
     begin match String_map.find (SC.packages sctx) pkg with
     | None ->
       die "no documentation for non-existent package %s" pkg
     | Some pkg -> setup_package_rules sctx ~dir ~pkg
     end
+  | "_odoc" :: "lib" :: lib :: _ ->
+
   | lib :: _ ->
     let lib, lib_db =
       match String.rsplit2 lib ~on:'@' with
