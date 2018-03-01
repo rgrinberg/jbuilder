@@ -150,6 +150,27 @@ module Gen(P : Install_rules.Params) = struct
       modules
     end
 
+  let _parse_mlds ~dir ~(all_mlds : string String_map.t) ~mlds_written_by_user =
+    let module Eval_mlds =
+      Ordered_set_lang.Make(struct
+        type t = string
+        let name x = x
+      end) in
+    if Ordered_set_lang.is_standard mlds_written_by_user then
+      all_mlds
+    else
+      let mlds =
+        Eval_mlds.eval_unordered
+          mlds_written_by_user
+          ~parse:(fun ~loc:_ s -> s)
+          ~standard:all_mlds in
+      String_map.iter mlds ~f:(fun mld ->
+        if not (String_map.mem all_mlds mld) then (
+          die "no mld file %s in %s" mld (Path.to_string dir)
+        )
+      );
+      mlds
+
   (* +-----------------------------------------------------------------+
      | User rules & copy files                                         |
      +-----------------------------------------------------------------+ *)
@@ -291,6 +312,14 @@ module Gen(P : Install_rules.Params) = struct
         ; obj_name = ""
         }
     )
+
+  let guess_mlds ~files =
+    String_set.to_list files
+    |> List.filter_map ~f:(fun fn ->
+      match String.lsplit2 fn ~on:'.' with
+      | Some (_, "mld") -> Some (Filename.chop_extension fn, fn)
+      | _ -> None)
+    |> String_map.of_list_exn (* TODO error handling *)
 
   let modules_by_dir =
     let cache = Hashtbl.create 32 in
@@ -719,14 +748,8 @@ module Gen(P : Install_rules.Params) = struct
         SC.add_rule sctx build
       );
 
-    (* Odoc *)
-    let mld_files =
-      String_set.fold files ~init:[] ~f:(fun fn acc ->
-        if Filename.check_suffix fn ".mld" then fn :: acc else acc)
-    in
-    Odoc.setup_library_rules sctx lib ~dir ~requires ~modules ~dep_graphs
-      ~mld_files ~scope
-    ;
+    Odoc.setup_library_odoc_rules sctx lib ~dir ~requires ~modules ~dep_graphs
+      ~scope ;
 
     let flags =
       match alias_module with
@@ -904,6 +927,7 @@ module Gen(P : Install_rules.Params) = struct
     (* This interprets "rule" and "copy_files" stanzas. *)
     let files = text_files ~dir:ctx_dir in
     let all_modules = modules_by_dir ~dir:ctx_dir in
+    let _all_mlds = guess_mlds ~files in
     let modules_partitioner =
       Modules_partitioner.create ~dir:src_dir ~all_modules
     in
@@ -964,7 +988,11 @@ module Gen(P : Install_rules.Params) = struct
         include P
         let module_names_of_lib = module_names_of_lib
       end) in
-    Install_rules.init ()
+    Install_rules.init ();
+    SC.packages sctx
+    |> String_map.iter ~f:(fun (pkg : Package.t) ->
+      Odoc.setup_package_aliases sctx pkg
+    )
 end
 
 module type Gen = sig
