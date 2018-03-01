@@ -254,7 +254,7 @@ module Gen(P : Install_params) = struct
                Ignore_source_files)
       (Build.path_set (Install.files entries)
        &&& Build.paths_glob ~loc:Loc.none mld_glob
-             ~dir:(SC.Doc.mld_dir sctx ~pkg:package)
+             ~dir:(Odoc.Doc.mld_dir sctx ~pkg:package)
        >>^ (fun ((), mlds) ->
          let entries =
            List.map mlds ~f:(fun mld ->
