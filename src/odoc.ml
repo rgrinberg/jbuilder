@@ -4,6 +4,8 @@ open Build.O
 
 module SC = Super_context
 
+let (++) = Path.relative
+
 let lib_unique_name lib =
   let name = Lib.name lib in
   match Lib.status lib with
@@ -12,57 +14,66 @@ let lib_unique_name lib =
   | Private scope_name ->
     sprintf "%s@%s" name (Scope_info.Name.to_string scope_name)
 
-module Doc = struct
-  let root sctx = Path.relative (SC.context sctx).Context.build_dir "_doc"
+let pkg = function
+  | `Pkg pkg -> pkg
+  | `Lib lib ->
+    begin match Lib.pkg lib with
+    | None -> lib_unique_name lib
+    | Some pkg -> pkg
+    end
+
+module Paths = struct
+  let root sctx = (SC.context sctx).Context.build_dir ++ "_doc"
+
+  let odocs sctx = function
+    | `Lib lib -> root sctx ++ sprintf "_odoc/lib/%s" (lib_unique_name lib)
+    | `Pkg pkg -> root sctx ++ sprintf "_odoc/pkg/%s" pkg
+
+  let html_root sctx = root sctx ++ "_html"
+
+  let html_pkg_root sctx = html_root sctx ++ "_pkg"
+  let html sctx = function
+    | `Pkg pkg -> html_pkg_root sctx ++ pkg
+    | `Lib lib -> html_root sctx ++ lib_unique_name lib
+end
+
+module L = struct
+  let odoc_include_flags sctx libs =
+    let paths =
+      libs |> List.fold_left ~f:(fun paths lib ->
+        if Lib.is_local lib then (
+          Path.Set.add paths (Paths.odocs sctx (`Lib lib))
+        ) else (
+          paths
+        )
+      ) ~init:Path.Set.empty in
+    Arg_spec.S (List.concat_map (Path.Set.to_list paths)
+                  ~f:(fun dir -> [Arg_spec.A "-I"; Path dir]))
+end
+
+module Alias = struct
+  let html_alias sctx m =
+    Build_system.Alias.doc ~dir:(Paths.html sctx m)
 
   let alias = Build_system.Alias.make ".odoc-all"
-
-  let odoc_lib_dir sctx ~lib =
-    Path.relative (root sctx) (sprintf "_odoc/lib/%s" (lib_unique_name lib))
 
   let deps t =
     Build.dyn_paths (Build.arr (
       List.fold_left ~init:[] ~f:(fun acc (lib : Lib.t) ->
         if Lib.is_local lib then (
-          let dir = odoc_lib_dir t ~lib in
+          let dir = Paths.odocs t (`Lib lib) in
           Build_system.Alias.stamp_file (alias ~dir) :: acc
         ) else (
           acc
         )
       )))
 
-  let alias t lib = alias ~dir:(odoc_lib_dir t ~lib)
+  let alias t lib = alias ~dir:(Paths.odocs t (`Lib lib))
 
   (* let static_deps t lib = Build_system.Alias.dep (alias t lib) *)
 
   let setup_deps t lib files = SC.add_alias_deps t (alias t lib) files
-
-  let odoc_pkg_dir sctx ~pkg =
-    Path.relative (root sctx) (sprintf "_odoc/pkg/%s" pkg)
-
-  let pkg_html sctx ~pkg =
-    Path.relative (root sctx) (sprintf "_html/_pkg/%s" pkg)
-
-  let lib_html sctx ~lib =
-    Path.relative (root sctx) (sprintf "_html/%s" (lib_unique_name lib))
-
-  module L = struct
-    let odoc_include_flags sctx libs =
-      let paths =
-        libs |> List.fold_left ~f:(fun paths lib ->
-          if Lib.is_local lib then (
-            Path.Set.add paths (odoc_lib_dir sctx ~lib)
-          ) else (
-            paths
-          )
-        ) ~init:Path.Set.empty in
-      Arg_spec.S (List.concat_map (Path.Set.to_list paths)
-                    ~f:(fun dir -> [Arg_spec.A "-I"; Path dir]))
-  end
 end
-
-
-let ( ++ ) = Path.relative
 
 let get_odoc sctx = SC.resolve_program sctx "odoc" ~hint:"opam install odoc"
 let odoc_ext = ".odoc"
@@ -137,6 +148,8 @@ type odoc =
   { odoc_input: Path.t
   ; html_dir: Path.t
   ; html_file: Path.t
+  ; html_alias: Build_system.Alias.t
+  ; html_output_dir: Path.t
   ; typ: [`Module | `Mld]
   }
 
@@ -150,18 +163,16 @@ let to_html sctx (odoc_file : odoc) ~(odoc : Action.Prog.t) ~deps =
         Build.create_file (odoc_file.html_dir ++ Config.jbuilder_keep_fname) in
       odoc_file.html_dir, [jbuilder_keep]
   in
-  Format.eprintf "Generating rule for: %a@.%!" Path.pp odoc_file.html_file;
-  let html_output_dir = Doc.root sctx ++ "_html" in
   SC.add_rule sctx
     (deps
      >>> Build.progn (
        Build.remove_tree to_remove
        :: Build.mkdir odoc_file.html_dir
-       :: Build.run ~context ~dir:html_output_dir
+       :: Build.run ~context ~dir:odoc_file.html_output_dir
             odoc ~extra_targets:[odoc_file.html_file]
             [ A "html"
-            ; Dyn (Doc.L.odoc_include_flags sctx)
-            ; A "-o"; Path html_output_dir
+            ; Dyn (L.odoc_include_flags sctx)
+            ; A "-o"; Path odoc_file.html_output_dir
             ; Dep odoc_file.odoc_input
             ]
        :: jbuilder_keep
@@ -179,15 +190,18 @@ let setup_library_odoc_rules sctx (library : Library.t) ~dir ~scope ~modules
     Option.value_exn (Lib.DB.find_even_when_hidden (Scope.libs scope)
                         library.name) in
   let lib_unique_name = lib_unique_name lib in
-    let pkg = Option.value (Lib.pkg lib) ~default:lib_unique_name in
-    let doc_dir = Doc.odoc_lib_dir sctx ~lib in
+    (* Using the proper package name doesn't actually work since odoc assumes
+      that a package contains only 1 library *)
+    (* let pkg = Option.value (Lib.pkg lib) ~default:lib_unique_name in *)
+    let pkg = lib_unique_name in
+    let doc_dir = Paths.odocs sctx (`Lib lib) in
     let obj_dir = Lib.obj_dir lib in
     let odoc = get_odoc sctx in
     let includes =
       let ctx = SC.context sctx in
       Build.memoize "includes"
         (requires
-         >>> Doc.deps sctx
+         >>> Alias.deps sctx
          >>^ Lib.L.include_flags ~stdlib_dir:ctx.stdlib_dir)
     in
     let modules_and_odoc_files =
@@ -195,76 +209,11 @@ let setup_library_odoc_rules sctx (library : Library.t) ~dir ~scope ~modules
         compile sctx ~odoc ~dir ~obj_dir ~includes ~dep_graphs
           ~doc_dir ~pkg (Module m))
     in
-    Doc.setup_deps sctx lib (List.map modules_and_odoc_files ~f:snd)
-
- (* 
- * let setup_library_rules sctx (lib : Library.t) ~dir ~scope ~modules ~mld_files
- *       ~requires ~(dep_graphs:Ocamldep.Dep_graph.t Ml_kind.Dict.t) =
- *   let doc_dir = Doc.dir sctx lib in
- *   let obj_dir, lib_unique_name =
- *     let lib =
- *       Option.value_exn (Lib.DB.find_even_when_hidden (Scope.libs scope) lib.name)
- *     in
- *     let name =
- *       let name = Lib.name lib in
- *       match Lib.status lib with
- *       | Installed -> assert false
- *       | Public    -> name
- *       | Private scope_name ->
- *         sprintf "%s@%s" name (Scope_info.Name.to_string scope_name)
- *     in
- *     (Lib.obj_dir lib, name)
- *   in
- *   let odoc = get_odoc sctx in
- *   let includes =
- *     let ctx = SC.context sctx in
- *     Build.memoize "includes"
- *       (requires
- *        >>> Doc.deps sctx
- *        >>^ Lib.L.include_flags ~stdlib_dir:ctx.stdlib_dir)
- *   in
- *   let mld_files =
- *     all_mld_files sctx ~dir ~lib ~modules mld_files
- *   in
- *   let mld_and_odoc_files =
- *     List.map mld_files ~f:(fun m ->
- *       compile sctx ~odoc ~dir ~obj_dir ~includes ~dep_graphs
- *         ~doc_dir ~pkg:lib_unique_name (Mld m))
- *   in
- *   let modules_and_odoc_files =
- *     List.map (String_map.values modules) ~f:(fun m ->
- *       compile sctx ~odoc ~dir ~obj_dir ~includes ~dep_graphs
- *         ~doc_dir ~pkg:lib_unique_name (Module m))
- *   in
- *   let inputs_and_odoc_files = modules_and_odoc_files @ mld_and_odoc_files in
- *   Doc.setup_deps sctx lib (List.map inputs_and_odoc_files ~f:snd);
- *   (*
- *      let modules_and_odoc_files =
- *      if lib.wrapped then
- *      let main_module_name = String.capitalize lib.name in
- *      List.filter modules_and_odoc_files
- *      ~f:(fun (m, _) -> m.Module.name = main_module_name)
- *      else
- *      modules_and_odoc_files
- *      in*)
- *   let html_files =
- *     List.map inputs_and_odoc_files ~f:(fun odoc_file ->
- *       to_html sctx odoc_file ~doc_dir ~odoc ~dir ~includes)
- *   in
- *   let doc_root = Doc.root sctx in
- *   let alias =
- *     match lib.public with
- *     | None -> Build_system.Alias.private_doc ~dir
- *     | Some _ -> Build_system.Alias.doc ~dir in
- *   SC.add_alias_deps sctx alias
- *     (css_file ~doc_dir:doc_root
- *      :: toplevel_index ~doc_dir:doc_root
- *      :: html_files)
- *)
+    Alias.setup_deps sctx lib (List.map modules_and_odoc_files ~f:snd)
 
 let setup_css_rule sctx =
   let context = SC.context sctx in
-  let doc_dir = Doc.root sctx in
+  let doc_dir = Paths.html_root sctx in
   SC.add_rule sctx
     (Build.run ~context
        ~dir:context.build_dir
@@ -315,7 +264,7 @@ let setup_toplevel_index_rule sctx =
  </html>
 |} list_items
   in
-  let doc_dir = Doc.root sctx in
+  let doc_dir = Paths.html_root sctx in
   SC.add_rule sctx @@ Build.write_file (toplevel_index ~doc_dir) html
 
 
@@ -335,30 +284,23 @@ let read_unique_name sctx lib_unique_name =
 
 let libs_of_pkg ~lib_db ~pkg =
   Lib.DB.all lib_db
-  |> List.filter ~f:(fun lib ->
+  |> Lib.Set.filter ~f:(fun lib ->
     Lib.is_local lib && (match Lib.pkg lib with
       | None -> false
       | Some pkg' -> pkg' = pkg))
 
 let load_all_odoc_rules_pkg sctx ~lib_db ~pkg =
   let pkg_libs = libs_of_pkg ~lib_db ~pkg in
-  if List.length pkg_libs > 7 then (
-    List.iter ~f:(fun lib ->
-      Format.eprintf "lib: %s@.%!" (Lib.name lib);
-      Format.eprintf "src_dir: %a@.%!" Path.pp (Lib.src_dir lib);
-        Format.eprintf "status: %s@.%!" (match Lib.status lib with
-          | Public -> "public"
-          | Private _ -> "Private"
-          | Installed -> "installed");
-    ) pkg_libs
-  );
-  SC.load_dir sctx ~dir:(Doc.odoc_pkg_dir sctx ~pkg);
-  List.iter pkg_libs ~f:(fun lib ->
-    SC.load_dir sctx ~dir:(Doc.odoc_lib_dir sctx ~lib));
+  SC.load_dir sctx ~dir:(Paths.odocs sctx (`Pkg pkg));
+  Lib.Set.iter pkg_libs ~f:(fun lib ->
+    SC.load_dir sctx ~dir:(Paths.odocs sctx (`Lib lib)));
   pkg_libs
 
-let create_odoc ~odoc_input ~html_base = function
-  | `Module ->
+let create_odoc sctx ~odoc_input m =
+  let html_alias = Alias.html_alias sctx m in
+  let html_base = Paths.html sctx m in
+  match m with
+  | `Lib _ ->
     let html_dir =
       html_base ++ (
         Path.basename odoc_input
@@ -369,14 +311,18 @@ let create_odoc ~odoc_input ~html_base = function
     ; html_dir
     ; html_file = html_dir ++ "index.html"
     ; typ = `Module
+    ; html_output_dir = Paths.html_root sctx
+    ; html_alias
     }
-  | `Mld ->
+  | `Pkg _ ->
     { odoc_input
     ; html_dir = html_base
     ; html_file = html_base ++ sprintf "%s.html" (
         Filename.chop_extension (Path.basename odoc_input)
       )
     ; typ = `Mld
+    ; html_output_dir = Paths.html_pkg_root sctx
+    ; html_alias
     }
 
 let setup_pkg_html_rules =
@@ -395,15 +341,13 @@ let setup_pkg_html_rules =
         in
         List.concat (
           (List.map ~f:(fun odoc_input ->
-             create_odoc `Mld ~odoc_input ~html_base:(Doc.pkg_html sctx ~pkg)
-           ) (odocs (Doc.odoc_pkg_dir sctx ~pkg)))
+             create_odoc sctx (`Pkg pkg) ~odoc_input
+           ) (odocs (Paths.odocs sctx (`Pkg pkg))))
           :: (
             List.map libs ~f:(fun lib ->
-              odocs (Doc.odoc_lib_dir sctx ~lib)
+              odocs (Paths.odocs sctx (`Lib lib))
               |> List.map ~f:(fun odoc_input ->
-                create_odoc `Module ~odoc_input ~html_base:(
-                  Doc.lib_html sctx ~lib
-                )
+                create_odoc sctx (`Lib lib) ~odoc_input
               )
             )
           )) in
@@ -413,27 +357,28 @@ let setup_pkg_html_rules =
           match Lib.closure libs with
           | Ok closure -> closure
           | Error _ -> libs in
-        let deps = Build.return closure >>> Doc.deps sctx in
+        let deps = Build.return closure >>> Alias.deps sctx in
         List.map odocs ~f:(fun odoc_file ->
           to_html sctx odoc_file ~odoc ~deps) in
-      let doc_root = Doc.root sctx in
-      (* let alias =
-       *   html_alias sctx (
-       *     Option.value_exn (String_map.find (SC.packages sctx) pkg)
-       *   ) in *)
-      (Doc.pkg_html sctx ~pkg :: List.map ~f:(fun lib -> Doc.lib_html sctx ~lib) libs)
-      |> List.iter ~f:(fun dir ->
-        let alias = Build_system.Alias.doc ~dir in
+      let html_root = Paths.html_root sctx in
+      List.iter (
+        Alias.html_alias sctx (`Pkg pkg)
+        :: List.map ~f:(fun lib -> Alias.html_alias sctx (`Lib lib)) libs
+      ) ~f:(fun alias ->
         SC.add_alias_deps sctx alias
-          (css_file ~doc_dir:doc_root
-           :: toplevel_index ~doc_dir:doc_root
-           :: html_files)
-      )
+          [ css_file ~doc_dir:html_root
+          ; toplevel_index ~doc_dir:html_root
+          ]
+      );
+      List.combine odocs html_files
+      |> List.iter ~f:(fun (odoc, html) ->
+        SC.add_alias_deps sctx odoc.html_alias [html]
+      );
     end
 
-let gen_rules sctx ~dir:_ rest =
+let gen_rules sctx ~dir rest =
   match rest with
-  | [] ->
+  | ["_html"] ->
     setup_css_rule sctx;
     setup_toplevel_index_rule sctx
   | "_odoc" :: "pkg" :: _pkg :: _ ->
@@ -449,30 +394,37 @@ let gen_rules sctx ~dir:_ rest =
       Scope_info.Name.of_string pkg
       |> SC.find_scope_by_name sctx
       |> Scope.libs in
-    let libs = load_all_odoc_rules_pkg sctx ~pkg ~lib_db in
+    let libs =
+      Lib.Set.to_list (load_all_odoc_rules_pkg sctx ~pkg ~lib_db) in
     setup_pkg_html_rules sctx ~pkg ~libs;
-  | "_html" :: lib_unique_name :: _ ->
+  | "_html" :: _pkg :: lib_unique_name :: _ ->
     let lib, lib_db = read_unique_name sctx lib_unique_name in
     begin match Lib.DB.find lib_db lib with
     | Error _ -> ()
     | Ok lib  ->
       Option.iter (Lib.pkg lib) ~f:(fun pkg ->
-        let libs = load_all_odoc_rules_pkg sctx ~pkg ~lib_db in
+        let libs =
+          Lib.Set.to_list (load_all_odoc_rules_pkg sctx ~pkg ~lib_db) in
         setup_pkg_html_rules sctx ~pkg ~libs
       )
     end
-  | _ -> failwith "bad path"
+  | comps ->
+    Sexp.code_error "Odoc.gen_rules"
+      [ "dir", Path.sexp_of_t dir
+      ; "components", Sexp.To_sexp.(list string) comps]
 
 let setup_package_aliases sctx (pkg : Package.t) =
-  SC.load_dir sctx ~dir:(Doc.pkg_html sctx ~pkg:pkg.name);
+  SC.load_dir sctx ~dir:(Paths.html sctx (`Pkg pkg.name));
   let lib_db =
     Scope_info.Name.of_string pkg.name
     |> SC.find_scope_by_name sctx
     |> Scope.libs in
   let alias = html_alias sctx pkg in
   SC.add_alias_deps sctx alias (
-    libs_of_pkg ~lib_db ~pkg:pkg.name|> List.map ~f:(fun lib ->
-      let dir = Doc.lib_html sctx ~lib in
+    libs_of_pkg ~lib_db ~pkg:pkg.name
+    |> Lib.Set.to_list
+    |> List.map ~f:(fun lib ->
+      let dir = Paths.html sctx (`Lib lib) in
       Build_system.Alias.stamp_file (Build_system.Alias.doc ~dir)
     )
   )
