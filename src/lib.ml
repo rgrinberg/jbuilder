@@ -353,6 +353,17 @@ let is_local t = Path.is_local t.obj_dir
 
 let status t = t.status
 
+let pkg t =
+  match t.status with
+  | Installed
+  | Public ->
+    begin match String.lsplit2 (name t) ~on:'.' with
+    | None -> Some (name t)
+    | Some (p, _) -> Some p
+    end
+  | Private _ ->
+    None
+
 let to_id t : Id.t =
   { unique_id = t.unique_id
   ; path      = t.src_dir
