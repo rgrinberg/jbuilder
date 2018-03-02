@@ -400,6 +400,11 @@ let setup_pkg_html_rules =
       );
     end
 
+let db_of_package sctx (pkg : Package.t) =
+  Path.append (SC.context sctx).build_dir pkg.path
+  |> SC.find_scope_by_dir sctx
+  |> Scope.libs
+
 let gen_rules sctx ~dir rest =
   match rest with
   | ["_html"] ->
@@ -416,9 +421,9 @@ let gen_rules sctx ~dir rest =
     end
   | "_html" :: "_pkg" :: pkg :: _ ->
     let lib_db =
-      Scope_info.Name.of_string pkg
-      |> SC.find_scope_by_name sctx
-      |> Scope.libs in
+      match String_map.find (SC.packages sctx) pkg with
+      | None -> die "package %s isn't defined in workspace" pkg
+      | Some p -> db_of_package sctx p in
     let libs =
       Lib.Set.to_list (load_all_odoc_rules_pkg sctx ~pkg ~lib_db) in
     setup_pkg_html_rules sctx ~pkg ~libs;
@@ -439,14 +444,10 @@ let gen_rules sctx ~dir rest =
       ; "components", Sexp.To_sexp.(list string) comps]
 
 let setup_package_aliases sctx (pkg : Package.t) =
-  let lib_db =
-    Scope_info.Name.of_string pkg.name
-    |> SC.find_scope_by_name sctx
-    |> Scope.libs in
   let alias = html_alias sctx pkg in
   SC.add_alias_deps sctx alias (
     Alias.html_alias sctx (`Pkg pkg.name)
-    :: (libs_of_pkg ~lib_db ~pkg:pkg.name
+    :: (libs_of_pkg ~pkg:pkg.name ~lib_db:(db_of_package sctx pkg)
         |> Lib.Set.to_list
         |> List.map ~f:(fun lib -> Alias.html_alias sctx (`Lib lib)))
     |> List.map ~f:Build_system.Alias.stamp_file
