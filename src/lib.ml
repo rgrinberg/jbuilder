@@ -357,10 +357,12 @@ let pkg t =
   match t.status with
   | Installed
   | Public ->
-    begin match String.lsplit2 (name t) ~on:'.' with
-    | None -> Some (name t)
-    | Some (p, _) -> Some p
-    end
+    Some (
+      (match String.lsplit2 (name t) ~on:'.' with
+       | None -> name t
+       | Some (p, _) -> p)
+      |> Package.Name.of_string
+    )
   | Private _ ->
     None
 

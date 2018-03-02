@@ -1016,10 +1016,10 @@ module Gen(P : Install_rules.Params) = struct
             | _ ->
               None
           ))
-        |> String_map.of_list_multi
+        |> Package.Name.Map.of_list_multi
       ) in
       fun (p : Package.t) ->
-        Option.value (String_map.find (Lazy.force map) p.name) ~default:[]
+        Option.value (Package.Name.Map.find (Lazy.force map) p.name) ~default:[]
     in
     let modules_by_lib =
       let lib_to_library = lazy (
@@ -1040,7 +1040,7 @@ module Gen(P : Install_rules.Params) = struct
         modules_by_lib ~dir library
       in
     SC.packages sctx
-    |> String_map.iter ~f:(fun (pkg : Package.t) ->
+    |> Package.Name.Map.iter ~f:(fun (pkg : Package.t) ->
       SC.on_load_dir sctx
         ~dir:(Odoc.pkg_odoc sctx pkg)
         ~f:(fun () ->
@@ -1105,7 +1105,8 @@ let gen ~contexts ~build_system
              match (stanza : Stanza.t) with
              | Library { public = Some { package; _ }; _ }
              | Alias { package = Some package ;  _ }
-             | Install { package; _ } ->
+             | Install { package; _ }
+             | Documentation { package; _ } ->
                Package.Name.Set.mem pkgs package.name
              | _ -> true)))
     in

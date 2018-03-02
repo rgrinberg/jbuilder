@@ -17,18 +17,24 @@ let lib_unique_name lib =
 module Paths = struct
   let root sctx = (SC.context sctx).Context.build_dir ++ "_doc"
 
-  let odocs sctx = function
-    | `Lib lib -> root sctx ++ sprintf "_odoc/lib/%s" (lib_unique_name lib)
-    | `Pkg pkg -> root sctx ++ sprintf "_odoc/pkg/%s" pkg
+  let odocs sctx m =
+    root sctx ++ (
+      match m with
+      | `Lib lib -> sprintf "_odoc/lib/%s" (lib_unique_name lib)
+      | `Pkg pkg -> sprintf "_odoc/pkg/%s" (Package.Name.to_string pkg)
+    )
 
   let html_root sctx = root sctx ++ "_html"
 
-  let html sctx = function
-    | `Pkg pkg -> html_root sctx ++ pkg
-    | `Lib lib -> html_root sctx ++ lib_unique_name lib
+  let html sctx m =
+    html_root sctx ++ (
+      match m with
+      | `Pkg pkg -> Package.Name.to_string pkg
+      | `Lib lib -> lib_unique_name lib
+    )
 
   let gen_mld_dir sctx (pkg : Package.t) =
-    root sctx ++ "_mlds" ++ pkg.name
+    root sctx ++ "_mlds" ++ (Package.Name.to_string pkg.name)
 end
 
 module Dep = struct
@@ -116,7 +122,7 @@ let compile_mld sctx (m : Mld.t) ~odoc ~includes ~doc_dir ~pkg =
      Build.run ~context ~dir:doc_dir odoc
        [ A "compile"
        ; Dyn (fun x -> x)
-       ; As ["--pkg"; pkg]
+       ; As ["--pkg"; Package.Name.to_string pkg]
        ; A "-o"; Target odoc_file
        ; Dep (Mld.odoc_input m)
        ]);
@@ -321,12 +327,12 @@ let create_odoc sctx ~odoc_input m =
     }
 
 let setup_pkg_html_rules =
-  let loaded = Hashtbl.create 128 in
+  let loaded = Package.Name.Table.create ~default_value:None in
   let odoc_glob =
     Re.compile (Re.seq [Re.(rep1 any) ; Re.str ".odoc" ; Re.eos]) in
   fun sctx ~pkg ~libs ->
-    if not (Hashtbl.mem loaded pkg) then begin
-      Hashtbl.add loaded pkg ();
+    if Package.Name.Table.get loaded pkg = None then begin
+      Package.Name.Table.set loaded ~key:pkg ~data:(Some ());
       let odocs =
         let odocs dir =
           SC.eval_glob sctx ~dir odoc_glob
@@ -397,7 +403,8 @@ let gen_rules sctx ~dir:_ rest =
       )
     end;
     Option.iter
-      (String_map.find (SC.packages sctx) lib_unique_name_or_pkg)
+      (Package.Name.Map.find (SC.packages sctx)
+         (Package.Name.of_string lib_unique_name_or_pkg))
       ~f:(fun pkg ->
         let lib_db = db_of_pkg sctx ~pkg in
         let libs =
@@ -454,7 +461,7 @@ let check_mlds_no_dupes ~pkg ~mlds =
   | Ok m -> m
   | Error (_, p1, p2) ->
     die "Package %s has two mld's with the same basename %s, %s"
-      pkg.Package.name
+      (Package.Name.to_string pkg.Package.name)
       (Path.to_string_maybe_quoted p1)
       (Path.to_string_maybe_quoted p2)
 
