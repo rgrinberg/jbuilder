@@ -78,42 +78,22 @@ end = struct
   let odoc_input t = t
 end
 
-module Module_or_mld = struct
-  [@@@warning "-37"]
-  type t =
-    | Mld of Mld.t
-    | Module of Module.t
+let module_deps (m : Module.t) ~doc_dir ~(dep_graphs:Ocamldep.Dep_graphs.t) =
+  Build.dyn_paths
+    ((match m.intf with
+       | Some _ ->
+         Ocamldep.Dep_graph.deps_of dep_graphs.intf m
+       | None ->
+         (* When a module has no .mli, use the dependencies for the .ml *)
+         Ocamldep.Dep_graph.deps_of dep_graphs.impl m)
+     >>^ List.map ~f:(Module.odoc_file ~doc_dir))
 
-  let odoc_file ~doc_dir = function
-    | Mld m -> Mld.odoc_file ~doc_dir m
-    | Module m -> Module.odoc_file ~doc_dir m
-
-  let odoc_input ~obj_dir = function
-    | Mld m -> Mld.odoc_input m
-    | Module m -> Module.cmti_file m ~obj_dir
-end
-
-let module_or_mld_deps (m : Module_or_mld.t) ~doc_dir
-      ~(dep_graphs:Ocamldep.Dep_graphs.t) =
-  match m with
-  | Mld _ ->
-    Build.arr (fun x -> x)
-  | Module m ->
-    Build.dyn_paths
-      ((match m.intf with
-         | Some _ ->
-           Ocamldep.Dep_graph.deps_of dep_graphs.intf m
-         | None ->
-           (* When a module has no .mli, use the dependencies for the .ml *)
-           Ocamldep.Dep_graph.deps_of dep_graphs.impl m)
-       >>^ List.map ~f:(Module.odoc_file ~doc_dir))
-
-let compile sctx (m : Module_or_mld.t) ~odoc ~dir ~obj_dir ~includes ~dep_graphs
+let compile_module sctx (m : Module.t) ~odoc ~dir ~obj_dir ~includes ~dep_graphs
       ~doc_dir ~pkg =
   let context = SC.context sctx in
-  let odoc_file = Module_or_mld.odoc_file m ~doc_dir in
+  let odoc_file = Module.odoc_file m ~doc_dir in
   SC.add_rule sctx
-    (module_or_mld_deps m ~doc_dir ~dep_graphs
+    (module_deps m ~doc_dir ~dep_graphs
      >>>
      includes
      >>>
@@ -123,7 +103,7 @@ let compile sctx (m : Module_or_mld.t) ~odoc ~dir ~obj_dir ~includes ~dep_graphs
        ; Dyn (fun x -> x)
        ; As ["--pkg"; pkg]
        ; A "-o"; Target odoc_file
-       ; Dep (Module_or_mld.odoc_input m ~obj_dir)
+       ; Dep (Module.cmti_file m ~obj_dir)
        ]);
   (m, odoc_file)
 
@@ -215,8 +195,8 @@ let setup_library_odoc_rules sctx (library : Library.t) ~dir ~scope ~modules
     in
     let modules_and_odoc_files =
       List.map (String_map.values modules) ~f:(fun m ->
-        compile sctx ~odoc ~dir ~obj_dir ~includes ~dep_graphs
-          ~doc_dir ~pkg (Module m))
+        compile_module sctx ~odoc ~dir ~obj_dir ~includes ~dep_graphs
+          ~doc_dir ~pkg m)
     in
     Dep.setup_deps sctx (`Lib lib) (List.map modules_and_odoc_files ~f:snd)
 
