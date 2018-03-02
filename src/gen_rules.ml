@@ -328,6 +328,13 @@ module Gen(P : Install_rules.Params) = struct
         let files = text_files ~dir in
         guess_mlds ~files)
 
+  let mlds_of_dir (doc : Documentation.t) ~dir =
+    parse_mlds ~dir
+      ~all_mlds:(mlds_by_dir ~dir)
+      ~mlds_written_by_user:doc.mld_files
+    |> String_map.values
+    |> List.map ~f:(Path.relative dir)
+
   let modules_by_dir =
     let cache = Hashtbl.create 32 in
     fun ~dir ->
@@ -993,6 +1000,7 @@ module Gen(P : Install_rules.Params) = struct
       Install_rules.Gen(struct
         include P
         let module_names_of_lib = module_names_of_lib
+        let mlds_of_dir = mlds_of_dir
       end) in
     Install_rules.init ();
     let docs_by_package =
@@ -1037,13 +1045,7 @@ module Gen(P : Install_rules.Params) = struct
             ~pkg
             ~mlds:(
               docs_by_package pkg
-              |> List.concat_map ~f:(fun (dir, (doc : Documentation.t)) ->
-                parse_mlds ~dir
-                  ~all_mlds:(mlds_by_dir ~dir)
-                  ~mlds_written_by_user:doc.mld_files
-                |> String_map.values
-                |> List.map ~f:(Path.relative dir)
-              )
+              |> List.concat_map ~f:(fun (dir, doc) -> mlds_of_dir ~dir doc)
             )
             ~entry_modules_by_lib:(fun lib ->
               let m = modules_by_lib lib in
