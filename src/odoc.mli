@@ -15,3 +15,12 @@ val setup_library_odoc_rules
   -> unit
 
 val gen_rules : Super_context.t -> dir:Path.t -> string list -> unit
+
+val pkg_odoc : Super_context.t -> Package.t -> Path.t
+
+val setup_package_odoc_rules
+  :  Super_context.t
+  -> pkg:Package.t
+  -> mlds:Path.t list
+  -> entry_modules_by_lib:(Lib.t -> string list)
+  -> unit
