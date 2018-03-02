@@ -461,7 +461,7 @@ let check_mlds_no_dupes ~pkg ~mlds =
 let setup_package_odoc_rules sctx ~pkg ~mlds ~entry_modules_by_lib =
   let mlds = check_mlds_no_dupes ~pkg ~mlds in
   let mlds =
-    if String_map.mem mlds "index.mld" then
+    if String_map.mem mlds "index" then
       mlds
     else
       let entry_modules = entry_modules sctx ~pkg ~entry_modules_by_lib in
@@ -469,7 +469,7 @@ let setup_package_odoc_rules sctx ~pkg ~mlds ~entry_modules_by_lib =
       SC.add_rule sctx (
         Build.write_file gen_mld (default_index entry_modules)
       );
-      String_map.add mlds "index.mld" gen_mld in
+      String_map.add mlds "index" gen_mld in
   let odoc = get_odoc sctx in
   let odocs = List.map (String_map.values mlds) ~f:(fun mld ->
     compile_mld
