@@ -369,7 +369,7 @@ let setup_pkg_html_rules =
       );
     end
 
-let gen_rules sctx ~dir rest =
+let gen_rules sctx ~dir:_ rest =
   match rest with
   | ["_html"] ->
     setup_css_rule sctx;
@@ -405,10 +405,7 @@ let gen_rules sctx ~dir rest =
         in
         setup_pkg_html_rules sctx ~pkg:pkg.name ~libs;
       )
-  | comps ->
-    Sexp.code_error "Odoc.gen_rules: unknown components path"
-      [ "dir", Path.sexp_of_t dir
-      ; "components", Sexp.To_sexp.(list string) comps]
+  | _ -> ()
 
 let setup_package_aliases sctx (pkg : Package.t) =
   let alias = html_alias sctx pkg in
