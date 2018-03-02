@@ -162,13 +162,16 @@ module Gen(P : Install_rules.Params) = struct
       let mlds =
         Eval_mlds.eval_unordered
           mlds_written_by_user
-          ~parse:(fun ~loc:_ s -> s)
+          ~parse:(fun ~loc s ->
+            match String_map.find all_mlds s with
+            | Some s ->
+              s
+            | None ->
+              Loc.fail loc "%s.mld doesn't exist in %s" s
+                (Path.to_string_maybe_quoted
+                   (Path.drop_optional_build_context dir))
+          )
           ~standard:all_mlds in
-      String_map.iter mlds ~f:(fun mld ->
-        if not (String_map.mem all_mlds mld) then (
-          die "no mld file %s in %s" mld (Path.to_string dir)
-        )
-      );
       mlds
 
   (* +-----------------------------------------------------------------+
