@@ -31,9 +31,8 @@ module Paths = struct
 
   let html_root sctx = root sctx ++ "_html"
 
-  let html_pkg_root sctx = html_root sctx ++ "_pkg"
   let html sctx = function
-    | `Pkg pkg -> html_pkg_root sctx ++ pkg
+    | `Pkg pkg -> html_root sctx ++ pkg
     | `Lib lib -> html_root sctx ++ lib_unique_name lib
 
   let gen_mld_dir sctx (pkg : Package.t) =
@@ -170,7 +169,6 @@ type odoc =
   ; html_dir: Path.t
   ; html_file: Path.t
   ; html_alias: Build_system.Alias.t
-  ; html_output_dir: Path.t
   ; typ: [`Module | `Mld]
   }
 
@@ -189,11 +187,11 @@ let to_html sctx (odoc_file : odoc) ~(odoc : Action.Prog.t) ~deps =
      >>> Build.progn (
        Build.remove_tree to_remove
        :: Build.mkdir odoc_file.html_dir
-       :: Build.run ~context ~dir:odoc_file.html_output_dir
+       :: Build.run ~context ~dir:(Paths.html_root sctx)
             odoc ~extra_targets:[odoc_file.html_file]
             [ A "html"
             ; Dyn (L.odoc_include_flags sctx)
-            ; A "-o"; Path odoc_file.html_output_dir
+            ; A "-o"; Path (Paths.html_root sctx)
             ; Dep odoc_file.odoc_input
             ]
        :: jbuilder_keep
@@ -337,7 +335,6 @@ let create_odoc sctx ~odoc_input m =
     ; html_dir
     ; html_file = html_dir ++ "index.html"
     ; typ = `Module
-    ; html_output_dir = Paths.html_root sctx
     ; html_alias
     }
   | `Pkg _ ->
@@ -350,7 +347,6 @@ let create_odoc sctx ~odoc_input m =
         |> Option.value_exn
       )
     ; typ = `Mld
-    ; html_output_dir = Paths.html_pkg_root sctx
     ; html_alias
     }
 
@@ -405,11 +401,6 @@ let setup_pkg_html_rules =
       );
     end
 
-let find_pkg_or_die sctx pkg =
-  match String_map.find (SC.packages sctx) pkg with
-  | None -> die "package %s isn't defined in workspace" pkg
-  | Some p -> p
-
 let gen_rules sctx ~dir rest =
   match rest with
   | ["_html"] ->
@@ -424,14 +415,10 @@ let gen_rules sctx ~dir rest =
     | Error _ -> ()
     | Ok lib  -> SC.load_dir sctx ~dir:(Lib.src_dir lib)
     end
-  | "_html" :: "_pkg" :: pkg :: _ ->
-    let pkg = find_pkg_or_die sctx pkg in
-    let lib_db = db_of_pkg sctx ~pkg in
-    let libs =
-      Lib.Set.to_list (load_all_odoc_rules_pkg sctx ~pkg:pkg.name ~lib_db) in
-    setup_pkg_html_rules sctx ~pkg:pkg.name ~libs;
-  | "_html" :: lib_unique_name :: _ ->
-    let lib, lib_db = read_unique_name sctx lib_unique_name in
+  | "_html" :: lib_unique_name_or_pkg :: _ ->
+    (* TODO we can be a better with the error handling in the case where
+       lib_unique_name_or_pkg is neither a valid or pkg or lnu *)
+    let lib, lib_db = read_unique_name sctx lib_unique_name_or_pkg in
     begin match Lib.DB.find lib_db lib with
     | Error _ -> ()
     | Ok lib  ->
@@ -440,7 +427,16 @@ let gen_rules sctx ~dir rest =
           Lib.Set.to_list (load_all_odoc_rules_pkg sctx ~pkg ~lib_db) in
         setup_pkg_html_rules sctx ~pkg ~libs
       )
-    end
+    end;
+    Option.iter
+      (String_map.find (SC.packages sctx) lib_unique_name_or_pkg)
+      ~f:(fun pkg ->
+        let lib_db = db_of_pkg sctx ~pkg in
+        let libs =
+          Lib.Set.to_list (load_all_odoc_rules_pkg sctx ~pkg:pkg.name ~lib_db)
+        in
+        setup_pkg_html_rules sctx ~pkg:pkg.name ~libs;
+      )
   | comps ->
     Sexp.code_error "Odoc.gen_rules: unknown components path"
       [ "dir", Path.sexp_of_t dir
