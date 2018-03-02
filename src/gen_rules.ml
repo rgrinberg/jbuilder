@@ -150,7 +150,7 @@ module Gen(P : Install_rules.Params) = struct
       modules
     end
 
-  let _parse_mlds ~dir ~(all_mlds : string String_map.t) ~mlds_written_by_user =
+  let parse_mlds ~dir ~(all_mlds : string String_map.t) ~mlds_written_by_user =
     let module Eval_mlds =
       Ordered_set_lang.Make(struct
         type t = string
@@ -320,6 +320,13 @@ module Gen(P : Install_rules.Params) = struct
       | Some (_, "mld") -> Some (Filename.chop_extension fn, fn)
       | _ -> None)
     |> String_map.of_list_exn (* TODO error handling *)
+
+  let mlds_by_dir =
+    let cache = Hashtbl.create 32 in
+    fun ~dir ->
+      Hashtbl.find_or_add cache dir ~f:(fun dir ->
+        let files = text_files ~dir in
+        guess_mlds ~files)
 
   let modules_by_dir =
     let cache = Hashtbl.create 32 in
@@ -927,7 +934,6 @@ module Gen(P : Install_rules.Params) = struct
     (* This interprets "rule" and "copy_files" stanzas. *)
     let files = text_files ~dir:ctx_dir in
     let all_modules = modules_by_dir ~dir:ctx_dir in
-    let _all_mlds = guess_mlds ~files in
     let modules_partitioner =
       Modules_partitioner.create ~dir:src_dir ~all_modules
     in
@@ -989,9 +995,38 @@ module Gen(P : Install_rules.Params) = struct
         let module_names_of_lib = module_names_of_lib
       end) in
     Install_rules.init ();
+    let docs_per_package =
+      SC.stanzas sctx
+      |> List.concat_map ~f:(fun (w : SC.Dir_with_jbuild.t) ->
+        List.filter_map w.stanzas ~f:(function
+          | Jbuild.Stanza.Documentation (d : Jbuild.Documentation.t) ->
+            Some (d.package.name, (w.ctx_dir, d))
+          | _ ->
+            None
+        ))
+      |> String_map.of_list_multi in
     SC.packages sctx
     |> String_map.iter ~f:(fun (pkg : Package.t) ->
-      Odoc.setup_package_aliases sctx pkg
+      SC.on_load_dir sctx
+        ~dir:(Odoc.pkg_odoc sctx pkg)
+        ~f:(fun () ->
+          Odoc.setup_package_odoc_rules sctx
+            ~pkg
+            ~mlds:(
+              String_map.find docs_per_package pkg.name
+              |> Option.value ~default:[]
+              |> List.concat_map ~f:(fun (dir, (doc : Documentation.t)) ->
+                parse_mlds ~dir
+                  ~all_mlds:(mlds_by_dir ~dir)
+                  ~mlds_written_by_user:doc.mld_files
+                |> String_map.values
+                |> List.map ~f:(Path.relative dir)
+              )
+            )
+            ~entry_modules_by_lib:(fun _ -> [])
+        );
+      (* setup @doc to build the correct html for the package *)
+      Odoc.setup_package_aliases sctx pkg;
     )
 end
 
