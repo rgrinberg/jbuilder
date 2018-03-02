@@ -14,14 +14,6 @@ let lib_unique_name lib =
   | Private scope_name ->
     sprintf "%s@%s" name (Scope_info.Name.to_string scope_name)
 
-(* let pkg = function
- *   | `Pkg pkg -> pkg
- *   | `Lib lib ->
- *     begin match Lib.pkg lib with
- *     | None -> lib_unique_name lib
- *     | Some pkg -> pkg
- *     end *)
-
 module Paths = struct
   let root sctx = (SC.context sctx).Context.build_dir ++ "_doc"
 
@@ -39,21 +31,7 @@ module Paths = struct
     root sctx ++ "_mlds" ++ pkg.name
 end
 
-module L = struct
-  let odoc_include_flags sctx libs =
-    let paths =
-      libs |> List.fold_left ~f:(fun paths lib ->
-        if Lib.is_local lib then (
-          Path.Set.add paths (Paths.odocs sctx (`Lib lib))
-        ) else (
-          paths
-        )
-      ) ~init:Path.Set.empty in
-    Arg_spec.S (List.concat_map (Path.Set.to_list paths)
-                  ~f:(fun dir -> [Arg_spec.A "-I"; Path dir]))
-end
-
-module Alias = struct
+module Dep = struct
   let html_alias sctx m =
     Build_system.Alias.doc ~dir:(Paths.html sctx m)
 
@@ -172,6 +150,18 @@ type odoc =
   ; typ: [`Module | `Mld]
   }
 
+let odoc_include_flags sctx libs =
+  let paths =
+    libs |> List.fold_left ~f:(fun paths lib ->
+      if Lib.is_local lib then (
+        Path.Set.add paths (Paths.odocs sctx (`Lib lib))
+      ) else (
+        paths
+      )
+    ) ~init:Path.Set.empty in
+  Arg_spec.S (List.concat_map (Path.Set.to_list paths)
+                ~f:(fun dir -> [Arg_spec.A "-I"; Path dir]))
+
 let to_html sctx (odoc_file : odoc) ~(odoc : Action.Prog.t) ~deps =
   let context = SC.context sctx in
   let to_remove, jbuilder_keep =
@@ -190,7 +180,7 @@ let to_html sctx (odoc_file : odoc) ~(odoc : Action.Prog.t) ~deps =
        :: Build.run ~context ~dir:(Paths.html_root sctx)
             odoc ~extra_targets:[odoc_file.html_file]
             [ A "html"
-            ; Dyn (L.odoc_include_flags sctx)
+            ; Dyn (odoc_include_flags sctx)
             ; A "-o"; Path (Paths.html_root sctx)
             ; Dep odoc_file.odoc_input
             ]
@@ -220,7 +210,7 @@ let setup_library_odoc_rules sctx (library : Library.t) ~dir ~scope ~modules
       let ctx = SC.context sctx in
       Build.memoize "includes"
         (requires
-         >>> Alias.deps sctx
+         >>> Dep.deps sctx
          >>^ Lib.L.include_flags ~stdlib_dir:ctx.stdlib_dir)
     in
     let modules_and_odoc_files =
@@ -228,7 +218,7 @@ let setup_library_odoc_rules sctx (library : Library.t) ~dir ~scope ~modules
         compile sctx ~odoc ~dir ~obj_dir ~includes ~dep_graphs
           ~doc_dir ~pkg (Module m))
     in
-    Alias.setup_deps sctx (`Lib lib) (List.map modules_and_odoc_files ~f:snd)
+    Dep.setup_deps sctx (`Lib lib) (List.map modules_and_odoc_files ~f:snd)
 
 let setup_css_rule sctx =
   let context = SC.context sctx in
@@ -321,7 +311,7 @@ let load_all_odoc_rules_pkg sctx ~pkg ~lib_db =
   pkg_libs
 
 let create_odoc sctx ~odoc_input m =
-  let html_alias = Alias.html_alias sctx m in
+  let html_alias = Dep.html_alias sctx m in
   let html_base = Paths.html sctx m in
   match m with
   | `Lib _ ->
@@ -352,16 +342,14 @@ let create_odoc sctx ~odoc_input m =
 
 let setup_pkg_html_rules =
   let loaded = Hashtbl.create 128 in
+  let odoc_glob =
+    Re.compile (Re.seq [Re.(rep1 any) ; Re.str ".odoc" ; Re.eos]) in
   fun sctx ~pkg ~libs ->
     if not (Hashtbl.mem loaded pkg) then begin
       Hashtbl.add loaded pkg ();
       let odocs =
-        let glob =
-          Re.compile (
-            Re.seq [Re.(rep1 any) ; Re.str ".odoc" ; Re.eos]
-          ) in
         let odocs dir =
-          SC.eval_glob sctx ~dir glob
+          SC.eval_glob sctx ~dir odoc_glob
           |> List.map ~f:(Path.relative dir)
         in
         List.concat (
@@ -382,13 +370,13 @@ let setup_pkg_html_rules =
           match Lib.closure libs with
           | Ok closure -> closure
           | Error _ -> libs in
-        let deps = Build.return closure >>> Alias.deps sctx in
+        let deps = Build.return closure >>> Dep.deps sctx in
         List.map odocs ~f:(fun odoc_file ->
           to_html sctx odoc_file ~odoc ~deps) in
       let html_root = Paths.html_root sctx in
       List.iter (
-        Alias.html_alias sctx (`Pkg pkg)
-        :: List.map ~f:(fun lib -> Alias.html_alias sctx (`Lib lib)) libs
+        Dep.html_alias sctx (`Pkg pkg)
+        :: List.map ~f:(fun lib -> Dep.html_alias sctx (`Lib lib)) libs
       ) ~f:(fun alias ->
         SC.add_alias_deps sctx alias
           [ css_file ~doc_dir:html_root
@@ -445,10 +433,10 @@ let gen_rules sctx ~dir rest =
 let setup_package_aliases sctx (pkg : Package.t) =
   let alias = html_alias sctx pkg in
   SC.add_alias_deps sctx alias (
-    Alias.html_alias sctx (`Pkg pkg.name)
+    Dep.html_alias sctx (`Pkg pkg.name)
     :: (libs_of_pkg ~pkg:pkg.name (db_of_pkg sctx ~pkg)
         |> Lib.Set.to_list
-        |> List.map ~f:(fun lib -> Alias.html_alias sctx (`Lib lib)))
+        |> List.map ~f:(fun lib -> Dep.html_alias sctx (`Lib lib)))
     |> List.map ~f:Build_system.Alias.stamp_file
   )
 
@@ -515,4 +503,4 @@ let setup_package_odoc_rules sctx ~pkg ~mlds ~entry_modules_by_lib =
       ~doc_dir:(Paths.odocs sctx (`Pkg pkg.name))
       ~includes:(Build.arr (fun _ -> Arg_spec.As []))
   ) in
-  Alias.setup_deps sctx (`Pkg pkg.name) odocs
+  Dep.setup_deps sctx (`Pkg pkg.name) odocs
