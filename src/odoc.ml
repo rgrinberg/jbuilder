@@ -303,15 +303,20 @@ let read_unique_name sctx lib_unique_name =
     (lib,
      Scope.libs (SC.find_scope_by_name sctx (Scope_info.Name.of_string name)))
 
-let libs_of_pkg ~lib_db ~pkg =
+let db_of_pkg sctx ~(pkg : Package.t) =
+  Path.append (SC.context sctx).build_dir pkg.path
+  |> SC.find_scope_by_dir sctx
+  |> Scope.libs
+
+let libs_of_pkg lib_db ~pkg =
   Lib.DB.all lib_db
   |> Lib.Set.filter ~f:(fun lib ->
     Lib.is_local lib && (match Lib.pkg lib with
       | None -> false
       | Some pkg' -> pkg' = pkg))
 
-let load_all_odoc_rules_pkg sctx ~lib_db ~pkg =
-  let pkg_libs = libs_of_pkg ~lib_db ~pkg in
+let load_all_odoc_rules_pkg sctx ~pkg ~lib_db =
+  let pkg_libs = libs_of_pkg ~pkg lib_db in
   SC.load_dir sctx ~dir:(Paths.odocs sctx (`Pkg pkg));
   Lib.Set.iter pkg_libs ~f:(fun lib ->
     SC.load_dir sctx ~dir:(Paths.odocs sctx (`Lib lib)));
@@ -400,10 +405,10 @@ let setup_pkg_html_rules =
       );
     end
 
-let db_of_package sctx (pkg : Package.t) =
-  Path.append (SC.context sctx).build_dir pkg.path
-  |> SC.find_scope_by_dir sctx
-  |> Scope.libs
+let find_pkg_or_die sctx pkg =
+  match String_map.find (SC.packages sctx) pkg with
+  | None -> die "package %s isn't defined in workspace" pkg
+  | Some p -> p
 
 let gen_rules sctx ~dir rest =
   match rest with
@@ -420,13 +425,11 @@ let gen_rules sctx ~dir rest =
     | Ok lib  -> SC.load_dir sctx ~dir:(Lib.src_dir lib)
     end
   | "_html" :: "_pkg" :: pkg :: _ ->
-    let lib_db =
-      match String_map.find (SC.packages sctx) pkg with
-      | None -> die "package %s isn't defined in workspace" pkg
-      | Some p -> db_of_package sctx p in
+    let pkg = find_pkg_or_die sctx pkg in
+    let lib_db = db_of_pkg sctx ~pkg in
     let libs =
-      Lib.Set.to_list (load_all_odoc_rules_pkg sctx ~pkg ~lib_db) in
-    setup_pkg_html_rules sctx ~pkg ~libs;
+      Lib.Set.to_list (load_all_odoc_rules_pkg sctx ~pkg:pkg.name ~lib_db) in
+    setup_pkg_html_rules sctx ~pkg:pkg.name ~libs;
   | "_html" :: lib_unique_name :: _ ->
     let lib, lib_db = read_unique_name sctx lib_unique_name in
     begin match Lib.DB.find lib_db lib with
@@ -447,7 +450,7 @@ let setup_package_aliases sctx (pkg : Package.t) =
   let alias = html_alias sctx pkg in
   SC.add_alias_deps sctx alias (
     Alias.html_alias sctx (`Pkg pkg.name)
-    :: (libs_of_pkg ~pkg:pkg.name ~lib_db:(db_of_package sctx pkg)
+    :: (libs_of_pkg ~pkg:pkg.name (db_of_pkg sctx ~pkg)
         |> Lib.Set.to_list
         |> List.map ~f:(fun lib -> Alias.html_alias sctx (`Lib lib)))
     |> List.map ~f:Build_system.Alias.stamp_file
@@ -457,7 +460,7 @@ let pkg_odoc sctx (pkg : Package.t) = Paths.odocs sctx (`Pkg pkg.name)
 
 let entry_modules sctx ~(pkg : Package.t) ~entry_modules_by_lib =
   let lib_db = SC.public_libs sctx in
-  libs_of_pkg ~lib_db ~pkg:pkg.name
+  libs_of_pkg lib_db ~pkg:pkg.name
   |> Lib.Set.to_list
   |> List.filter_map ~f:(fun l ->
     if Lib.is_local l then (
