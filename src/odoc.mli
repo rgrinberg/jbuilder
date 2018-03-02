@@ -22,5 +22,5 @@ val setup_package_odoc_rules
   :  Super_context.t
   -> pkg:Package.t
   -> mlds:Path.t list
-  -> entry_modules_by_lib:(Lib.t -> string list)
+  -> entry_modules_by_lib:(Lib.t -> Module.t list)
   -> unit

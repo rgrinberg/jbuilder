@@ -478,7 +478,9 @@ let default_index entry_modules =
         "{1 Library %s}\n\
          This library exposes the following toplevel modules: {!modules:%s}.\n"
         (Lib.name lib)
-        (String.concat ~sep:" " modules)
+        (modules
+         |> List.map ~f:Module.name
+         |> String.concat ~sep:" ")
     )
   );
   Buffer.contents b

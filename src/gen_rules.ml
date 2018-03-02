@@ -1005,6 +1005,24 @@ module Gen(P : Install_rules.Params) = struct
             None
         ))
       |> String_map.of_list_multi in
+    let modules_by_lib =
+      let lib_to_library = lazy (
+        SC.stanzas sctx
+        |> List.concat_map ~f:(fun (w : SC.Dir_with_jbuild.t) ->
+          List.filter_map w.stanzas ~f:(function
+            | Jbuild.Stanza.Library (l : Library.t) ->
+              Some (Library.best_name l, (w.ctx_dir, l))
+            | _ ->
+              None
+          ))
+        |> String_map.of_list_exn
+      ) in
+      fun lib ->
+        let (dir, library) = Option.value_exn (
+          String_map.find (Lazy.force lib_to_library) (Lib.name lib)
+        ) in
+        modules_by_lib ~dir library
+      in
     SC.packages sctx
     |> String_map.iter ~f:(fun (pkg : Package.t) ->
       SC.on_load_dir sctx
@@ -1023,7 +1041,12 @@ module Gen(P : Install_rules.Params) = struct
                 |> List.map ~f:(Path.relative dir)
               )
             )
-            ~entry_modules_by_lib:(fun _ -> [])
+            ~entry_modules_by_lib:(fun lib ->
+              let m = modules_by_lib lib in
+              match m.alias_module with
+              | Some m -> [m]
+              | None -> String_map.values m.modules
+            )
         );
       (* setup @doc to build the correct html for the package *)
       Odoc.setup_package_aliases sctx pkg;
