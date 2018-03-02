@@ -995,16 +995,21 @@ module Gen(P : Install_rules.Params) = struct
         let module_names_of_lib = module_names_of_lib
       end) in
     Install_rules.init ();
-    let docs_per_package =
-      SC.stanzas sctx
-      |> List.concat_map ~f:(fun (w : SC.Dir_with_jbuild.t) ->
-        List.filter_map w.stanzas ~f:(function
-          | Jbuild.Stanza.Documentation (d : Jbuild.Documentation.t) ->
-            Some (d.package.name, (w.ctx_dir, d))
-          | _ ->
-            None
-        ))
-      |> String_map.of_list_multi in
+    let docs_by_package =
+      let map = lazy (
+        SC.stanzas sctx
+        |> List.concat_map ~f:(fun (w : SC.Dir_with_jbuild.t) ->
+          List.filter_map w.stanzas ~f:(function
+            | Jbuild.Stanza.Documentation (d : Jbuild.Documentation.t) ->
+              Some (d.package.name, (w.ctx_dir, d))
+            | _ ->
+              None
+          ))
+        |> String_map.of_list_multi
+      ) in
+      fun (p : Package.t) ->
+        Option.value (String_map.find (Lazy.force map) p.name) ~default:[]
+    in
     let modules_by_lib =
       let lib_to_library = lazy (
         SC.stanzas sctx
@@ -1031,8 +1036,7 @@ module Gen(P : Install_rules.Params) = struct
           Odoc.setup_package_odoc_rules sctx
             ~pkg
             ~mlds:(
-              String_map.find docs_per_package pkg.name
-              |> Option.value ~default:[]
+              docs_by_package pkg
               |> List.concat_map ~f:(fun (dir, (doc : Documentation.t)) ->
                 parse_mlds ~dir
                   ~all_mlds:(mlds_by_dir ~dir)
