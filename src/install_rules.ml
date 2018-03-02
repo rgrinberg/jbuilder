@@ -281,7 +281,9 @@ module Gen(P : Install_params) = struct
           | Documentation ({ package; _ } as d) ->
             List.map ~f:(fun mld ->
               (package.name,
-               (Install.Entry.make Install.Section.Doc mld))
+               (Install.Entry.make
+                  ~dst:(sprintf "odoc-pages/%s" (Path.basename mld))
+                  Install.Section.Doc mld))
             ) (mlds_of_dir d ~dir)
           | _ -> [])
       |> Package.Name.Map.of_list_multi
