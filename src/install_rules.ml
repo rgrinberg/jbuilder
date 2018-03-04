@@ -138,6 +138,13 @@ module Gen(P : Install_params) = struct
     let { Mode.Dict. byte; native } = lib.modes in
     let if_ cond l = if cond then l else [] in
     let native = native && Option.is_some ctx.ocamlopt in
+    let (private_archives, private_plugins) =
+      let db = Scope.libs scope in
+      let lib =
+        match Lib.DB.find db lib.name with
+        | Ok l -> l
+        | Error _ -> failwith "" in
+      Lib.Private.(archives lib, plugins lib) in
     let files =
       let modules = module_names_of_lib lib ~dir in
       List.concat

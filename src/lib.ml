@@ -1009,10 +1009,10 @@ end
 
 module Meta = struct
   let plugins_with_private_deps t =
-    Mode.Dict.append (plugins t) (Private.plugins t)
+    Mode.Dict.append (Private.plugins t) (plugins t)
 
   let archives_with_private_deps t =
-    Mode.Dict.append (archives t) (Private.archives t)
+    Mode.Dict.append (Private.archives t) (archives t)
 
   let to_names_filter_private ts =
     List.fold_left ts ~init:String_set.empty ~f:(fun acc t ->
