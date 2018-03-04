@@ -152,6 +152,7 @@ module Gen(P : Install_params) = struct
                   | Some f -> Some (Path.relative dir f.name))
               ])
         ; if_ byte [ lib_archive ~dir lib ~ext:".cma" ]
+        ; if_ byte (Mode.Dict.get private_archives Mode.Byte)
         ; if_ (Library.has_stubs lib) [ stubs_archive ~dir lib ]
         ; if_ native
             (let files =
@@ -160,7 +161,8 @@ module Gen(P : Install_params) = struct
                ]
              in
              if ctx.natdynlink_supported && lib.dynlink then
-               files @ [ lib_archive ~dir lib ~ext:".cmxs" ]
+               files @ ( lib_archive ~dir lib ~ext:".cmxs"
+                       :: Mode.Dict.get private_plugins Mode.Native )
              else
                files)
         ; List.map lib.buildable.js_of_ocaml.javascript_files ~f:(Path.relative dir)

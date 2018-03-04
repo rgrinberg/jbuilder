@@ -44,8 +44,8 @@ let directory   s = rule "directory"   []      Set s
 let archive preds s = rule "archive"   preds Set s
 let plugin preds  s = rule "plugin"    preds Set s
 let archives ?(preds=[]) lib =
-  let archives = Lib.archives lib in
-  let plugins  = Lib.plugins  lib in
+  let archives = Lib.Meta.archives_with_private_deps lib in
+  let plugins  = Lib.Meta.plugins_with_private_deps  lib in
   let make ps =
     String.concat ~sep:" " (List.map ps ~f:Path.basename)
   in

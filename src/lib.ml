@@ -989,14 +989,36 @@ module DB = struct
     | _ -> l
 end
 
+module Private = struct
+  let make_archives t ~f =
+    requires_exn t
+    |> List.fold_left ~f:(fun acc lib ->
+      match status lib with
+      | Status.Private _ ->
+        Mode.Dict.append acc (f lib)
+      | _ -> acc
+    ) ~init:(Mode.Dict.make_both [])
+
+  let plugins = make_archives ~f:plugins
+  let archives = make_archives ~f:archives
+end
+
 (* +-----------------------------------------------------------------+
    | META files                                                      |
    +-----------------------------------------------------------------+ *)
 
 module Meta = struct
-  let to_names ts =
+  let plugins_with_private_deps t =
+    Mode.Dict.append (plugins t) (Private.plugins t)
+
+  let archives_with_private_deps t =
+    Mode.Dict.append (archives t) (Private.archives t)
+
+  let to_names_filter_private ts =
     List.fold_left ts ~init:String_set.empty ~f:(fun acc t ->
-      String_set.add acc t.name)
+      match status t with
+      | Status.Private _ -> acc
+      | Installed | Public -> String_set.add acc t.name)
 
   (* For the deprecated method, we need to put all the runtime
      dependencies of the transitive closure.
@@ -1010,10 +1032,10 @@ module Meta = struct
   let ppx_runtime_deps_for_deprecated_method t =
     closure_exn [t]
     |> List.concat_map ~f:ppx_runtime_deps_exn
-    |> to_names
+    |> to_names_filter_private
 
-  let requires         t = to_names (requires_exn         t)
-  let ppx_runtime_deps t = to_names (ppx_runtime_deps_exn t)
+  let requires         t = to_names_filter_private (requires_exn         t)
+  let ppx_runtime_deps t = to_names_filter_private (ppx_runtime_deps_exn t)
 end
 
 (* +-----------------------------------------------------------------+

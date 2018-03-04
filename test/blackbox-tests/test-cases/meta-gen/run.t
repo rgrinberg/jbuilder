@@ -8,11 +8,11 @@
   package "baz" (
     directory = "baz"
     description = "sub library with modes set to byte"
-    requires = "bytes privatelib"
-    archive(byte) = "foobar_baz.cma"
-    archive(native) = "foobar_baz.cmxa"
-    plugin(byte) = "foobar_baz.cma"
-    plugin(native) = "foobar_baz.cmxs"
+    requires = "bytes"
+    archive(byte) = "foobar_baz.cma privatelib.cma"
+    archive(native) = "foobar_baz.cmxa privatelib.cmxa"
+    plugin(byte) = "foobar_baz.cma privatelib.cma"
+    plugin(native) = "foobar_baz.cmxs privatelib.cmxs"
   )
   package "ppd" (
     directory = "ppd"

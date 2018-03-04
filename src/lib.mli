@@ -302,9 +302,16 @@ module Sub_system : sig
   val dump_config : lib -> (Syntax.Version.t * Sexp.t) Sub_system_name.Map.t
 end with type lib := t
 
+module Private : sig
+  val archives : t -> Path.t list Mode.Dict.t
+  val plugins : t -> Path.t list Mode.Dict.t
+end
+
 (** {1 Dependencies for META files} *)
 
 module Meta : sig
+  val archives_with_private_deps             : t -> Path.t list Mode.Dict.t
+  val plugins_with_private_deps              : t -> Path.t list Mode.Dict.t
   val requires                               : t -> String_set.t
   val ppx_runtime_deps                       : t -> String_set.t
   val ppx_runtime_deps_for_deprecated_method : t -> String_set.t

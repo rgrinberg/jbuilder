@@ -54,6 +54,13 @@ module Dict = struct
     ; native = x
     }
 
+  let merge x y ~f =
+    { byte = f x.byte y.byte
+    ; native = f x.native y.native
+    }
+
+  let append x y = merge x y ~f:List.append
+
   module Set = struct
     type nonrec t = bool t
 
