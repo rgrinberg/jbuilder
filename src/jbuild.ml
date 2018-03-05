@@ -468,6 +468,7 @@ module Buildable = struct
     { loc                      : Loc.t
     ; modules                  : Ordered_set_lang.t
     ; modules_without_implementation : Ordered_set_lang.t
+    ; private_modules : Ordered_set_lang.t
     ; libraries                : Lib_dep.t list
     ; preprocess               : Preprocess_map.t
     ; preprocessor_deps        : Dep_conf.t list
@@ -495,6 +496,8 @@ module Buildable = struct
     >>= fun modules ->
     modules_field "modules_without_implementation"
     >>= fun modules_without_implementation ->
+    modules_field "private_modules"
+    >>= fun private_modules ->
     field "libraries" Lib_deps.t ~default:[]
     >>= fun libraries ->
     field_oslu "flags"          >>= fun flags          ->
@@ -513,6 +516,7 @@ module Buildable = struct
       ; ocamlc_flags
       ; ocamlopt_flags
       ; js_of_ocaml
+      ; private_modules
       }
 
   let single_preprocess t =

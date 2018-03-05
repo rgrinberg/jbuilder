@@ -135,6 +135,7 @@ module Buildable : sig
     { loc                      : Loc.t
     ; modules                  : Ordered_set_lang.t
     ; modules_without_implementation : Ordered_set_lang.t
+    ; private_modules : Ordered_set_lang.t
     ; libraries                : Lib_dep.t list
     ; preprocess               : Preprocess_map.t
     ; preprocessor_deps        : Dep_conf.t list
