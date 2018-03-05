@@ -122,7 +122,8 @@ module Gen(P : Install_params) = struct
            Build.write_file_dyn meta)))
 
   let lib_install_files ~dir ~sub_dir ~scope ~name (lib : Library.t) =
-    let obj_dir = Utils.library_object_directory ~dir lib.name in
+    let obj_dir = Utils.library_object_directory ~dir
+                    ~visibility:Module.Visibility.Public lib.name in
     let make_entry section ?dst fn =
       Install.Entry.make section fn
         ~dst:(

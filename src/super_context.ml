@@ -275,15 +275,16 @@ module Libs = struct
   let file_deps t ~ext =
     Build.dyn_paths (Build.arr (fun libs ->
       List.fold_left libs ~init:[] ~f:(fun acc (lib : Lib.t) ->
-        let x =
-          if Lib.is_local lib then
-            Alias.stamp_file
-              (lib_files_alias ~dir:(Lib.src_dir lib) ~name:(Lib.name lib) ~ext)
-          else
-            Build_system.stamp_file_for_files_of t.build_system
-              ~dir:(Lib.obj_dir lib) ~ext
-        in
-        x :: acc)))
+        if Lib.is_local lib then
+          Alias.stamp_file
+            (lib_files_alias ~dir:(Lib.src_dir lib) ~name:(Lib.name lib) ~ext)
+          :: acc
+        else
+          (Lib.all_obj_dirs lib
+           |> List.map ~f:(fun dir ->
+             Build_system.stamp_file_for_files_of t.build_system ~dir ~ext))
+          @ acc
+      )))
 end
 
 module Deps = struct

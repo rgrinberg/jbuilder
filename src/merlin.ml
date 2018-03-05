@@ -71,13 +71,15 @@ let dot_merlin sctx ~dir ~scope ({ requires; flags; _ } as t) =
         let libs =
           List.fold_left ~f:(fun acc (lib : Lib.t) ->
             let serialize_path = Path.reach ~from:remaindir in
-            let bpath = serialize_path (Lib.obj_dir lib) in
+            let bpath =
+              Lib.all_obj_dirs lib
+              |> List.map ~f:(fun p -> "B " ^ serialize_path p) in
             let spath =
               Lib.src_dir lib
               |> Path.drop_optional_build_context
               |> serialize_path
             in
-            ("B " ^ bpath) :: ("S " ^ spath) :: acc
+            ("S " ^ spath) :: (bpath @ acc)
           ) libs ~init:[]
         in
         let source_dirs =

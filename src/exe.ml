@@ -134,8 +134,8 @@ let build_and_link_many
   (* CR-someday jdimino: this should probably say [~dynlink:false] *)
   Module_compilation.build_modules sctx
     ~js_of_ocaml
-    ~dynlink:true ~flags ~scope ~dir ~obj_dir ~dep_graphs ~modules
-    ~requires ~alias_module:None;
+    ~dynlink:true ~flags ~scope ~dir ~public_obj_dir:obj_dir
+    ~private_obj_dir:obj_dir ~dep_graphs ~modules ~requires ~alias_module:None;
 
   List.iter programs ~f:(fun { Program.name; main_module_name } ->
     let top_sorted_modules =

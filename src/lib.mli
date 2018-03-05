@@ -15,7 +15,9 @@ val name : t -> string
 val src_dir : t -> Path.t
 
 (** Directory where the object files for the library are located. *)
-val obj_dir : t -> Path.t
+val public_obj_dir : t -> Path.t
+
+val all_obj_dirs : t -> Path.t list
 
 (** Same as [Path.is_local (obj_dir t)] *)
 val is_local : t -> bool
@@ -78,7 +80,8 @@ module Info : sig
     ; kind             : Jbuild.Library.Kind.t
     ; status           : Status.t
     ; src_dir          : Path.t
-    ; obj_dir          : Path.t
+    ; public_obj_dir   : Path.t
+    ; private_obj_dir  : Path.t option
     ; version          : string option
     ; synopsis         : string option
     ; archives         : Path.t list Mode.Dict.t

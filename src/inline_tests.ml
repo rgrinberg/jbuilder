@@ -182,6 +182,7 @@ include Sub_system.Register_end_point(
                       }
         ; intf = None
         ; obj_name = ""
+        ; visibility = Module.Visibility.Public
         }
     in
 

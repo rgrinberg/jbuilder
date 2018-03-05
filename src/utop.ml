@@ -60,7 +60,9 @@ let setup sctx ~dir ~(libs : Library.t list) ~scope =
                       ; syntax = Module.Syntax.OCaml
                       }
         ; intf = None
-        ; obj_name = "" } in
+        ; obj_name = ""
+        ; visibility = Module.Visibility.Public
+        } in
     let utop_exe_dir = utop_exe_dir ~dir in
     let requires, _ =
       Lib.DB.find_many (Scope.libs scope)

@@ -39,7 +39,8 @@ module Info = struct
     ; kind             : Jbuild.Library.Kind.t
     ; status           : Status.t
     ; src_dir          : Path.t
-    ; obj_dir          : Path.t
+    ; public_obj_dir   : Path.t
+    ; private_obj_dir  : Path.t option
     ; version          : string option
     ; synopsis         : string option
     ; archives         : Path.t list Mode.Dict.t
@@ -88,7 +89,12 @@ module Info = struct
     { loc = conf.buildable.loc
     ; kind     = conf.kind
     ; src_dir  = dir
-    ; obj_dir  = Utils.library_object_directory ~dir conf.name
+    ; public_obj_dir =
+        Utils.library_object_directory ~dir conf.name
+          ~visibility:Module.Visibility.Private
+    ; private_obj_dir =
+        Some (Utils.library_object_directory ~dir conf.name
+          ~visibility:Module.Visibility.Private)
     ; version  = None
     ; synopsis = conf.synopsis
     ; archives = archive_files ~f_ext:Mode.compiled_lib_ext
@@ -117,7 +123,8 @@ module Info = struct
     { loc              = loc
     ; kind             = Normal
     ; src_dir          = P.dir pkg
-    ; obj_dir          = P.dir pkg
+    ; public_obj_dir   = P.dir pkg
+    ; private_obj_dir  = None
     ; version          = P.version pkg
     ; synopsis         = P.description pkg
     ; archives         = P.archives pkg
@@ -213,7 +220,8 @@ type t =
   ; kind              : Jbuild.Library.Kind.t
   ; status            : Status.t
   ; src_dir           : Path.t
-  ; obj_dir           : Path.t
+  ; public_obj_dir    : Path.t
+  ; private_obj_dir   : Path.t option
   ; version           : string option
   ; synopsis          : string option
   ; archives          : Path.t list Mode.Dict.t
@@ -307,9 +315,14 @@ let jsoo_runtime t = t.jsoo_runtime
 let unique_id    t = t.unique_id
 
 let src_dir t = t.src_dir
-let obj_dir t = t.obj_dir
+let public_obj_dir t = t.public_obj_dir
 
-let is_local t = Path.is_local t.obj_dir
+let all_obj_dirs t =
+  match t.private_obj_dir with
+  | None -> [t.public_obj_dir]
+  | Some p -> [p; t.public_obj_dir]
+
+let is_local t = Path.is_local t.public_obj_dir
 
 let status t = t.status
 
@@ -331,7 +344,7 @@ module L = struct
   let include_paths ts ~stdlib_dir =
     let dirs =
       List.fold_left ts ~init:Path.Set.empty ~f:(fun acc t ->
-        Path.Set.add acc (obj_dir t))
+        Path.Set.add acc (public_obj_dir t))
     in
     Path.Set.remove dirs stdlib_dir
 
@@ -566,7 +579,8 @@ let rec instantiate db name (info : Info.t) ~stack ~hidden =
     ; kind              = info.kind
     ; status            = info.status
     ; src_dir           = info.src_dir
-    ; obj_dir           = info.obj_dir
+    ; public_obj_dir    = info.public_obj_dir
+    ; private_obj_dir   = info.private_obj_dir
     ; version           = info.version
     ; synopsis          = info.synopsis
     ; archives          = info.archives
