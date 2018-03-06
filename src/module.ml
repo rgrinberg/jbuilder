@@ -16,6 +16,7 @@ module Name = struct
 
   module Set = String_set
   module Map = String_map
+end
 
 module Visibility = struct
   type t = Private | Public
