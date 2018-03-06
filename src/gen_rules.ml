@@ -55,7 +55,7 @@ module Gen(P : Install_rules.Params) = struct
       Eval_modules.eval_unordered
         conf.private_modules
         ~parse
-        ~standard:String_map.empty
+        ~standard:Module.Name.Map.empty
     in
     let only_present_modules modules =
       Module.Name.Map.filter_map ~f:(function
@@ -153,8 +153,8 @@ module Gen(P : Install_rules.Params) = struct
           "Module %a has an implementation, it cannot be listed here"
           Module.Name.pp m.name
       end;
-      modules |> String_map.mapi ~f:(fun name (m : Module.t) ->
-        if String_map.mem private_modules name then (
+      modules |> Module.Name.Map.mapi ~f:(fun name (m : Module.t) ->
+        if Module.Name.Map.mem private_modules name then (
           { m with visibility = Module.Visibility.Private }
         ) else (
           m
