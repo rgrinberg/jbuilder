@@ -22,7 +22,6 @@ val describe_target : Path.t -> string
     library should be stored. *)
 val library_object_directory
   :  dir:Path.t
-  -> visibility:Module.Visibility.t
   -> string
   -> Path.t
 

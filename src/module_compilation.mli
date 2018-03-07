@@ -27,8 +27,7 @@ val build_modules
   -> flags:Ocaml_flags.t
   -> scope:Scope.t
   -> dir:Path.t
-  -> public_obj_dir:Path.t
-  -> private_obj_dir:Path.t
+  -> obj_dir:Path.t
   -> dep_graphs:Ocamldep.Dep_graphs.t
   -> modules:Module.t Module.Name.Map.t
   -> requires:(unit, Lib.t list) Build.t

@@ -124,20 +124,19 @@ let build_module sctx ?sandbox ~dynlink ~js_of_ocaml ~flags m ~scope ~dir
   SC.add_rules sctx
     (Js_of_ocaml_rules.build_cm sctx ~scope ~dir ~js_of_ocaml ~src ~target)
 
-let build_modules sctx ~dynlink ~js_of_ocaml ~flags ~scope ~dir ~public_obj_dir
-      ~private_obj_dir ~dep_graphs ~modules ~requires ~alias_module
-  =
+let build_modules sctx ~dynlink ~js_of_ocaml ~flags ~scope ~dir ~obj_dir
+      ~dep_graphs ~modules ~requires ~alias_module =
   let cmi_requires =
     Build.memoize "cmi library dependencies"
       (requires
        >>>
-         SC.Libs.file_deps sctx ~ext:".cmi")
+       SC.Libs.file_deps sctx ~ext:".cmi")
   in
   let cmi_and_cmx_requires =
     Build.memoize "cmi and cmx library dependencies"
       (requires
        >>>
-         SC.Libs.file_deps sctx ~ext:".cmi-and-.cmx")
+       SC.Libs.file_deps sctx ~ext:".cmi-and-.cmx")
   in
   let requires : _ Cm_kind.Dict.t =
     { cmi = cmi_requires
@@ -150,7 +149,5 @@ let build_modules sctx ~dynlink ~js_of_ocaml ~flags ~scope ~dir ~public_obj_dir
      | None -> modules
      | Some (m : Module.t) -> Module.Name.Map.remove modules m.name)
     ~f:(fun m ->
-      let obj_dir =
-        Module.choose ~private_:private_obj_dir ~public:public_obj_dir m in
       build_module sctx m ~dynlink ~js_of_ocaml ~flags ~scope ~dir ~obj_dir
         ~dep_graphs ~requires ~alias_module)

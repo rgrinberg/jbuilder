@@ -520,10 +520,7 @@ module Gen(P : Install_rules.Params) = struct
   let alias_module_build_sandbox = ctx.version < (4, 03, 0)
 
   let library_rules (lib : Library.t) ~modules_partitioner ~dir ~files ~scope =
-    let public_obj_dir = Utils.library_object_directory ~dir lib.name
-                           ~visibility:Module.Visibility.Public in
-    let private_obj_dir = Utils.library_object_directory ~dir lib.name
-                            ~visibility:Module.Visibility.Private in
+    let obj_dir = Utils.library_object_directory ~dir lib.name in
     let dep_kind = if lib.optional then Build.Optional else Required in
     let flags = Ocaml_flags.make lib.buildable sctx ~scope ~dir in
     let { modules; main_module_name; alias_module } = modules_by_lib ~dir lib in
@@ -588,7 +585,7 @@ module Gen(P : Install_rules.Params) = struct
     let dynlink = lib.dynlink in
     let js_of_ocaml = lib.buildable.js_of_ocaml in
     Module_compilation.build_modules sctx
-      ~js_of_ocaml ~dynlink ~flags ~scope ~dir ~public_obj_dir ~private_obj_dir ~dep_graphs
+      ~js_of_ocaml ~dynlink ~flags ~scope ~dir ~obj_dir ~dep_graphs
       ~modules ~requires ~alias_module;
     Option.iter alias_module ~f:(fun m ->
       let flags = Ocaml_flags.default () in
@@ -599,7 +596,7 @@ module Gen(P : Install_rules.Params) = struct
         ~flags:(Ocaml_flags.append_common flags ["-w"; "-49"])
         ~scope
         ~dir
-        ~obj_dir:public_obj_dir
+        ~obj_dir
         ~dep_graphs:(Ocamldep.Dep_graphs.dummy m)
         ~requires:(
           let requires =

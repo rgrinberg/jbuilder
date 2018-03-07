@@ -18,13 +18,6 @@ module Name = struct
   module Map = String_map
 end
 
-module Visibility = struct
-  type t = Private | Public
-  let to_string = function
-    | Public -> "public"
-    | Private -> "private"
-end
-
 module Syntax = struct
   type t = OCaml | Reason
 end
@@ -55,7 +48,7 @@ type t =
   ; impl      : File.t option
   ; intf      : File.t option
   ; obj_name  : string
-  ; visibility: Visibility.t
+  ; scope     : Module_scope.t
   }
 
 let name t = t.name
@@ -115,8 +108,3 @@ let set_obj_name t ~wrapper =
       | Some i -> String.sub fn ~pos:0 ~len:i
     in
     { t with obj_name }
-
-let choose m ~private_ ~public =
-  match m.visibility with
-  | Visibility.Public -> public
-  | Private -> private_

@@ -17,12 +17,6 @@ module Name : sig
   module Map : Map.S with type key = t
 end
 
-module Visibility : sig
-  type t = Private | Public
-
-  val to_string : t -> string
-end
-
 module Syntax : sig
   type t = OCaml | Reason
 end
@@ -44,7 +38,7 @@ type t =
 
   ; obj_name  : string (** Object name. It is different from [name] for wrapped
                            modules. *)
-  ; visibility : Visibility.t
+  ; scope : Module_scope.t
   }
 
 val name : t -> Name.t
