@@ -30,7 +30,11 @@ module Paths = struct
     html_root sctx ++ (
       match m with
       | `Pkg pkg -> Package.Name.to_string pkg
-      | `Lib lib -> lib_unique_name lib
+      | `Lib lib ->
+        begin match Lib.pkg lib with
+        | None -> lib_unique_name lib
+        | Some p -> Package.Name.to_string p
+        end
     )
 
   let gen_mld_dir sctx (pkg : Package.t) =
@@ -107,7 +111,7 @@ let compile_module sctx (m : Module.t) ~odoc ~dir ~obj_dir ~includes ~dep_graphs
        [ A "compile"
        ; A "-I"; Path dir
        ; Dyn (fun x -> x)
-       ; As ["--pkg"; pkg]
+       ; As ["--pkg"; Package.Name.to_string pkg]
        ; A "-o"; Target odoc_file
        ; Dep (Module.cmti_file m ~obj_dir)
        ]);
@@ -185,26 +189,26 @@ let setup_library_odoc_rules sctx (library : Library.t) ~dir ~scope ~modules
     Option.value_exn (Lib.DB.find_even_when_hidden (Scope.libs scope)
                         library.name) in
   let lib_unique_name = lib_unique_name lib in
-    (* Using the proper package name doesn't actually work since odoc assumes
-      that a package contains only 1 library *)
-    (* let pkg = Option.value (Lib.pkg lib) ~default:lib_unique_name in *)
-    let pkg = lib_unique_name in
-    let doc_dir = Paths.odocs sctx (`Lib lib) in
-    let obj_dir = Lib.obj_dir lib in
-    let odoc = get_odoc sctx in
-    let includes =
-      let ctx = SC.context sctx in
-      Build.memoize "includes"
-        (requires
-         >>> Dep.deps sctx
-         >>^ Lib.L.include_flags ~stdlib_dir:ctx.stdlib_dir)
-    in
-    let modules_and_odoc_files =
-      List.map (Module.Name.Map.values modules) ~f:(fun m ->
-        compile_module sctx ~odoc ~dir ~obj_dir ~includes ~dep_graphs
-          ~doc_dir ~pkg m)
-    in
-    Dep.setup_deps sctx (`Lib lib) (List.map modules_and_odoc_files ~f:snd)
+  (* Using the proper package name doesn't actually work since odoc assumes
+     that a package contains only 1 library *)
+  let pkg = Option.value (Lib.pkg lib)
+              ~default:(Package.Name.of_string lib_unique_name) in
+  let doc_dir = Paths.odocs sctx (`Lib lib) in
+  let obj_dir = Lib.obj_dir lib in
+  let odoc = get_odoc sctx in
+  let includes =
+    let ctx = SC.context sctx in
+    Build.memoize "includes"
+      (requires
+       >>> Dep.deps sctx
+       >>^ Lib.L.include_flags ~stdlib_dir:ctx.stdlib_dir)
+  in
+  let modules_and_odoc_files =
+    List.map (Module.Name.Map.values modules) ~f:(fun m ->
+      compile_module sctx ~odoc ~dir ~obj_dir ~includes ~dep_graphs
+        ~doc_dir ~pkg m)
+  in
+  Dep.setup_deps sctx (`Lib lib) (List.map modules_and_odoc_files ~f:snd)
 
 let setup_css_rule sctx =
   let context = SC.context sctx in
@@ -242,22 +246,22 @@ let setup_toplevel_index_rule sctx =
   let list_items = String.concat ~sep:"\n    " list_items in
   let html =
     sp {|<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-  <head>
-    <title>index</title>
-    <link rel="stylesheet" href="./odoc.css"/>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  </head>
-  <body>
-    <div class="by-name">
-    <h2>OCaml package documentation</h2>
-    <ol>
-    %s
-    </ol>
- </body>
- </html>
-|} list_items
+         <html xmlns="http://www.w3.org/1999/xhtml">
+         <head>
+         <title>index</title>
+         <link rel="stylesheet" href="./odoc.css"/>
+         <meta charset="utf-8"/>
+         <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+         </head>
+         <body>
+         <div class="by-name">
+         <h2>OCaml package documentation</h2>
+         <ol>
+         %s
+         </ol>
+         </body>
+         </html>
+       |} list_items
   in
   let doc_dir = Paths.html_root sctx in
   SC.add_rule sctx @@ Build.write_file (toplevel_index ~doc_dir) html
