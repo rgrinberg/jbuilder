@@ -200,7 +200,7 @@ let setup_library_odoc_rules sctx (library : Library.t) ~dir ~scope ~modules
          >>^ Lib.L.include_flags ~stdlib_dir:ctx.stdlib_dir)
     in
     let modules_and_odoc_files =
-      List.map (String_map.values modules) ~f:(fun m ->
+      List.map (Module.Name.Map.values modules) ~f:(fun m ->
         compile_module sctx ~odoc ~dir ~obj_dir ~includes ~dep_graphs
           ~doc_dir ~pkg m)
     in
@@ -447,7 +447,7 @@ let default_index entry_modules =
          This library exposes the following toplevel modules: {!modules:%s}.\n"
         (Lib.name lib)
         (modules
-         |> List.map ~f:Module.name
+         |> List.map ~f:(fun m -> Module.Name.to_string (Module.name m))
          |> String.concat ~sep:" ")
     )
   );

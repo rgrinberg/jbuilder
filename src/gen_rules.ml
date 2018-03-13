@@ -154,7 +154,12 @@ module Gen(P : Install_rules.Params) = struct
     let module Eval_mlds =
       Ordered_set_lang.Make(struct
         type t = string
-        let name x = x
+        let compare = String.compare
+        module Map = String_map
+      end)(struct
+        type t = string
+        type key = string
+        let key x = x
       end) in
     if Ordered_set_lang.is_standard mlds_written_by_user then
       all_mlds
@@ -1038,7 +1043,7 @@ module Gen(P : Install_rules.Params) = struct
           String_map.find (Lazy.force lib_to_library) (Lib.name lib)
         ) in
         modules_by_lib ~dir library
-      in
+    in
     SC.packages sctx
     |> Package.Name.Map.iter ~f:(fun (pkg : Package.t) ->
       SC.on_load_dir sctx
@@ -1054,7 +1059,7 @@ module Gen(P : Install_rules.Params) = struct
               let m = modules_by_lib lib in
               match m.alias_module with
               | Some m -> [m]
-              | None -> String_map.values m.modules
+              | None -> Module.Name.Map.values m.modules
             )
         );
       (* setup @doc to build the correct html for the package *)
