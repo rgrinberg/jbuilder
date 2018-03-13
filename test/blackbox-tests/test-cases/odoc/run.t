@@ -24,7 +24,6 @@
            <h2>OCaml package documentation</h2>
            <ol>
            <li><a href="foo/index.html">foo</a></li>
-      <li><a href="foo.byte/index.html">foo.byte</a></li>
            </ol>
            </body>
            </html>

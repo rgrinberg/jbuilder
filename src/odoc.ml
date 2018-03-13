@@ -224,24 +224,19 @@ let sp = Printf.sprintf
 
 let setup_toplevel_index_rule sctx =
   let list_items =
-    Super_context.stanzas_to_consider_for_install sctx
-    |> List.filter_map ~f:(fun (_path, _scope, stanza) ->
-      match stanza with
-      | Stanza.Library
-          {Library.kind = Library.Kind.Normal; public = Some public_info; _} ->
-        let name = public_info.name in
-        let link = sp {|<a href="%s/index.html">%s</a>|} name name in
-        let version_suffix =
-          match public_info.package.Package.version_from_opam_file with
-          | None ->
-            ""
-          | Some v ->
-            sp {| <span class="version">%s</span>|} v
-        in
-        Some (sp "<li>%s%s</li>" link version_suffix)
-
-      | _ ->
-        None)
+    Super_context.packages sctx
+    |> Package.Name.Map.to_list
+    |> List.filter_map ~f:(fun (name, pkg) ->
+      let name = Package.Name.to_string name in
+      let link = sp {|<a href="%s/index.html">%s</a>|} name name in
+      let version_suffix =
+        match pkg.Package.version_from_opam_file with
+        | None ->
+          ""
+        | Some v ->
+          sp {| <span class="version">%s</span>|} v
+      in
+      Some (sp "<li>%s%s</li>" link version_suffix))
   in
   let list_items = String.concat ~sep:"\n    " list_items in
   let html =
