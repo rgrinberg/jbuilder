@@ -19,6 +19,9 @@ let pkg_or_lnu lib =
   | Some p -> Package.Name.to_string p
   | None -> lib_unique_name lib
 
+type target =
+  | Lib of Lib.t
+  | Pkg of Package.Name.t
 
 module Paths = struct
   let root sctx = (SC.context sctx).Context.build_dir ++ "_doc"
@@ -26,8 +29,8 @@ module Paths = struct
   let odocs sctx m =
     root sctx ++ (
       match m with
-      | `Lib lib -> sprintf "_odoc/lib/%s" (lib_unique_name lib)
-      | `Pkg pkg -> sprintf "_odoc/pkg/%s" (Package.Name.to_string pkg)
+      | Lib lib -> sprintf "_odoc/lib/%s" (lib_unique_name lib)
+      | Pkg pkg -> sprintf "_odoc/pkg/%s" (Package.Name.to_string pkg)
     )
 
   let html_root sctx = root sctx ++ "_html"
@@ -35,8 +38,8 @@ module Paths = struct
   let html sctx m =
     html_root sctx ++ (
       match m with
-      | `Pkg pkg -> Package.Name.to_string pkg
-      | `Lib lib -> pkg_or_lnu lib
+      | Pkg pkg -> Package.Name.to_string pkg
+      | Lib lib -> pkg_or_lnu lib
     )
 
   let gen_mld_dir sctx (pkg : Package.t) =
@@ -53,7 +56,7 @@ module Dep = struct
     Build.dyn_paths (Build.arr (
       List.fold_left ~init:[] ~f:(fun acc (lib : Lib.t) ->
         if Lib.is_local lib then (
-          let dir = Paths.odocs t (`Lib lib) in
+          let dir = Paths.odocs t (Lib lib) in
           Build_system.Alias.stamp_file (alias ~dir) :: acc
         ) else (
           acc
@@ -146,7 +149,7 @@ let odoc_include_flags sctx libs =
   let paths =
     libs |> List.fold_left ~f:(fun paths lib ->
       if Lib.is_local lib then (
-        Path.Set.add paths (Paths.odocs sctx (`Lib lib))
+        Path.Set.add paths (Paths.odocs sctx (Lib lib))
       ) else (
         paths
       )
@@ -193,7 +196,7 @@ let setup_library_odoc_rules sctx (library : Library.t) ~dir ~scope ~modules
   (* Using the proper package name doesn't actually work since odoc assumes
      that a package contains only 1 library *)
   let pkg_or_lnu = pkg_or_lnu lib in
-  let doc_dir = Paths.odocs sctx (`Lib lib) in
+  let doc_dir = Paths.odocs sctx (Lib lib) in
   let obj_dir = Lib.obj_dir lib in
   let odoc = get_odoc sctx in
   let includes =
@@ -208,7 +211,7 @@ let setup_library_odoc_rules sctx (library : Library.t) ~dir ~scope ~modules
       compile_module sctx ~odoc ~dir ~obj_dir ~includes ~dep_graphs
         ~doc_dir ~pkg_or_lnu m)
   in
-  Dep.setup_deps sctx (`Lib lib) (List.map modules_and_odoc_files ~f:snd)
+  Dep.setup_deps sctx (Lib lib) (List.map modules_and_odoc_files ~f:snd)
 
 let setup_css_rule sctx =
   let context = SC.context sctx in
@@ -290,16 +293,16 @@ let libs_of_pkg lib_db ~pkg =
 
 let load_all_odoc_rules_pkg sctx ~pkg ~lib_db =
   let pkg_libs = libs_of_pkg ~pkg lib_db in
-  SC.load_dir sctx ~dir:(Paths.odocs sctx (`Pkg pkg));
+  SC.load_dir sctx ~dir:(Paths.odocs sctx (Pkg pkg));
   Lib.Set.iter pkg_libs ~f:(fun lib ->
-    SC.load_dir sctx ~dir:(Paths.odocs sctx (`Lib lib)));
+    SC.load_dir sctx ~dir:(Paths.odocs sctx (Lib lib)));
   pkg_libs
 
 let create_odoc sctx ~odoc_input m =
   let html_alias = Dep.html_alias sctx m in
   let html_base = Paths.html sctx m in
   match m with
-  | `Lib _ ->
+  | Lib _ ->
     let html_dir =
       html_base ++ (
         Path.basename odoc_input
@@ -312,7 +315,7 @@ let create_odoc sctx ~odoc_input m =
     ; typ = `Module
     ; html_alias
     }
-  | `Pkg _ ->
+  | Pkg _ ->
     { odoc_input
     ; html_dir = html_base
     ; html_file = html_base ++ sprintf "%s.html" (
@@ -339,13 +342,13 @@ let setup_pkg_html_rules =
         in
         List.concat (
           (List.map ~f:(fun odoc_input ->
-             create_odoc sctx (`Pkg pkg) ~odoc_input
-           ) (odocs (Paths.odocs sctx (`Pkg pkg))))
+             create_odoc sctx (Pkg pkg) ~odoc_input
+           ) (odocs (Paths.odocs sctx (Pkg pkg))))
           :: (
             List.map libs ~f:(fun lib ->
-              odocs (Paths.odocs sctx (`Lib lib))
+              odocs (Paths.odocs sctx (Lib lib))
               |> List.map ~f:(fun odoc_input ->
-                create_odoc sctx (`Lib lib) ~odoc_input
+                create_odoc sctx (Lib lib) ~odoc_input
               )
             )
           )) in
@@ -360,8 +363,8 @@ let setup_pkg_html_rules =
           to_html sctx odoc_file ~odoc ~deps) in
       let html_root = Paths.html_root sctx in
       List.iter (
-        Dep.html_alias sctx (`Pkg pkg)
-        :: List.map ~f:(fun lib -> Dep.html_alias sctx (`Lib lib)) libs
+        Dep.html_alias sctx (Pkg pkg)
+        :: List.map ~f:(fun lib -> Dep.html_alias sctx (Lib lib)) libs
       ) ~f:(fun alias ->
         SC.add_alias_deps sctx alias
           [ css_file ~doc_dir:html_root
@@ -416,14 +419,14 @@ let gen_rules sctx ~dir:_ rest =
 let setup_package_aliases sctx (pkg : Package.t) =
   let alias = html_alias sctx pkg in
   SC.add_alias_deps sctx alias (
-    Dep.html_alias sctx (`Pkg pkg.name)
+    Dep.html_alias sctx (Pkg pkg.name)
     :: (libs_of_pkg ~pkg:pkg.name (db_of_pkg sctx ~pkg)
         |> Lib.Set.to_list
-        |> List.map ~f:(fun lib -> Dep.html_alias sctx (`Lib lib)))
+        |> List.map ~f:(fun lib -> Dep.html_alias sctx (Lib lib)))
     |> List.map ~f:Build_system.Alias.stamp_file
   )
 
-let pkg_odoc sctx (pkg : Package.t) = Paths.odocs sctx (`Pkg pkg.name)
+let pkg_odoc sctx (pkg : Package.t) = Paths.odocs sctx (Pkg pkg.name)
 
 let entry_modules sctx ~(pkg : Package.t) ~entry_modules_by_lib =
   let lib_db = SC.public_libs sctx in
@@ -483,7 +486,7 @@ let setup_package_odoc_rules sctx ~pkg ~mlds ~entry_modules_by_lib =
       (Mld.create mld)
       ~pkg:pkg.name
       ~odoc
-      ~doc_dir:(Paths.odocs sctx (`Pkg pkg.name))
+      ~doc_dir:(Paths.odocs sctx (Pkg pkg.name))
       ~includes:(Build.arr (fun _ -> Arg_spec.As []))
   ) in
-  Dep.setup_deps sctx (`Pkg pkg.name) odocs
+  Dep.setup_deps sctx (Pkg pkg.name) odocs
