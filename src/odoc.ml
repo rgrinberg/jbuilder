@@ -14,6 +14,12 @@ let lib_unique_name lib =
   | Private scope_name ->
     sprintf "%s@%s" name (Scope_info.Name.to_string scope_name)
 
+let pkg_or_lnu lib =
+  match Lib.pkg lib with
+  | Some p -> Package.Name.to_string p
+  | None -> lib_unique_name lib
+
+
 module Paths = struct
   let root sctx = (SC.context sctx).Context.build_dir ++ "_doc"
 
@@ -30,11 +36,7 @@ module Paths = struct
     html_root sctx ++ (
       match m with
       | `Pkg pkg -> Package.Name.to_string pkg
-      | `Lib lib ->
-        begin match Lib.pkg lib with
-        | None -> lib_unique_name lib
-        | Some p -> Package.Name.to_string p
-        end
+      | `Lib lib -> pkg_or_lnu lib
     )
 
   let gen_mld_dir sctx (pkg : Package.t) =
@@ -99,7 +101,7 @@ let module_deps (m : Module.t) ~doc_dir ~(dep_graphs:Ocamldep.Dep_graphs.t) =
      >>^ List.map ~f:(Module.odoc_file ~doc_dir))
 
 let compile_module sctx (m : Module.t) ~odoc ~dir ~obj_dir ~includes ~dep_graphs
-      ~doc_dir ~pkg =
+      ~doc_dir ~pkg_or_lnu =
   let context = SC.context sctx in
   let odoc_file = Module.odoc_file m ~doc_dir in
   SC.add_rule sctx
@@ -111,7 +113,7 @@ let compile_module sctx (m : Module.t) ~odoc ~dir ~obj_dir ~includes ~dep_graphs
        [ A "compile"
        ; A "-I"; Path dir
        ; Dyn (fun x -> x)
-       ; As ["--pkg"; Package.Name.to_string pkg]
+       ; As ["--pkg"; pkg_or_lnu]
        ; A "-o"; Target odoc_file
        ; Dep (Module.cmti_file m ~obj_dir)
        ]);
@@ -188,11 +190,9 @@ let setup_library_odoc_rules sctx (library : Library.t) ~dir ~scope ~modules
   let lib =
     Option.value_exn (Lib.DB.find_even_when_hidden (Scope.libs scope)
                         library.name) in
-  let lib_unique_name = lib_unique_name lib in
   (* Using the proper package name doesn't actually work since odoc assumes
      that a package contains only 1 library *)
-  let pkg = Option.value (Lib.pkg lib)
-              ~default:(Package.Name.of_string lib_unique_name) in
+  let pkg_or_lnu = pkg_or_lnu lib in
   let doc_dir = Paths.odocs sctx (`Lib lib) in
   let obj_dir = Lib.obj_dir lib in
   let odoc = get_odoc sctx in
@@ -206,7 +206,7 @@ let setup_library_odoc_rules sctx (library : Library.t) ~dir ~scope ~modules
   let modules_and_odoc_files =
     List.map (Module.Name.Map.values modules) ~f:(fun m ->
       compile_module sctx ~odoc ~dir ~obj_dir ~includes ~dep_graphs
-        ~doc_dir ~pkg m)
+        ~doc_dir ~pkg_or_lnu m)
   in
   Dep.setup_deps sctx (`Lib lib) (List.map modules_and_odoc_files ~f:snd)
 
