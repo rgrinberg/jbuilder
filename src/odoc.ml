@@ -307,7 +307,7 @@ let create_odoc sctx ~odoc_input m =
       html_base ++ (
         Path.basename odoc_input
         |> Filename.chop_extension
-        |> Stdune.String.capitalize_ascii
+        |> Stdune.String.capitalize
       ) in
     { odoc_input
     ; html_dir
