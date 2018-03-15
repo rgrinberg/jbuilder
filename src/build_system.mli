@@ -130,7 +130,11 @@ module Alias : sig
 
   (** [add_deps store alias deps] arrange things so that all [deps]
       are built as part of the build of alias [alias]. *)
-  val add_deps : build_system -> t -> Path.t list -> unit
+  val add_deps
+    :  build_system
+    -> t
+    -> Path.Set.t
+    -> unit
 
   (** [add_action store alias ~stamp action] arrange things so that
       [action] is executed as part of the build of alias

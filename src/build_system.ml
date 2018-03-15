@@ -450,7 +450,7 @@ module Build_exec = struct
         Option.value_exn file.data
       | Dyn_paths t ->
         let fns = exec dyn_deps t x in
-        dyn_deps := Pset.union !dyn_deps (Pset.of_list fns);
+        dyn_deps := Pset.union !dyn_deps fns;
         x
       | Record_lib_deps _ -> x
       | Fail { fail } -> fail ()
@@ -874,8 +874,7 @@ and load_dir_step2_exn t ~dir ~collector ~lazy_generators =
             Build.action ~targets:[path]
               (Redirect (Stdout,
                          path,
-                         Digest_files
-                           (Path.Set.to_list deps))))
+                         Digest_files (Path.Set.to_list deps))))
          :: rules,
          Pset.add alias_stamp_files path))
   in
@@ -1479,7 +1478,7 @@ module Alias = struct
 
   let add_deps build_system t deps =
     let def = get_alias_def build_system t in
-    def.deps <- Pset.union def.deps (Pset.of_list deps)
+    def.deps <- Pset.union def.deps deps
 
   let add_action build_system t ~context ?(locks=[]) ~stamp action =
     let def = get_alias_def build_system t in

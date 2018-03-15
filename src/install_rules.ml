@@ -299,7 +299,7 @@ module Gen(P : Install_params) = struct
           let path = Path.append ctx.build_dir src_path in
           let install_alias = Alias.install ~dir:path in
           let install_file = Path.relative path install_fn in
-          SC.add_alias_deps sctx install_alias [install_file])
+          SC.add_alias_deps sctx install_alias (Path.Set.singleton install_file))
 
   let init () =
     init_meta ();
