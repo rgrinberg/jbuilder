@@ -37,7 +37,7 @@ module Map : Map.S with type key = t
 module Status : sig
   type t =
     | Installed
-    | Public
+    | Public  of Package.t
     | Private of Jbuild.Scope_info.Name.t
 
   val pp : t Fmt.t

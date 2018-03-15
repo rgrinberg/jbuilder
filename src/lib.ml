@@ -8,20 +8,20 @@ open Result.O
 module Status = struct
   type t =
     | Installed
-    | Public
+    | Public  of Package.t
     | Private of Jbuild.Scope_info.Name.t
 
   let pp ppf t =
     Format.pp_print_string ppf
       (match t with
        | Installed -> "installed"
-       | Public -> "public"
+       | Public _ -> "public"
        | Private s ->
          sprintf "private (%s)" (Jbuild.Scope_info.Name.to_string s))
 
   let is_private = function
     | Private _ -> true
-    | Installed | Public -> false
+    | Installed | Public _ -> false
 end
 
 module Info = struct
@@ -89,7 +89,7 @@ module Info = struct
     let status =
       match conf.public with
       | None   -> Status.Private conf.scope_name
-      | Some _ -> Public
+      | Some p -> Public p.package
     in
     let foreign_archives =
       { Mode.Dict.
@@ -355,14 +355,13 @@ let status t = t.status
 
 let pkg t =
   match t.status with
-  | Installed
-  | Public ->
+  | Installed ->
     Some (
       (match String.lsplit2 (name t) ~on:'.' with
        | None -> name t
        | Some (p, _) -> p)
-      |> Package.Name.of_string
-    )
+      |> Package.Name.of_string)
+  | Public p -> Some p.name
   | Private _ ->
     None
 

@@ -10,7 +10,7 @@ let lib_unique_name lib =
   let name = Lib.name lib in
   match Lib.status lib with
   | Installed -> assert false
-  | Public    -> name
+  | Public _  -> name
   | Private scope_name -> SC.Scope_key.to_string name scope_name
 
 let pkg_or_lnu lib =
