@@ -151,21 +151,11 @@ module Gen(P : Install_rules.Params) = struct
     end
 
   let parse_mlds ~dir ~(all_mlds : string String_map.t) ~mlds_written_by_user =
-    let module Eval_mlds =
-      Ordered_set_lang.Make(struct
-        type t = string
-        let compare = String.compare
-        module Map = String_map
-      end)(struct
-        type t = string
-        type key = string
-        let key x = x
-      end) in
     if Ordered_set_lang.is_standard mlds_written_by_user then
       all_mlds
     else
       let mlds =
-        Eval_mlds.eval_unordered
+        Ordered_set_lang.String.eval_unordered
           mlds_written_by_user
           ~parse:(fun ~loc s ->
             match String_map.find all_mlds s with
