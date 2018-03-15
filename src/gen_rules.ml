@@ -315,7 +315,7 @@ module Gen(P : Install_rules.Params) = struct
     String_set.to_list files
     |> List.filter_map ~f:(fun fn ->
       match String.lsplit2 fn ~on:'.' with
-      | Some (_, "mld") -> Some (Filename.chop_extension fn, fn)
+      | Some (s, "mld") -> Some (s, fn)
       | _ -> None)
     |> String_map.of_list_exn (* TODO error handling *)
 
