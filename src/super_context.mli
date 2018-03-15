@@ -97,8 +97,8 @@ val add_rules
 val add_alias_deps
   :  t
   -> Build_system.Alias.t
-  -> ?dyn_deps:(unit, Path.t list) Build.t
-  -> Path.t list
+  -> ?dyn_deps:(unit, Path.Set.t) Build.t
+  -> Path.Set.t
   -> unit
 val add_alias_action
   :  t
@@ -151,7 +151,7 @@ module Libs : sig
     -> dir:Path.t
     -> ext:string
     -> Library.t
-    -> Path.t list
+    -> Path.Set.t
     -> unit
 
   (** Setup an alias that depend on all files with the given extensions.

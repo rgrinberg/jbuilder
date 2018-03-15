@@ -248,7 +248,8 @@ let setup_library_rules sctx (lib : Library.t) ~dir ~scope ~modules ~mld_files
         ~doc_dir ~lib_unique_name (Module m))
   in
   let inputs_and_odoc_files = modules_and_odoc_files @ mld_and_odoc_files in
-  Doc.setup_deps sctx lib (List.map inputs_and_odoc_files ~f:snd);
+  Doc.setup_deps sctx lib (List.map inputs_and_odoc_files ~f:snd
+                           |> Path.Set.of_list);
   (*
      let modules_and_odoc_files =
      if lib.wrapped then
@@ -268,9 +269,10 @@ let setup_library_rules sctx (lib : Library.t) ~dir ~scope ~modules ~mld_files
     | None -> Build_system.Alias.private_doc ~dir
     | Some _ -> Build_system.Alias.doc ~dir in
   SC.add_alias_deps sctx alias
-    (css_file ~doc_dir:doc_root
-     :: toplevel_index ~doc_dir:doc_root
-     :: html_files)
+    (Path.Set.of_list
+       (css_file ~doc_dir:doc_root
+        :: toplevel_index ~doc_dir:doc_root
+        :: html_files))
 
 let setup_css_rule sctx =
   let context = SC.context sctx in
