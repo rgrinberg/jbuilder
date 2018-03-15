@@ -1420,8 +1420,8 @@ let package_deps t files =
   in
   let open Build.O in
   Build.paths_for_rule files >>^ fun () ->
-  (* This is a bit ugly, we just now that at this point of execution,
-     all the relevant ivars have been filled *)
+  (* This is a bit ugly, we know that at this point of execution, all
+     the relevant ivars have been filled *)
   Pset.iter files ~f:loop;
   !packages
 

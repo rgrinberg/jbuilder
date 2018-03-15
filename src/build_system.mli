@@ -81,7 +81,7 @@ val stamp_file_for_files_of : t -> dir:Path.t -> ext:string -> Path.t
 val set_package : t -> Path.t -> Package.Name.t -> unit
 
 (** Scan the transitive dependencies of the following files and return
-    set of packages these files are part of. Do not scan package
+    set of packages these files are part of. Do not scan packages
     recursively. *)
 val package_deps
   :  t
