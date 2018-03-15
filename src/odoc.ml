@@ -11,8 +11,7 @@ let lib_unique_name lib =
   match Lib.status lib with
   | Installed -> assert false
   | Public    -> name
-  | Private scope_name ->
-    sprintf "%s@%s" name (Scope_info.Name.to_string scope_name)
+  | Private scope_name -> SC.Scope_key.to_string name scope_name
 
 let pkg_or_lnu lib =
   match Lib.pkg lib with
@@ -271,14 +270,6 @@ let html_alias sctx pkg =
     Path.append ctx.build_dir pkg.Package.path
   )
 
-let read_unique_name sctx lib_unique_name =
-  match String.rsplit2 lib_unique_name ~on:'@' with
-  | None ->
-    (lib_unique_name, SC.public_libs sctx)
-  | Some (lib, name) ->
-    (lib,
-     Scope.libs (SC.find_scope_by_name sctx (Scope_info.Name.of_string name)))
-
 let db_of_pkg sctx ~(pkg : Package.t) =
   Path.append (SC.context sctx).build_dir pkg.path
   |> SC.find_scope_by_dir sctx
@@ -386,7 +377,7 @@ let gen_rules sctx ~dir:_ rest =
   | "_odoc" :: "pkg" :: _pkg :: _ ->
     () (* rules were already setup lazily in gen_rules *)
   | "_odoc" :: "lib" :: lib :: _ ->
-    let lib, lib_db = read_unique_name sctx lib in
+    let lib, lib_db = SC.Scope_key.of_string sctx lib in
     begin match Lib.DB.find lib_db lib with
     | Error _ -> ()
     | Ok lib  -> SC.load_dir sctx ~dir:(Lib.src_dir lib)
@@ -394,7 +385,7 @@ let gen_rules sctx ~dir:_ rest =
   | "_html" :: lib_unique_name_or_pkg :: _ ->
     (* TODO we can be a better with the error handling in the case where
        lib_unique_name_or_pkg is neither a valid or pkg or lnu *)
-    let lib, lib_db = read_unique_name sctx lib_unique_name_or_pkg in
+    let lib, lib_db = SC.Scope_key.of_string sctx lib_unique_name_or_pkg in
     begin match Lib.DB.find lib_db lib with
     | Error _ -> ()
     | Ok lib  ->
