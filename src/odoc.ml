@@ -14,7 +14,7 @@ let lib_unique_name lib =
   | Private scope_name -> SC.Scope_key.to_string name scope_name
 
 let pkg_or_lnu lib =
-  match Lib.pkg lib with
+  match Lib.package lib with
   | Some p -> Package.Name.to_string p
   | None -> lib_unique_name lib
 
@@ -278,7 +278,7 @@ let db_of_pkg sctx ~(pkg : Package.t) =
 let libs_of_pkg lib_db ~pkg =
   Lib.DB.all lib_db
   |> Lib.Set.filter ~f:(fun lib ->
-    Lib.is_local lib && (match Lib.pkg lib with
+    Lib.is_local lib && (match Lib.package lib with
       | None -> false
       | Some pkg' -> pkg' = pkg))
 
@@ -389,7 +389,7 @@ let gen_rules sctx ~dir:_ rest =
     begin match Lib.DB.find lib_db lib with
     | Error _ -> ()
     | Ok lib  ->
-      Option.iter (Lib.pkg lib) ~f:(fun pkg ->
+      Option.iter (Lib.package lib) ~f:(fun pkg ->
         let libs =
           Lib.Set.to_list (load_all_odoc_rules_pkg sctx ~pkg ~lib_db) in
         setup_pkg_html_rules sctx ~pkg ~libs

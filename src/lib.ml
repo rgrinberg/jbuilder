@@ -353,14 +353,11 @@ let is_local t = Path.is_local t.obj_dir
 
 let status t = t.status
 
-let pkg t =
+let package t =
   match t.status with
   | Installed ->
-    Some (
-      (match String.lsplit2 (name t) ~on:'.' with
-       | None -> name t
-       | Some (p, _) -> p)
-      |> Package.Name.of_string)
+    Some (Findlib.root_package_name t.name
+          |> Package.Name.of_string)
   | Public p -> Some p.name
   | Private _ ->
     None

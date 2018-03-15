@@ -45,7 +45,7 @@ end
 
 val status : t -> Status.t
 
-val pkg : t -> Package.Name.t option
+val package : t -> Package.Name.t option
 
 (** Operations on list of libraries *)
 module L : sig
