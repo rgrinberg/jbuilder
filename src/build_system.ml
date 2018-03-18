@@ -1405,8 +1405,6 @@ let package_deps t files =
     | Some p ->
       packages := Package.Name.Set.add !packages p
     | None ->
-      let dir = Path.parent fn in
-      if Path.is_in_build_dir dir then load_dir t ~dir;
       match Hashtbl.find t.files fn with
       | None -> ()
       | Some (File_spec.T { rule = ir; _ }) ->
