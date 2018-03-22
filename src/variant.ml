@@ -77,29 +77,33 @@ end
 type variant = t
 module Rules = struct
   type _ t =
-    | Pred : Rules0.t -> string t
-    | List : (variant * 'a) list -> 'a t
+    | Pred : Rules0.t -> string list t
+    | List : 'a * (variant * 'a) list -> 'a t
     | Map : 'a t * ('a -> 'b) -> 'b t
 
-  let rec get : type a . a t -> variants:Set.t -> a list =
+  let rec get : type a . a t -> variants:Set.t -> a =
     fun t ~variants ->
       match t with
       | Pred p ->
         String.extract_comma_space_separated_words
           (Rules0.interpret p ~preds:variants)
-      | List l ->
-        List.filter_map l ~f:(fun (variant, a) ->
-          if Set.mem variants variant then
-            Some a
-          else
-            None
-        )
-      | Map (t, f) -> List.map ~f (get t ~variants)
+      | List (base, l) ->
+        begin match
+          List.find_map l ~f:(fun (variant, a) ->
+            if Set.mem variants variant then
+              Some a
+            else
+              None)
+        with
+        | None -> base
+        | Some s -> s
+        end
+      | Map (t, f) -> f (get t ~variants)
 
   let map t ~f = Map (t, f)
 
-  let make l = List l
+  let make ~default l = List (default, l)
 
-  let of_meta_rules (s : Meta.Simplified.Rules.t) : string t =
+  let of_meta_rules (s : Meta.Simplified.Rules.t) : string list t =
     Pred (Rules0.of_meta_rules s)
 end

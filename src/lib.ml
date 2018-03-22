@@ -54,11 +54,11 @@ module Info = struct
     ; obj_dir          : Path.t
     ; version          : string option
     ; synopsis         : string option
-    ; archives         : Path.t list Mode.Dict.t
-    ; plugins          : Path.t list Mode.Dict.t
-    ; foreign_archives : Path.t list Mode.Dict.t
-    ; jsoo_runtime     : Path.t list
-    ; requires         : Deps.t
+    ; archives         : Path.t list Variant.Rules.t
+    ; plugins          : Path.t list Variant.Rules.t
+    ; foreign_archives : Path.t list Variant.Rules.t
+    ; jsoo_runtime     : Path.t list Variant.Rules.t
+    ; requires         : Deps.t Variant.Rules.t
     ; ppx_runtime_deps : (Loc.t * string) list
     ; pps              : (Loc.t * Jbuild.Pp.t) list
     ; optional         : bool
@@ -67,9 +67,12 @@ module Info = struct
     }
 
   let user_written_deps t =
-    List.fold_left (t.virtual_deps @ t.ppx_runtime_deps)
-      ~init:(Deps.to_lib_deps t.requires)
-      ~f:(fun acc s -> Jbuild.Lib_dep.Direct s :: acc)
+    ignore t;
+    failwith ""
+    (* List.fold_left
+     *   (Variant.Rules.map ~f:(fun ppx_rt -> t.virtual_deps @ ppx_rt)
+     *   ~init:(Deps.to_lib_deps t.requires)
+     *   ~f:(fun acc s -> Jbuild.Lib_dep.Direct s :: acc) *)
 
   let of_library_stanza ~dir (conf : Jbuild.Library.t) =
     let archive_file ext = Path.relative dir (conf.name ^ ext) in
@@ -97,14 +100,24 @@ module Info = struct
       ; native = Path.relative dir conf.name :: stubs
       }
     in
+    let variant_of_mode_dict d =
+      Variant.Rules.make ~default:[]
+        [ Variant.byte, Mode.Dict.get d Mode.Byte
+        ; Variant.native, Mode.Dict.get d Mode.Native ] in
     { loc = conf.buildable.loc
     ; kind     = conf.kind
     ; src_dir  = dir
     ; obj_dir  = Utils.library_object_directory ~dir conf.name
     ; version  = None
     ; synopsis = conf.synopsis
-    ; archives = archive_files ~f_ext:Mode.compiled_lib_ext
-    ; plugins  = archive_files ~f_ext:Mode.plugin_ext
+    ; archives = (
+      )
+    ; plugins  = (
+        let d = archive_files ~f_ext:Mode.plugin_ext in
+        Variant.Rules.make ~default:[]
+          [ Variant.byte, Mode.Dict.get d Mode.Byte
+          ; Variant.native, Mode.Dict.get d Mode.Native ]
+      )
     ; optional = conf.optional
     ; foreign_archives
     ; jsoo_runtime
@@ -228,10 +241,10 @@ type t =
   ; obj_dir           : Path.t
   ; version           : string option
   ; synopsis          : string option
-  ; archives          : Path.t list Mode.Dict.t
-  ; plugins           : Path.t list Mode.Dict.t
-  ; foreign_archives  : Path.t list Mode.Dict.t
-  ; jsoo_runtime      : Path.t list
+  ; archives          : Path.t list Variant.Rules.t
+  ; plugins           : Path.t list Variant.Rules.t
+  ; foreign_archives  : Path.t list Variant.Rules.t
+  ; jsoo_runtime      : Path.t list Variant.Rules.t
   ; requires          : t list Or_exn.t
   ; ppx_runtime_deps  : t list Or_exn.t
   ; pps               : t list Or_exn.t
@@ -407,12 +420,13 @@ module L = struct
   let c_include_flags ts ~stdlib_dir =
     to_iflags (c_include_paths ts ~stdlib_dir)
 
-  let link_flags ts ~mode ~stdlib_dir =
+  let link_flags ts ~stdlib_dir ~variants =
     Arg_spec.S
       (c_include_flags ts ~stdlib_dir ::
-       List.map ts ~f:(fun t -> Arg_spec.Deps (Mode.Dict.get t.archives mode)))
+       List.map ts ~f:(fun t ->
+         Arg_spec.Deps (Variant.Rules.get t.archives ~variants)))
 
-  let compile_and_link_flags ~compile ~link ~mode ~stdlib_dir =
+  let compile_and_link_flags ~compile ~link ~stdlib_dir ~variants =
     let dirs =
       Path.Set.union
         (  include_paths compile ~stdlib_dir)
@@ -421,15 +435,16 @@ module L = struct
     Arg_spec.S
       (to_iflags dirs ::
        List.map link ~f:(fun t ->
-         Arg_spec.Deps (Mode.Dict.get t.archives mode)))
+         Arg_spec.Deps (Variant.Rules.get t.archives ~variants)))
 
-  let jsoo_runtime_files ts =
-    List.concat_map ts ~f:(fun t -> t.jsoo_runtime)
-
-  let archive_files ts ~mode ~ext_lib =
+  let jsoo_runtime_files ts ~variants =
     List.concat_map ts ~f:(fun t ->
-      Mode.Dict.get t.archives mode @
-      List.map (Mode.Dict.get t.foreign_archives mode)
+      Variant.Rules.get t.jsoo_runtime ~variants)
+
+  let archive_files ts ~variants ~ext_lib =
+    List.concat_map ts ~f:(fun t ->
+      Variant.Rules.get t.archives ~variants @
+      List.map (Variant.Rules.get t.foreign_archives ~variants)
         ~f:(Path.extend_basename ~suffix:ext_lib))
 
   let remove_dups l =
@@ -625,10 +640,16 @@ let rec instantiate db name (info : Info.t) ~stack ~hidden =
   let allow_private_deps = Status.is_private info.status in
 
   let requires, pps, resolved_selects =
-    resolve_user_deps db info.requires ~allow_private_deps ~pps:info.pps ~stack
+    info.requires
+    |> Variant.Rules.map ~f:(fun requires ->
+      resolve_user_deps db ~allow_private_deps ~pps:info.pps ~stack
+    )
   in
   let ppx_runtime_deps =
-    resolve_simple_deps db info.ppx_runtime_deps ~allow_private_deps ~stack
+    info.ppx_runtime_deps
+    |> Variant.Rules.map ~f:(fun ppx_runtime_deps ->
+      resolve_simple_deps db ppx_runtime_deps ~allow_private_deps ~stack
+    )
   in
   let map_error x =
     Result.map_error x ~f:(fun e ->
@@ -851,7 +872,7 @@ and resolve_user_deps db deps ~allow_private_deps ~pps ~stack =
   in
   (deps, pps, resolved_selects)
 
-and closure_with_overlap_checks db ts ~stack =
+and closure_with_overlap_checks db ts ~stack ~variants =
   let visited = ref String_map.empty in
   let res = ref [] in
   let orig_stack = stack in
@@ -886,7 +907,7 @@ and closure_with_overlap_checks db ts ~stack =
          | _ -> assert false)
       >>= fun () ->
       Dep_stack.push stack (to_id t) >>= fun stack ->
-      t.requires >>= fun deps ->
+      Variant.Rules.get t.requires ~variants >>= fun deps ->
       iter deps ~stack >>| fun () ->
       res := t :: !res
   and iter ts ~stack =
@@ -899,10 +920,10 @@ and closure_with_overlap_checks db ts ~stack =
   iter ts ~stack >>| fun () ->
   List.rev !res
 
-let closure_with_overlap_checks db l =
-  closure_with_overlap_checks db l ~stack:Dep_stack.empty
+let closure_with_overlap_checks db l ~variants =
+  closure_with_overlap_checks db l ~stack:Dep_stack.empty ~variants
 
-let closure l = closure_with_overlap_checks None l
+let closure l ~variants = closure_with_overlap_checks None l ~variants
 
 let to_exn res =
   match res with
@@ -911,7 +932,7 @@ let to_exn res =
 
 let requires_exn         t = to_exn t.requires
 let ppx_runtime_deps_exn t = to_exn t.ppx_runtime_deps
-let closure_exn          l = to_exn (closure l)
+let closure_exn          l = to_exn (closure l ~variants:Variant.Set.empty)
 
 module Compile = struct
   module Resolved_select = Resolved_select
@@ -926,9 +947,10 @@ module Compile = struct
     ; sub_systems       : Sub_system0.Instance.t Lazy.t Sub_system_name.Map.t
     }
 
-  let for_lib db (t : lib) =
+  let for_lib db (t : lib) ~variants =
     { direct_requires   = t.requires
-    ; requires          = t.requires >>= closure_with_overlap_checks db
+    ; requires          =
+        t.requires >>= closure_with_overlap_checks db ~variants
     ; resolved_selects  = t.resolved_selects
     ; pps               = t.pps
     ; optional          = t.optional
@@ -1067,15 +1089,16 @@ module DB = struct
       let t = Option.some_if (not allow_overlaps) t in
       Compile.for_lib t lib
 
-  let resolve_user_written_deps t ?(allow_overlaps=false) deps ~pps =
+  let resolve_user_written_deps t ?(allow_overlaps=false) deps ~pps ~variants =
     let res, pps, resolved_selects =
       resolve_user_deps t (Info.Deps.of_lib_deps deps) ~pps
-        ~stack:Dep_stack.empty ~allow_private_deps:true
+        ~stack:Dep_stack.empty ~allow_private_deps:true ~variants
     in
     let requires =
       res
       >>=
       closure_with_overlap_checks (Option.some_if (not allow_overlaps) t)
+        ~variants
     in
     { Compile.
       direct_requires = res

@@ -94,11 +94,11 @@ module Info : sig
     ; obj_dir          : Path.t
     ; version          : string option
     ; synopsis         : string option
-    ; archives         : Path.t list Mode.Dict.t
-    ; plugins          : Path.t list Mode.Dict.t
-    ; foreign_archives : Path.t list Mode.Dict.t (** [.a/.lib/...] files *)
-    ; jsoo_runtime     : Path.t list
-    ; requires         : Deps.t
+    ; archives         : Path.t list Variant.Rules.t
+    ; plugins          : Path.t list Variant.Rules.t
+    ; foreign_archives : Path.t list Variant.Rules.t (** [.a/.lib/...] files *)
+    ; jsoo_runtime     : Path.t list Variant.Rules.t
+    ; requires         : Deps.t Variant.Rules.t
     ; ppx_runtime_deps : (Loc.t * string) list
     ; pps              : (Loc.t * Jbuild.Pp.t) list
     ; optional         : bool

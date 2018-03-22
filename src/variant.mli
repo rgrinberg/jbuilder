@@ -20,10 +20,10 @@ module Rules : sig
   type variant = t
   type 'a t
 
-  val get : 'a t -> variants:Set.t -> 'a list
+  val get : 'a t -> variants:Set.t -> 'a
 
   val map : 'a t -> f:('a -> 'b) -> 'b t
 
-  val make : (variant * 'a) list -> 'a t
-  val of_meta_rules : Meta.Simplified.Rules.t -> string t
+  val make : default:'a -> (variant * 'a) list -> 'a t
+  val of_meta_rules : Meta.Simplified.Rules.t -> string list t
 end with type variant := t
