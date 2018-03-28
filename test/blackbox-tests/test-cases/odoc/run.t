@@ -37,6 +37,7 @@
           odoc _doc/_html/foo/index.html
   <!DOCTYPE html>
   <html xmlns="http://www.w3.org/1999/xhtml"><head><title>index (foo.index)</title><link rel="stylesheet" href="../odoc.css"/><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><meta name="generator" content="doc-ock-html v1.0.0-1-g1fc9bf0"/></head><body><nav id="top"><a href="../index.html">Up</a> &mdash; <span class="package">package <a href="index.html">foo</a></span></nav><header></header><h2>Library foo</h2><p>
-  This library exposes the following toplevel modules: </p><table class="modules"><tr id="listing-module-Foo" class="anchored"><td class="module"><a href="#listing-module-Foo" class="anchor"></a><a href="Foo/index.html">Foo</a></td><td class="doc"></td></tr></table><p>.
-  </p><h2>Library foo.byte</h2><p>
-  This library exposes the following toplevel modules: </p><table class="modules"><tr id="listing-module-Foo_byte" class="anchored"><td class="module"><a href="#listing-module-Foo_byte" class="anchor"></a><a href="Foo_byte/index.html">Foo_byte</a></td><td class="doc"></td></tr></table><p>.</p></body></html>
+  This library exposes the following toplevel modules:
+  </p><table class="modules"><tr id="listing-module-Foo" class="anchored"><td class="module"><a href="#listing-module-Foo" class="anchor"></a><a href="Foo/index.html">Foo</a></td><td class="doc"></td></tr></table><h2>Library foo.byte</h2><p>
+  This library exposes the following toplevel modules:
+  </p><table class="modules"><tr id="listing-module-Foo_byte" class="anchored"><td class="module"><a href="#listing-module-Foo_byte" class="anchor"></a><a href="Foo_byte/index.html">Foo_byte</a></td><td class="doc"></td></tr></table></body></html>
