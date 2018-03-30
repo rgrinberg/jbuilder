@@ -2,16 +2,16 @@
           odoc _doc/_odoc/pkg/bar/page-index.odoc
           odoc _doc/_html/bar/index.html
           odoc _doc/_html/odoc.css
-      ocamldep foo.ml.d
-        ocamlc .foo.objs/foo.{cmi,cmo,cmt}
-          odoc _doc/_odoc/lib/foo/foo.odoc
       ocamldep foo_byte.ml.d
         ocamlc .foo_byte.objs/foo_byte.{cmi,cmo,cmt}
           odoc _doc/_odoc/lib/foo.byte/foo_byte.odoc
-          odoc _doc/_html/foo/Foo/.jbuilder-keep,_doc/_html/foo/Foo/index.html
+      ocamldep foo.ml.d
+        ocamlc .foo.objs/foo.{cmi,cmo,cmt}
+          odoc _doc/_odoc/lib/foo/foo.odoc
+          odoc _doc/_html/foo/Foo_byte/.jbuilder-keep,_doc/_html/foo/Foo_byte/index.html
           odoc _doc/_odoc/pkg/foo/page-index.odoc
           odoc _doc/_html/foo/index.html
-          odoc _doc/_html/foo/Foo_byte/.jbuilder-keep,_doc/_html/foo/Foo_byte/index.html
+          odoc _doc/_html/foo/Foo/.jbuilder-keep,_doc/_html/foo/Foo/index.html
   $ $JBUILDER runtest -j1 --display short --root .
   <!DOCTYPE html>
   <html xmlns="http://www.w3.org/1999/xhtml">
