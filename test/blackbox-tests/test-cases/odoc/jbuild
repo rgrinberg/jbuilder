@@ -13,6 +13,11 @@
   (public_name foo.byte)))
 
 (alias
- ((name runtest)
+ ((name package-listing)
   (deps (_doc/_html/index.html))
   (action (echo "${read:_doc/_html/index.html}"))))
+
+(alias
+ ((name foo-module-listing)
+  (deps (_doc/_html/foo/index.html))
+  (action (echo "${read:_doc/_html/foo/index.html}"))))
