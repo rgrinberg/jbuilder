@@ -59,7 +59,7 @@ module Dep_graphs = struct
 end
 
 let parse_deps ~dir ~file ~(unit : Module.t)
-      ~modules ~alias_module ~lib_interface_module lines =
+      ~modules ~alias_module ~lib_interface_module ~strict lines =
   let invalid () =
     die "ocamldep returned unexpected output for %s:\n\
          %s"
@@ -67,17 +67,19 @@ let parse_deps ~dir ~file ~(unit : Module.t)
       (String.concat ~sep:"\n"
          (List.map lines ~f:(sprintf "> %s")))
   in
-  match lines with
-  | [] | _ :: _ :: _ -> invalid ()
-  | [line] ->
+  let check line ~colon_pos =
+    let basename =
+      String.sub line ~pos:0 ~len:colon_pos
+      |> Filename.basename
+    in
+    if basename <> Path.basename file then invalid ()
+  in
+  let parse_line line =
     match String.index line ':' with
     | None -> invalid ()
     | Some i ->
-      let basename =
-        String.sub line ~pos:0 ~len:i
-        |> Filename.basename
-      in
-      if basename <> Path.basename file then invalid ();
+      if strict then
+        check line ~colon_pos:i;
       let deps =
         String.extract_blank_separated_words
           (String.sub line ~pos:(i + 1) ~len:(String.length line - (i + 1)))
@@ -115,6 +117,14 @@ let parse_deps ~dir ~file ~(unit : Module.t)
         | Some m -> m :: deps
       in
       deps
+  in
+  List.concat_map lines ~f:parse_line
+
+let will_read_this =
+  Build.dyn_paths (Build.arr (fun x -> x))
+
+let will_write_to target =
+  Build.action_dyn ~targets:[target] ()
 
 let rules ~(ml_kind:Ml_kind.t) ~dir ~modules
       ?(already_used=Module.Name.Set.empty)
@@ -124,17 +134,51 @@ let rules ~(ml_kind:Ml_kind.t) ~dir ~modules
       match Module.file ~dir unit ml_kind with
       | None -> Build.return []
       | Some file ->
-        let ocamldep_output = Path.extend_basename file ~suffix:".d" in
+        let ocamldep_output_path file =
+          Path.extend_basename file ~suffix:".d"
+        in
         let context = SC.context sctx in
+        let all_deps_file = Path.extend_basename file ~suffix:".all-deps" in
+        let ocamldep_output = ocamldep_output_path file in
         if not (Module.Name.Set.mem already_used unit.name) then
-          SC.add_rule sctx
-            (Build.run ~context (Ok context.ocamldep)
-               [A "-modules"; Ml_kind.flag ml_kind; Dep file]
-               ~stdout_to:ocamldep_output);
-        Build.memoize (Path.to_string ocamldep_output)
-          (Build.lines_of ocamldep_output
+          begin
+            SC.add_rule sctx
+              ( Build.run ~context (Ok context.ocamldep)
+                  [A "-modules"; Ml_kind.flag ml_kind; Dep file]
+                  ~stdout_to:ocamldep_output
+              );
+            let build_paths lines =
+              let dependencies =
+                parse_deps
+                ~dir ~file ~unit ~modules ~alias_module
+                  ~lib_interface_module ~strict:true lines
+              in
+              let mli_d_path m =
+                Option.map
+                  (Module.file ~dir m Ml_kind.Intf)
+                 ~f:ocamldep_output_path
+              in
+              let paths =
+                [ocamldep_output]
+                @ List.filter_map dependencies ~f:mli_d_path
+              in
+              paths
+            in
+            let write paths =
+              Action.with_stdout_to all_deps_file @@ Action.cat paths
+            in
+            SC.add_rule sctx
+              ( Build.lines_of ocamldep_output
+                >>^ build_paths
+                >>> will_read_this
+                >>^ write
+                >>> will_write_to all_deps_file
+              )
+          end;
+        Build.memoize (Path.to_string all_deps_file)
+          (Build.lines_of all_deps_file
            >>^ parse_deps ~dir ~file ~unit ~modules ~alias_module
-                 ~lib_interface_module))
+                 ~lib_interface_module ~strict:false))
   in
   let per_module =
     match alias_module with
