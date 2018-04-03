@@ -41,7 +41,7 @@ struct
       ; cstr "ignore-outputs"  (t @> nil)      (fun t -> Ignore (Outputs, t))
       ; cstr_rest "progn"      nil t         (fun l -> Progn l)
       ; cstr "echo"           (string @> nil)         (fun x -> Echo x)
-      ; cstr "cat"            (path @> nil)         (fun x -> Cat x)
+      ; cstr_rest "cat" nil path (fun l -> Cat l)
       ; cstr "copy" (path @> path @> nil)              (fun src dst -> Copy (src, dst))
       (*
          (* We don't expose symlink to the user yet since this might complicate things *)
@@ -85,7 +85,7 @@ struct
     | Progn l -> List (Sexp.unsafe_atom_of_string "progn"
                        :: List.map l ~f:sexp_of_t)
     | Echo x -> List [Sexp.unsafe_atom_of_string "echo"; string x]
-    | Cat x -> List [Sexp.unsafe_atom_of_string "cat"; path x]
+    | Cat xs -> List ([Sexp.unsafe_atom_of_string "cat"] @ List.map ~f:path xs)
     | Copy (x, y) ->
       List [Sexp.unsafe_atom_of_string "copy"; path x; path y]
     | Symlink (x, y) ->
@@ -150,7 +150,7 @@ module Make_mapper
       Ignore (outputs, map t ~dir ~f_program ~f_string ~f_path)
     | Progn l -> Progn (List.map l ~f:(fun t -> map t ~dir ~f_program ~f_string ~f_path))
     | Echo x -> Echo (f_string ~dir x)
-    | Cat x -> Cat (f_path ~dir x)
+    | Cat l -> Cat (List.map ~f:(f_path ~dir) l)
     | Copy (x, y) -> Copy (f_path ~dir x, f_path ~dir y)
     | Symlink (x, y) ->
       Symlink (f_path ~dir x, f_path ~dir y)
@@ -420,7 +420,7 @@ module Unexpanded = struct
         Ignore (outputs, expand t ~dir ~map_exe ~f)
       | Progn l -> Progn (List.map l ~f:(fun t -> expand t ~dir ~map_exe ~f))
       | Echo x -> Echo (E.string ~dir ~f x)
-      | Cat x -> Cat (E.path ~dir ~f x)
+      | Cat l -> Cat (List.map ~f:(E.path ~dir ~f) l)
       | Copy (x, y) ->
         Copy (E.path ~dir ~f x, E.path ~dir ~f y)
       | Symlink (x, y) ->
@@ -521,7 +521,7 @@ module Unexpanded = struct
       Ignore (outputs, partial_expand t ~dir ~map_exe ~f)
     | Progn l -> Progn (List.map l ~f:(fun t -> partial_expand t ~dir ~map_exe ~f))
     | Echo x -> Echo (E.string ~dir ~f x)
-    | Cat x -> Cat (E.path ~dir ~f x)
+    | Cat l -> Cat (List.map l ~f:(E.path ~dir ~f))
     | Copy (x, y) ->
       Copy (E.path ~dir ~f x, E.path ~dir ~f y)
     | Symlink (x, y) ->
@@ -760,14 +760,16 @@ let rec exec t ~ectx ~dir ~env ~stdout_to ~stderr_to =
   | Progn l ->
     exec_list l ~ectx ~dir ~env ~stdout_to ~stderr_to
   | Echo str -> exec_echo stdout_to str
-  | Cat fn ->
-    Io.with_file_in (Path.to_string fn) ~f:(fun ic ->
-      let oc =
-        match stdout_to with
-        | None -> stdout
-        | Some (_, oc) -> oc
-      in
-      Io.copy_channels ic oc);
+  | Cat fns ->
+    let oc =
+      match stdout_to with
+      | None -> stdout
+      | Some (_, oc) -> oc
+    in
+    List.iter fns ~f:(fun fn ->
+      Io.with_file_in (Path.to_string fn) ~f:(fun ic ->
+        Io.copy_channels ic oc);
+    );
     Fiber.return ()
   | Copy (src, dst) ->
     Io.copy_file ~src:(Path.to_string src) ~dst:(Path.to_string dst);
@@ -967,7 +969,7 @@ module Infer = struct
       match t with
       | Run (prog, _) -> acc +<! prog
       | Redirect (_, fn, t)  -> infer (acc +@ fn) t
-      | Cat fn               -> acc +< fn
+      | Cat fns -> List.fold_left fns ~init:acc ~f:(fun acc fn -> acc +< fn)
       | Write_file (fn, _)  -> acc +@ fn
       | Rename (src, dst)    -> acc +< src +@ dst
       | Copy (src, dst)

@@ -28,7 +28,7 @@ module type Ast = sig
     | Ignore         of Outputs.t * t
     | Progn          of t list
     | Echo           of string
-    | Cat            of path
+    | Cat            of path list
     | Copy           of path * path
     | Symlink        of path * path
     | Copy_and_add_line_directive of path * path
@@ -59,7 +59,7 @@ module type Helpers = sig
   val ignore_outputs : t -> t
   val progn : t list -> t
   val echo : string -> t
-  val cat : path -> t
+  val cat : path list -> t
   val copy : path -> path -> t
   val symlink : path -> path -> t
   val copy_and_add_line_directive : path -> path -> t
