@@ -120,12 +120,6 @@ let parse_deps ~dir ~file ~(unit : Module.t)
   in
   List.concat_map lines ~f:parse_line
 
-let will_read_this =
-  Build.dyn_paths (Build.arr (fun x -> x))
-
-let will_write_to target =
-  Build.action_dyn ~targets:[target] ()
-
 let rules ~(ml_kind:Ml_kind.t) ~dir ~modules
       ?(already_used=Module.Name.Set.empty)
       ~alias_module ~lib_interface_module sctx =
@@ -164,15 +158,13 @@ let rules ~(ml_kind:Ml_kind.t) ~dir ~modules
               in
               paths
             in
-            let write paths =
-              Action.with_stdout_to all_deps_file @@ Action.cat paths
-            in
             SC.add_rule sctx
               ( Build.lines_of ocamldep_output
                 >>^ build_paths
-                >>> will_read_this
-                >>^ write
-                >>> will_write_to all_deps_file
+                >>> Build.dyn_paths (Build.arr (fun x -> x))
+                >>^ (fun paths ->
+                  Action.with_stdout_to all_deps_file (Action.cat paths))
+                >>> Build.action_dyn ~targets:[all_deps_file] ()
               )
           end;
         Build.memoize (Path.to_string all_deps_file)
