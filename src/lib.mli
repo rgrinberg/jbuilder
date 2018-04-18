@@ -288,6 +288,7 @@ module DB : sig
     -> ?allow_overlaps:bool
     -> Jbuild.Lib_dep.t list
     -> pps:(Loc.t * Jbuild.Pp.t) list
+    -> variants:Variant.Set.t
     -> Compile.t
 
   val resolve_pps
