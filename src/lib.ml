@@ -59,7 +59,7 @@ module Info = struct
     ; foreign_archives : Path.t list Variant.Rules.t
     ; jsoo_runtime     : Path.t list Variant.Rules.t
     ; requires         : Deps.t Variant.Rules.t
-    ; ppx_runtime_deps : (Loc.t * string) list
+    ; ppx_runtime_deps : (Loc.t * string) list Variant.Rules.t
     ; pps              : (Loc.t * Jbuild.Pp.t) list
     ; optional         : bool
     ; virtual_deps     : (Loc.t * string) list
@@ -100,31 +100,22 @@ module Info = struct
       ; native = Path.relative dir conf.name :: stubs
       }
     in
-    let variant_of_mode_dict d =
-      Variant.Rules.make ~default:[]
-        [ Variant.byte, Mode.Dict.get d Mode.Byte
-        ; Variant.native, Mode.Dict.get d Mode.Native ] in
     { loc = conf.buildable.loc
     ; kind     = conf.kind
     ; src_dir  = dir
     ; obj_dir  = Utils.library_object_directory ~dir conf.name
     ; version  = None
     ; synopsis = conf.synopsis
-    ; archives = (
-      )
-    ; plugins  = (
-        let d = archive_files ~f_ext:Mode.plugin_ext in
-        Variant.Rules.make ~default:[]
-          [ Variant.byte, Mode.Dict.get d Mode.Byte
-          ; Variant.native, Mode.Dict.get d Mode.Native ]
-      )
+    ; archives =
+        Mode.Dict.to_variant (archive_files ~f_ext:Mode.compiled_lib_ext)
+    ; plugins  = Mode.Dict.to_variant (archive_files ~f_ext:Mode.plugin_ext)
     ; optional = conf.optional
-    ; foreign_archives
-    ; jsoo_runtime
+    ; foreign_archives = Mode.Dict.to_variant foreign_archives
+    ; jsoo_runtime = Variant.Rules.make ~default:jsoo_runtime []
     ; status
     ; virtual_deps     = conf.virtual_deps
-    ; requires         = Deps.of_lib_deps conf.buildable.libraries
-    ; ppx_runtime_deps = conf.ppx_runtime_libraries
+    ; requires = Variant.Rules.const (Deps.of_lib_deps conf.buildable.libraries)
+    ; ppx_runtime_deps = Variant.Rules.const conf.ppx_runtime_libraries
     ; pps = Jbuild.Preprocess_map.pps conf.buildable.preprocess
     ; sub_systems = conf.sub_systems
     }
@@ -145,17 +136,19 @@ module Info = struct
     ; obj_dir          = P.dir pkg
     ; version          = P.version pkg
     ; synopsis         = P.description pkg
-    ; archives         = P.archives pkg
-    ; plugins          = P.plugins pkg
-    ; jsoo_runtime     = P.jsoo_runtime pkg
-    ; requires         = Simple (List.map (P.requires pkg) ~f:add_loc)
-    ; ppx_runtime_deps = List.map (P.ppx_runtime_deps pkg) ~f:add_loc
+    ; archives         = Mode.Dict.to_variant (P.archives pkg)
+    ; plugins          = Mode.Dict.to_variant (P.plugins pkg)
+    ; jsoo_runtime     = Variant.Rules.const (P.jsoo_runtime pkg)
+    ; requires =
+        Variant.Rules.const (Deps.Simple (List.map (P.requires pkg) ~f:add_loc))
+    ; ppx_runtime_deps =
+        Variant.Rules.const (List.map (P.ppx_runtime_deps pkg) ~f:add_loc)
     ; pps              = []
     ; virtual_deps     = []
     ; optional         = false
     ; status           = Installed
     ; (* We don't know how these are named for external libraries *)
-      foreign_archives = Mode.Dict.make_both []
+      foreign_archives = Variant.Rules.const []
     ; sub_systems      = sub_systems
     }
 end
@@ -245,10 +238,10 @@ type t =
   ; plugins           : Path.t list Variant.Rules.t
   ; foreign_archives  : Path.t list Variant.Rules.t
   ; jsoo_runtime      : Path.t list Variant.Rules.t
-  ; requires          : t list Or_exn.t
-  ; ppx_runtime_deps  : t list Or_exn.t
-  ; pps               : t list Or_exn.t
-  ; resolved_selects  : Resolved_select.t list
+  ; requires          : t list Or_exn.t Variant.Rules.t
+  ; ppx_runtime_deps  : t list Or_exn.t Variant.Rules.t
+  ; pps               : t list Or_exn.t Variant.Rules.t
+  ; resolved_selects  : Resolved_select.t list Variant.Rules.t
   ; optional          : bool
   ; user_written_deps : Jbuild.Lib_deps.t
   ; (* This is mutable to avoid this error:
@@ -640,23 +633,25 @@ let rec instantiate db name (info : Info.t) ~stack ~hidden =
   let allow_private_deps = Status.is_private info.status in
 
   let requires, pps, resolved_selects =
-    info.requires
-    |> Variant.Rules.map ~f:(fun requires ->
-      resolve_user_deps db ~allow_private_deps ~pps:info.pps ~stack
+    let deps =
+      Variant.Rules.map ~f:(
+        resolve_user_deps db ~allow_private_deps ~pps:info.pps ~stack
+      ) info.requires in
+    ( deps |> Variant.Rules.map ~f:(fun (a, _, _) -> a)
+    , deps |> Variant.Rules.map ~f:(fun (_, a, _) -> a)
+    , deps |> Variant.Rules.map ~f:(fun (_, _, a) -> a)
     )
   in
   let ppx_runtime_deps =
-    info.ppx_runtime_deps
-    |> Variant.Rules.map ~f:(fun ppx_runtime_deps ->
-      resolve_simple_deps db ppx_runtime_deps ~allow_private_deps ~stack
-    )
+    Variant.Rules.map ~f:(resolve_simple_deps db ~allow_private_deps ~stack)
+      info.ppx_runtime_deps
   in
   let map_error x =
     Result.map_error x ~f:(fun e ->
       Dep_path.prepend_exn e (Library (info.src_dir, name)))
   in
-  let requires         = map_error requires         in
-  let ppx_runtime_deps = map_error ppx_runtime_deps in
+  let requires         = Variant.Rules.map ~f:map_error requires in
+  let ppx_runtime_deps = Variant.Rules.map ~f:map_error ppx_runtime_deps in
   let resolve (loc, name) =
     resolve_dep db name ~allow_private_deps ~loc ~stack in
   let t =
@@ -920,18 +915,18 @@ and closure_with_overlap_checks db ts ~stack ~variants =
   iter ts ~stack >>| fun () ->
   List.rev !res
 
-let closure_with_overlap_checks db l ~variants =
+let closure_with_overlap_check db l ~variants =
   closure_with_overlap_checks db l ~stack:Dep_stack.empty ~variants
 
-let closure l ~variants = closure_with_overlap_checks None l ~variants
+let closure l ~variants = closure_with_overlap_check None l ~variants
 
 let to_exn res =
   match res with
   | Ok    x -> x
   | Error e -> raise e
 
-let requires_exn         t = to_exn t.requires
-let ppx_runtime_deps_exn t = to_exn t.ppx_runtime_deps
+let requires_exn         t = to_exn (Variant.Rules.get ~variants:Variant.Set.empty t.requires)
+let ppx_runtime_deps_exn t = to_exn (Variant.Rules.get ~variants:Variant.Set.empty t.ppx_runtime_deps)
 let closure_exn          l = to_exn (closure l ~variants:Variant.Set.empty)
 
 module Compile = struct
@@ -947,7 +942,7 @@ module Compile = struct
     ; sub_systems       : Sub_system0.Instance.t Lazy.t Sub_system_name.Map.t
     }
 
-  let for_lib db (t : lib) ~variants =
+  let for_lib db (t : lib) =
     { direct_requires   = t.requires
     ; requires          =
         t.requires >>= closure_with_overlap_checks db ~variants

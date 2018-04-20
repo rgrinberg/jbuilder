@@ -274,7 +274,11 @@ module DB : sig
 
   (** Retreive the compile informations for the given library. Works
       for libraries that are optional and not available as well. *)
-  val get_compile_info : t -> ?allow_overlaps:bool -> string -> Compile.t
+  val get_compile_info
+    :  t
+    -> ?allow_overlaps:bool
+    -> string
+    -> Compile.t Variant.Rules.t
 
   val resolve : t -> Loc.t * string -> lib Or_exn.t
 
@@ -304,7 +308,7 @@ end with type lib := t
 
 (** {1 Transitive closure} *)
 
-val closure : L.t -> L.t Or_exn.t
+val closure : L.t -> variants:Variant.Set.t -> L.t Or_exn.t
 
 (** {1 Sub-systems} *)
 

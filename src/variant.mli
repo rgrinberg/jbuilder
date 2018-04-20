@@ -25,5 +25,8 @@ module Rules : sig
   val map : 'a t -> f:('a -> 'b) -> 'b t
 
   val make : default:'a -> (variant * 'a) list -> 'a t
+
+  val const : 'a -> 'a t
+
   val of_meta_rules : Meta.Simplified.Rules.t -> string list t
 end with type variant := t

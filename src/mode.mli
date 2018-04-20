@@ -24,6 +24,8 @@ module Dict : sig
     ; native : 'a
     }
 
+  val to_variant : 'a list t -> 'a list Variant.Rules.t
+
   val get : 'a t -> mode -> 'a
 
   val of_func : (mode:mode -> 'a) -> 'a t

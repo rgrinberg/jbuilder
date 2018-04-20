@@ -54,6 +54,12 @@ module Dict = struct
     ; native = x
     }
 
+  let to_variant d =
+    Variant.Rules.make ~default:[]
+      [ Variant.byte, get d Byte
+      ; Variant.native, get d Native
+      ]
+
   module Set = struct
     type nonrec t = bool t
 

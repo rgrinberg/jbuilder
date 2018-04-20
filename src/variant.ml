@@ -104,6 +104,8 @@ module Rules = struct
 
   let make ~default l = List (default, l)
 
+  let const default = make ~default []
+
   let of_meta_rules (s : Meta.Simplified.Rules.t) : string list t =
     Pred (Rules0.of_meta_rules s)
 end
