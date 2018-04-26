@@ -50,6 +50,15 @@
     (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
+ ((name custom-build-dir)
+  (deps
+   ((package jbuilder) (files_recursively_in test-cases/custom-build-dir)))
+  (action
+   (chdir
+    test-cases/custom-build-dir
+    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+
+(alias
  ((name depend-on-the-universe)
   (deps
    ((package jbuilder)
@@ -451,6 +460,7 @@
     (alias configurator)
     (alias copy_files)
     (alias cross-compilation)
+    (alias custom-build-dir)
     (alias depend-on-the-universe)
     (alias exclude-missing-module)
     (alias exec-cmd)
@@ -503,6 +513,7 @@
     (alias configurator)
     (alias copy_files)
     (alias cross-compilation)
+    (alias custom-build-dir)
     (alias depend-on-the-universe)
     (alias exclude-missing-module)
     (alias exec-cmd)
