@@ -14,7 +14,8 @@ val pp_and_lint_modules
   -> preprocessor_deps:(unit, Path.t list) Build.t
   -> lib_name:string option
   -> scope:Scope.t
-  -> Module.t Module.Name.Map.t 
+  -> bisect:Jbuild.Bisect.t
+  -> Module.t Module.Name.Map.t
 
 (** Get a path to a cached ppx driver *)
 val get_ppx_driver

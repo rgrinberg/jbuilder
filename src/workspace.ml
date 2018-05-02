@@ -2,6 +2,23 @@ open Import
 open Sexp.Of_sexp
 
 module Context = struct
+  module Coverage = struct
+    type t = Coverage0.t =
+      { coverage     : string
+      ; covered_dirs : Ordered_set_lang.t
+      }
+
+    let t =
+      record
+        (field "coverage" string >>= fun coverage ->
+         field "covered_dirs" Ordered_set_lang.t
+           ~default:Ordered_set_lang.standard
+         >>= fun covered_dirs ->
+         return { coverage
+                ; covered_dirs
+                })
+  end
+
   module Target = struct
     type t =
       | Native
@@ -13,40 +30,65 @@ module Context = struct
       | s        -> Named s
   end
 
+  let field_targets = field "targets" (list Target.t) ~default:[Target.Native]
+
+  let field_coverage = field_o "instrumented" Coverage.t
+
   module Opam = struct
     type t =
-      { name    : string
-      ; switch  : string
-      ; root    : string option
-      ; merlin  : bool
-      ; targets : Target.t list
+      { name         : string
+      ; switch       : string
+      ; root         : string option
+      ; merlin       : bool
+      ; targets      : Target.t list
+      ; coverage     : Coverage.t option
       }
 
     let t =
-      field   "switch"  string                                    >>= fun switch ->
-      field   "name"    string ~default:switch                    >>= fun name ->
-      field   "targets" (list Target.t) ~default:[Target.Native]  >>= fun targets ->
-      field_o "root"    string                                    >>= fun root ->
-      field_b "merlin"                                            >>= fun merlin ->
+      field   "switch"  string                 >>= fun switch ->
+      field   "name"    string ~default:switch >>= fun name ->
+      field_targets                            >>= fun targets ->
+      field_coverage                           >>= fun coverage ->
+      field_o "root"    string                 >>= fun root ->
+      field_b "merlin"                         >>= fun merlin ->
       return { switch
              ; name
              ; root
              ; merlin
              ; targets
+             ; coverage
              }
   end
 
-  type t = Default of Target.t list | Opam of Opam.t
+  module Default = struct
+    type t =
+      { targets  : Target.t list
+      ; coverage : Coverage.t option
+      }
+
+    let default = { targets = [Native]; coverage = None }
+
+    let t =
+      field_targets >>= fun targets ->
+      field_coverage >>= fun coverage ->
+      return
+        { targets
+        ; coverage
+        }
+
+    let create ?coverage ~targets () =
+      { coverage; targets }
+  end
+
+  type t = Default of Default.t | Opam of Opam.t
 
   let t = function
-    | Atom (_, A "default") -> Default [Native]
+    | Atom (_, A "default") -> Default Default.default
     | List (_, List _ :: _) as sexp -> Opam (record Opam.t sexp)
     | sexp ->
       sum
         [ cstr_record "default"
-            (field "targets" (list Target.t) ~default:[Target.Native]
-             >>= fun targets ->
-             return (Default targets))
+            (Default.t >>= fun x -> return (Default x))
         ; cstr_record "opam"
             (Opam.t >>= fun x -> return (Opam x))
         ]
@@ -57,7 +99,7 @@ module Context = struct
     | Opam    o -> o.name
 
   let targets = function
-    | Default l -> l
+    | Default l -> l.targets
     | Opam    o -> o.targets
 
   let all_names t =
@@ -65,6 +107,8 @@ module Context = struct
     n :: List.filter_map (targets t) ~f:(function
       | Native -> None
       | Named s -> Some (n ^ "." ^ s))
+
+  let default = Default Default.default
 end
 
 type t =
@@ -93,7 +137,7 @@ let t ?x sexps =
               targets @ [target]
           in
           match ctx with
-          | Default targets -> Default (add_target target targets)
+          | Default d -> Default { d with targets = add_target target d.targets }
           | Opam o -> Opam { o with targets = add_target target o.targets }
       in
       let name = Context.name ctx in
@@ -118,7 +162,7 @@ let t ?x sexps =
   in
   let contexts =
     match contexts with
-    | [] -> [Context.Default [Native]]
+    | [] -> [Context.default]
     | _  -> contexts
   in
   let merlin_ctx =
@@ -133,6 +177,11 @@ let t ?x sexps =
   in
   { merlin_context = merlin_ctx
   ; contexts       = List.rev contexts
+  }
+
+let default =
+  { merlin_context = Some "default"
+  ; contexts = [Context.default]
   }
 
 let load ?x p = t ?x (Io.Sexp.load p ~mode:Many)

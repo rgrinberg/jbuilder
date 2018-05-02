@@ -14,9 +14,17 @@ module type S = sig
   val is_constant : _ t -> bool
   val map : 'a t -> f:('a -> 'b) -> 'b t
   val fold : 'a t -> init:'acc -> f:('a -> 'acc -> 'acc) -> 'acc
+
+  val merge
+    :  'a t
+    -> 'b t
+    -> default:'c
+    -> f:(key -> 'a -> 'b -> 'c)
+    -> 'c t
 end
 
 module Make(Key : Comparable.S) : S with type key = Key.t = struct
+  module Int_map = Map.Make(Int)
   module Map = Map.Make(Key)
 
   type key = Key.t
@@ -60,4 +68,15 @@ module Make(Key : Comparable.S) : S with type key = Key.t = struct
     Array.fold_right t.values ~init ~f
 
   let is_constant t = Array.length t.values = 1
+
+  (* TODO this is wrong *)
+  let merge x y ~default ~f =
+    Map.merge x.map y.map ~f:(fun key _ _ ->
+      Some (f key (get x key) (get y key)))
+    |> Map.to_list
+    |> List.map ~f:(fun (k, v) -> ([k], v))
+    |> of_mapping ~default
+    |> function
+    | Ok m -> m
+    | Error _ -> failwith "TODO"
 end

@@ -555,6 +555,7 @@ module Gen(P : Install_rules.Params) = struct
        preprocessing *)
     let modules =
       Preprocessing.pp_and_lint_modules sctx ~dir ~dep_kind ~modules ~scope
+        ~bisect:lib.buildable.bisect
         ~preprocess:lib.buildable.preprocess
         ~preprocessor_deps:
           (SC.Deps.interpret sctx ~scope ~dir
@@ -816,6 +817,7 @@ module Gen(P : Install_rules.Params) = struct
           ~scope ~dir
       in
       Preprocessing.pp_and_lint_modules sctx ~dir ~dep_kind:Required ~modules
+        ~bisect:exes.buildable.bisect
         ~scope
         ~preprocess:exes.buildable.preprocess
         ~preprocessor_deps

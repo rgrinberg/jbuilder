@@ -50,7 +50,7 @@ let setup ?(log=Log.no_log)
           pkg_name
           (hint pkg_name
              (Package.Name.Map.keys conf.packages
-             |> List.map ~f:Package.Name.to_string))));
+              |> List.map ~f:Package.Name.to_string))));
   let workspace =
     match workspace with
     | Some w -> w
@@ -70,11 +70,14 @@ let setup ?(log=Log.no_log)
         | Some p -> Workspace.load ?x p
         | None ->
           { merlin_context = Some "default"
-          ; contexts = [Default [
-              match x with
-              | None -> Native
-              | Some x -> Named x
-            ]]
+          ; contexts =
+              [ Workspace.Context.Default
+                  (Workspace.Context.Default.create ~targets:
+                     [ match x with
+                       | None -> Workspace.Context.Target.Native
+                       | Some x -> Named x
+                     ] ())
+              ]
           }
   in
 
@@ -253,8 +256,7 @@ let bootstrap () =
     Scheduler.go ~log ~config
       (set_concurrency config
        >>= fun () ->
-       setup ~log ~workspace:{ merlin_context = Some "default"
-                             ; contexts = [Default [Native]] }
+       setup ~log ~workspace:Workspace.default
          ~extra_ignored_subtrees:ignored_during_bootstrap
          ()
        >>= fun { build_system = bs; _ } ->

@@ -73,6 +73,7 @@ type t =
   ; cmxs_magic_number       : string
   ; cmt_magic_number        : string
   ; which_cache             : (string, Path.t option) Hashtbl.t
+  ; coverage                : Coverage0.t option
   }
 
 let sexp_of_t t =
@@ -128,7 +129,7 @@ let ocamlpath_sep =
   else
     Bin.path_sep
 
-let create ~(kind : Kind.t) ~path ~env ~name ~merlin ~targets () =
+let create ~coverage ~(kind : Kind.t) ~path ~env ~name ~merlin ~targets () =
   let opam_var_cache = Hashtbl.create 128 in
   (match kind with
    | Opam { root; _ } ->
@@ -387,6 +388,7 @@ let create ~(kind : Kind.t) ~path ~env ~name ~merlin ~targets () =
       ; cmt_magic_number        = Ocaml_config.cmt_magic_number        ocfg
 
       ; which_cache
+      ; coverage
       }
   in
 
@@ -407,7 +409,7 @@ let opam_config_var t var = opam_config_var ~env:t.env ~cache:t.opam_var_cache v
 let default ?(merlin=true) ~env ~targets () =
   create ~kind:Default ~path:Bin.path ~env ~name:"default" ~merlin ~targets ()
 
-let create_for_opam ?root ~env ~targets ~switch ~name ?(merlin=false) () =
+let create_for_opam ?root ~coverage ~env ~targets ~switch ~name ?(merlin=false) () =
   match Bin.opam with
   | None -> Utils.program_not_found "opam"
   | Some fn ->
@@ -444,13 +446,14 @@ let create_for_opam ?root ~env ~targets ~switch ~name ?(merlin=false) () =
       | Some s -> Bin.parse_path s
     in
     let env = Env.extend env ~vars in
-    create ~kind:(Opam { root; switch }) ~targets ~path ~env ~name ~merlin ()
+    create ~coverage ~kind:(Opam { root; switch }) ~targets ~path ~env ~name ~merlin ()
 
 let create ?merlin ~env def =
   match (def : Workspace.Context.t) with
-  | Default targets -> default ~env ~targets ?merlin ()
-  | Opam { name; switch; root; targets; _ } ->
-    create_for_opam ?root ~env ~switch ~name ?merlin ~targets ()
+  | Default { targets; coverage } ->
+    default ~coverage ~env ~targets ?merlin ()
+  | Opam { name; switch; root; targets; coverage ; merlin = _ } ->
+    create_for_opam ?root ~coverage ~env ~switch ~name ?merlin ~targets ()
 
 let which t s = which ~cache:t.which_cache ~path:t.path s
 

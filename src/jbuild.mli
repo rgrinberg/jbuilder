@@ -134,6 +134,12 @@ module Dep_conf : sig
   val sexp_of_t : t -> Sexp.t
 end
 
+module Bisect : sig
+  type t =
+    { modules : Ordered_set_lang.t
+    }
+end
+
 module Buildable : sig
   type t =
     { loc                      : Loc.t
@@ -148,6 +154,7 @@ module Buildable : sig
     ; ocamlopt_flags           : Ordered_set_lang.Unexpanded.t
     ; js_of_ocaml              : Js_of_ocaml.t
     ; allow_overlapping_dependencies : bool
+    ; bisect : Bisect.t
     }
 
   (** Preprocessing specification used by all modules or [No_preprocessing] *)

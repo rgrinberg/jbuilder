@@ -475,6 +475,27 @@ module Lib_deps = struct
     List.map pps ~f:(fun pp -> Lib_dep.of_pp (Loc.none, pp))
 end
 
+let modules_field name =
+  field name Ordered_set_lang.t ~default:Ordered_set_lang.standard
+
+module Bisect = struct
+  type t =
+    { modules : Ordered_set_lang.t
+    }
+
+  let default =
+    { modules = Ordered_set_lang.standard
+    }
+
+  let t =
+    record
+      (modules_field "modules" >>= fun modules ->
+       return
+         { modules
+         }
+      )
+end
+
 module Buildable = struct
   type t =
     { loc                      : Loc.t
@@ -489,10 +510,8 @@ module Buildable = struct
     ; ocamlopt_flags           : Ordered_set_lang.Unexpanded.t
     ; js_of_ocaml              : Js_of_ocaml.t
     ; allow_overlapping_dependencies : bool
+    ; bisect : Bisect.t
     }
-
-  let modules_field name =
-    field name Ordered_set_lang.t ~default:Ordered_set_lang.standard
 
   let v1 =
     record_loc >>= fun loc ->
@@ -515,6 +534,8 @@ module Buildable = struct
     >>= fun js_of_ocaml ->
     field_b "allow_overlapping_dependencies"
     >>= fun allow_overlapping_dependencies ->
+    field "bisect" Bisect.t ~default:Bisect.default
+    >>= fun bisect ->
     return
       { loc
       ; preprocess
@@ -528,6 +549,7 @@ module Buildable = struct
       ; ocamlopt_flags
       ; js_of_ocaml
       ; allow_overlapping_dependencies
+      ; bisect
       }
 
   let single_preprocess t =

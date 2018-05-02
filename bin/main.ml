@@ -520,7 +520,7 @@ let installed_libraries =
     set_common common ~targets:[];
     let env = Main.setup_env ~capture_outputs:common.capture_outputs in
     Scheduler.go ~log:(Log.create common) ~common
-      (Context.create (Default [Native]) ~env >>= fun ctxs ->
+      (Context.create Workspace.Context.default ~env >>= fun ctxs ->
        let ctx = List.hd ctxs in
        let findlib = ctx.findlib in
        if na then begin

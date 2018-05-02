@@ -80,6 +80,21 @@ let create
   let installed_libs =
     Lib.DB.create_from_findlib context.findlib ~external_lib_deps_mode
   in
+  let stanzas =
+    match context.coverage with
+    | None -> stanzas
+    | Some coverage ->
+      List.map stanzas ~f:(fun (dir, scope, stanzas) ->
+        ( dir
+        , scope
+        , List.map stanzas ~f:(fun stanza ->
+            match (stanza : Stanza.t) with
+            | Library lib ->
+              Stanza.Library (Coverage.apply_for_compile_info coverage
+                                ~lib_dir:dir ~lib)
+            | s -> s))
+      )
+  in
   let internal_libs =
     List.concat_map stanzas ~f:(fun (dir, _, stanzas) ->
       let ctx_dir = Path.append context.build_dir dir in
@@ -207,15 +222,15 @@ let create
       | Chdir _ -> action
       | _ -> Chdir (context.build_dir, action))
   ; libs_by_package =
-    Lib.DB.all public_libs
-    |> Lib.Set.to_list
-    |> List.map ~f:(fun lib ->
-      (Option.value_exn (Lib.package lib), lib))
-    |> Package.Name.Map.of_list_multi
-    |> Package.Name.Map.merge packages ~f:(fun _name pkg libs ->
-      let pkg  = Option.value_exn pkg          in
-      let libs = Option.value libs ~default:[] in
-      Some (pkg, Lib.Set.of_list libs))
+      Lib.DB.all public_libs
+      |> Lib.Set.to_list
+      |> List.map ~f:(fun lib ->
+        (Option.value_exn (Lib.package lib), lib))
+      |> Package.Name.Map.of_list_multi
+      |> Package.Name.Map.merge packages ~f:(fun _name pkg libs ->
+        let pkg  = Option.value_exn pkg          in
+        let libs = Option.value libs ~default:[] in
+        Some (pkg, Lib.Set.of_list libs))
   }
 
 let prefix_rules t prefix ~f =

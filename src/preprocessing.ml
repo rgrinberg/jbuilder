@@ -295,12 +295,18 @@ let lint_module sctx ~dir ~dep_kind ~lint ~lib_name ~scope = Staged.stage (
 (* Generate rules to build the .pp files and return a new module map
    where all filenames point to the .pp files *)
 let pp_and_lint_modules sctx ~dir ~dep_kind ~modules ~lint ~preprocess
-      ~preprocessor_deps ~lib_name ~scope =
+      ~preprocessor_deps ~lib_name ~scope ~bisect =
   let preprocessor_deps =
     Build.memoize "preprocessor deps" preprocessor_deps
   in
   let lint_module =
     Staged.unstage (lint_module sctx ~dir ~dep_kind ~lint ~lib_name ~scope)
+  in
+  let preprocess =
+    match (SC.context sctx).coverage with
+    | None -> preprocess
+    | Some coverage ->
+      Coverage.preprocess coverage ~bisect ~modules ~preprocess
   in
   let preprocess =
     Per_module.map preprocess ~f:(function
