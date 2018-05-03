@@ -267,6 +267,11 @@ let of_string ?error_loc s =
     else
       s
 
+let readdir t =
+  Sys.readdir (to_string t)
+  |> Array.to_list
+  |> List.map ~f:(relative t)
+
 let t sexp = of_string (Sexp.Of_sexp.string sexp) ~error_loc:(Sexp.Ast.loc sexp)
 let sexp_of_t t = Sexp.atom_or_quoted_string (to_string t)
 
@@ -429,7 +434,6 @@ let explode_exn t =
 let exists t =
   try Sys.file_exists (to_string t)
   with Sys_error _ -> false
-let readdir t = Sys.readdir (to_string t) |> Array.to_list
 let is_directory t =
   try Sys.is_directory (to_string t)
   with Sys_error _ -> false

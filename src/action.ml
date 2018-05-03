@@ -679,11 +679,11 @@ module Promotion = struct
       match Path.readdir Path.build_dir with
       | exception _ -> []
       | files ->
-        List.filter_map files ~f:(fun fn ->
+        List.filter_map files ~f:(fun path ->
+          let fn = Path.basename path in
           if fn = "" || fn.[0] = '.' || fn = "install" then
             None
           else
-            let path = Path.(relative build_dir) fn in
             Option.some_if (Path.is_directory path) path)
     in
     let dirs_to_clear_from_cache = Path.root :: potential_build_contexts in

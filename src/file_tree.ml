@@ -57,9 +57,9 @@ let load ?(extra_ignored_subtrees=Path.Set.empty) path =
     let contents = lazy (
       let files, sub_dirs =
         Path.readdir path
-        |> List.filter_partition_map ~f:(fun fn ->
-          let path = Path.relative path fn in
+        |> List.filter_partition_map ~f:(fun path ->
           let is_directory = Path.is_directory path in
+          let fn = Path.basename path in
           if ignore_file fn ~is_directory then
             Skip
           else if is_directory then

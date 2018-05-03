@@ -387,8 +387,7 @@ let get_dir_status t ~dir =
       Dir_status.Loaded
         (match Path.readdir dir with
          | exception _ -> Path.Set.empty
-         | files ->
-           Pset.of_list (List.map files ~f:(Path.relative dir)))
+         | files -> Pset.of_list files)
     else begin
       let (ctx, sub_dir) = Option.value_exn (Path.extract_build_context dir) in
       if ctx = ".aliases" then
@@ -619,14 +618,13 @@ let remove_old_artifacts t ~dir ~subdirs_to_keep =
     match Path.readdir dir with
     | exception _ -> ()
     | files ->
-      List.iter files ~f:(fun fn ->
-        let path = Path.relative dir fn in
+      List.iter files ~f:(fun path ->
         match Unix.lstat (Path.to_string path) with
         | { st_kind = S_DIR; _ } -> begin
             match subdirs_to_keep with
             | All -> ()
             | These set ->
-              if String.Set.mem set fn ||
+              if String.Set.mem set (Path.basename path) ||
                  Pset.mem t.build_dirs_to_keep path then
                 ()
               else
