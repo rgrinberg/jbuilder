@@ -559,7 +559,8 @@ let rm_rf =
       match Unix.lstat fn with
       | { st_kind = S_DIR; _ } -> loop fn
       | _                      -> unlink_operation fn);
-    Unix.rmdir dir
+    Format.eprintf "Rm'ing dir: %s@.%!" dir
+    (* Unix.rmdir dir *)
   in
   fun t ->
     let fn = to_string t in
