@@ -342,10 +342,12 @@ let sexp_of_t t = Sexp.atom_or_quoted_string (to_string t)
 let initial_cwd = Sys.getcwd ()
 
 let absolute fn =
-  if is_local_fn fn then
-    external_ (Filename.concat initial_cwd fn)
-  else
-    in_source_tree fn
+  external_ (
+    if is_local_fn fn then
+      Filename.concat initial_cwd fn
+    else
+      fn
+  )
 
 let to_absolute_filename t ~root = Kind.to_absolute_filename (kind t) ~root
 
