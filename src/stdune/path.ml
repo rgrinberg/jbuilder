@@ -558,8 +558,6 @@ let insert_after_build_dir_exn =
 
 let rm_rf =
   let rec loop dir =
-    let unlink_operation fn =
-      Format.eprintf "Deleting: %s@.%!" fn in
     Array.iter (Sys.readdir dir) ~f:(fun fn ->
       let fn = Filename.concat dir fn in
       match Unix.lstat fn with
