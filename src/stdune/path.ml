@@ -309,17 +309,18 @@ let root = in_source_tree ""
 let relative ?error_loc t fn =
   if fn = "" then
     t
+  else if not (Filename.is_relative fn) then
+    external_ fn
   else
-    match t, is_local_fn fn with
-    | _, false -> external_ fn
-    | In_source_tree s, true ->
+    match t with
+    | In_source_tree s ->
       begin match String.drop_prefix fn ~prefix:build_dir_prefix with
       | None -> in_source_tree (Local.relative s fn ?error_loc)
       | Some fn -> in_build_dir (Local.relative s fn ?error_loc)
       end
-    | In_build_dir s, true ->
+    | In_build_dir s ->
       in_build_dir (Local.relative s fn ?error_loc)
-    | External s, true -> external_ (External.relative s fn)
+    | External s -> external_ (External.relative s fn)
 
 let of_string ?error_loc s =
   match s with
