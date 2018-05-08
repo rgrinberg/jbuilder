@@ -555,7 +555,7 @@ let insert_after_build_dir_exn =
   in
   fun a b ->
     match a with
-    | In_build_dir a -> in_source_tree (Local.relative b a)
+    | In_build_dir a -> in_build_dir (Local.relative b a)
     | In_source_tree _
     | External _ -> error a b
 
