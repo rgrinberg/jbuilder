@@ -31,6 +31,9 @@ next
 - Display a better error messages when writing `(inline_tests)` in an
   executable stanza (#748, @diml)
 
+- Fix a crash when using c files from another directory (#758, fixes
+  #734, @diml)
+
 1.0+beta20 (10/04/2018)
 -----------------------
 
