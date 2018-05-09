@@ -194,6 +194,22 @@
      (diff? run.t run.t.corrected))))))
 
 (alias
+ ((name github734)
+  (deps ((package dune) (files_recursively_in test-cases/github734)))
+  (action
+   (chdir
+    test-cases/github734
+    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+
+(alias
+ ((name github759)
+  (deps ((package dune) (files_recursively_in test-cases/github759)))
+  (action
+   (chdir
+    test-cases/github759
+    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+
+(alias
  ((name include-loop)
   (deps ((package dune) (files_recursively_in test-cases/include-loop)))
   (action
@@ -476,6 +492,8 @@
     (alias github644)
     (alias github660)
     (alias github717-odoc-index)
+    (alias github734)
+    (alias github759)
     (alias include-loop)
     (alias inline_tests)
     (alias installable-dup-private-libs)
@@ -528,6 +546,8 @@
     (alias github568)
     (alias github597)
     (alias github660)
+    (alias github734)
+    (alias github759)
     (alias include-loop)
     (alias inline_tests)
     (alias installable-dup-private-libs)
