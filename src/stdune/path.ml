@@ -692,3 +692,5 @@ module Set = struct
     |> List.map ~f
     |> of_list
 end
+
+let in_source s = in_source_tree (Local.of_string s)
