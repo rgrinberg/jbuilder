@@ -11,6 +11,25 @@ let explode_path =
   in
   fun path -> loop path []
 
+let normalize_to_base base path =
+  let parent p =
+    match p with
+    | "" -> None
+    | p ->
+      let parent = Filename.dirname p in
+      Option.some_if (parent <> p) parent in
+  let rec loop base = function
+    | [] -> Result.Ok base
+    | "." :: rest -> loop base rest
+    | ".." :: rest ->
+      begin match parent base with
+      | Some parent -> loop parent rest
+      | None -> Result.Error ()
+      end
+    | fn :: rest -> loop (Filename.concat base fn) rest
+  in
+  loop base (explode_path path)
+
 module External = struct
   type t = string
 
@@ -48,6 +67,10 @@ module External = struct
       | Unix.Unix_error (ENOENT, _, _) ->
         mkdir_p p;
         Unix.mkdir t 0o777
+
+ 
+  [@@@ocaml.warning "-32"]
+  let normalize = normalize_to_base "/"
 end
 
 module Local = struct
@@ -108,21 +131,7 @@ module Local = struct
         ; "path", Usexp.atom_or_quoted_string path
         ]
     );
-    let rec loop t components =
-      match components with
-      | [] -> Result.Ok t
-      | "." :: rest -> loop t rest
-      | ".." :: rest ->
-        begin match t with
-        | "" -> Result.Error ()
-        | t -> loop (parent t) rest
-        end
-      | fn :: rest ->
-        match t with
-        | "" -> loop fn rest
-        | _ -> loop (t ^ "/" ^ fn) rest
-    in
-    match loop t (explode_path path) with
+    match normalize_to_base t path with
     | Result.Ok t -> t
     | Error () ->
        Exn.fatalf ?loc:error_loc "path outside the workspace: %s from %s" path
