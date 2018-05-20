@@ -484,7 +484,7 @@ let reach t ~from =
 
 let reach_for_running ?(from=root) t =
   match kind t, kind from with
-  | External _, _ -> t
+  | External t, _ -> t
   | Local _, External _ ->
     Exn.code_error "Path.reach_for_running called with invalid combination"
       [ "t"   , sexp_of_t t
@@ -493,12 +493,10 @@ let reach_for_running ?(from=root) t =
   | Local t, Local from ->
     let reach = Local.reach t ~from in
     let s = Local.to_string reach in
-    in_source_tree (
-      if String.is_prefix s ~prefix:"../" then
-        reach
-      else
-        Local.of_string ("./" ^ s)
-    )
+    if String.is_prefix s ~prefix:"../" then
+      s
+    else
+      "./" ^ s
 
 let descendant t ~of_ =
   match kind t, kind of_ with
