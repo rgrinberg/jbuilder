@@ -312,3 +312,18 @@ Path.(reach_for_running (relative root "foo") ~from:(Path.relative root "foo"))
 [%%expect{|
 - : string = "./."
 |}]
+
+Path.(of_string "doc\\dune.inc")
+[%%expect{|
+- : Stdune.Path.t = doc\dune.inc
+|}]
+
+Path.(parent_exn (of_string "doc\\dune.inc"))
+[%%expect{|
+- : Stdune.Path.t = .
+|}]
+
+Path.(relative root "foo\\bar")
+[%%expect{|
+- : Stdune.Path.t = .
+|}]
