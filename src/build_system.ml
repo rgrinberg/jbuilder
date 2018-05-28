@@ -196,7 +196,7 @@ end
 
 module File_spec = struct
   type 'a t =
-    { rule         : Internal_rule.t (* Rule which produces it *)
+    { rule         : Internal_rule.t Lazy.t (* Rule which produces it *)
     ; mutable kind : 'a File_kind.t
     ; mutable data : 'a option
     }
@@ -532,6 +532,7 @@ let add_spec t fn spec ~copy_source =
   | None ->
     Hashtbl.add t.files fn spec
   | Some (File_spec.T { rule; _ }) ->
+    let rule = Lazy.force rule in
     match copy_source, rule.mode with
     | true, (Standard | Not_a_rule_stanza) ->
       Loc.warn (Internal_rule.loc rule ~dir:(Path.parent_exn fn)
@@ -567,7 +568,7 @@ let add_spec t fn spec ~copy_source =
            "<internal copy rule>"
          else
            string_of_loc rule.loc)
-        (string_of_loc rule2.loc)
+        (string_of_loc (Lazy.force rule2).loc)
 
 let create_file_specs t targets rule ~copy_source =
   List.iter targets ~f:(function
@@ -687,32 +688,30 @@ let rec compile_rule t ?(copy_source=false) pre_rule =
       } =
     pre_rule
   in
-  let targets = Target.paths target_specs in
-  let { Build_interpret.Static_deps.
-        rule_deps
-      ; action_deps = static_deps
-      } = Build_interpret.static_deps build ~all_targets:(targets_of t)
-            ~file_tree:t.file_tree
+  let targets = lazy (Target.paths target_specs) in
+  let static_deps = lazy (
+    Build_interpret.static_deps build ~all_targets:(targets_of t)
+      ~file_tree:t.file_tree)
   in
-
   let eval_rule () =
     t.hook Rule_started;
-    wait_for_deps t rule_deps
+    wait_for_deps t ((Lazy.force static_deps).rule_deps)
     >>| fun () ->
     Build_exec.exec t build ()
   in
   let exec_rule (rule_evaluation : Exec_status.rule_evaluation) =
     Fiber.fork_and_join_unit
       (fun () ->
-         wait_for_deps t static_deps)
+         wait_for_deps t (Lazy.force static_deps).action_deps)
       (fun () ->
          Fiber.Future.wait rule_evaluation >>= fun (action, dyn_deps) ->
-         wait_for_deps t (Path.Set.diff dyn_deps static_deps)
+         wait_for_deps t (Path.Set.diff dyn_deps (Lazy.force static_deps).action_deps)
          >>| fun () ->
          (action, dyn_deps))
     >>= fun (action, dyn_deps) ->
+    let targets = Lazy.force targets in
     make_local_parent_dirs t targets ~map_path:(fun x -> x);
-    let all_deps = Path.Set.union static_deps dyn_deps in
+    let all_deps = Path.Set.union (Lazy.force static_deps).action_deps dyn_deps in
     let all_deps_as_list = Path.Set.to_list all_deps in
     let targets_as_list  = Path.Set.to_list targets  in
     let hash =
@@ -800,7 +799,10 @@ let rec compile_rule t ?(copy_source=false) pre_rule =
     end;
     t.hook Rule_completed
   in
-  let rule =
+  let rule = lazy (
+    let { Build_interpret.Static_deps.rule_deps
+        ; action_deps = static_deps } = Lazy.force static_deps in
+    let targets = Lazy.force targets in
     { Internal_rule.
       id = Internal_rule.Id.gen ()
     ; static_deps
@@ -812,7 +814,7 @@ let rec compile_rule t ?(copy_source=false) pre_rule =
     ; mode
     ; loc
     ; dir
-    }
+    })
   in
   create_file_specs t target_specs rule ~copy_source
 
@@ -1072,14 +1074,15 @@ and wait_for_file t fn =
       die "File unavailable: %s" (Path.to_string_maybe_quoted fn)
 
 and wait_for_file_found fn (File_spec.T file) =
-  Dependency_path.push fn ~targets:file.rule.targets ~f:(fun () ->
-    match file.rule.exec with
+  let rule = Lazy.force file.rule in
+  Dependency_path.push fn ~targets:rule.targets ~f:(fun () ->
+    match rule.exec with
     | Not_started { eval_rule; exec_rule } ->
       Fiber.fork eval_rule
       >>= fun rule_evaluation ->
       Fiber.fork (fun () -> exec_rule rule_evaluation)
       >>= fun rule_execution ->
-      file.rule.exec <-
+      rule.exec <-
         Running { rule_evaluation
                 ; rule_execution
                 };
@@ -1089,7 +1092,7 @@ and wait_for_file_found fn (File_spec.T file) =
     | Evaluating_rule { rule_evaluation; exec_rule } ->
       Fiber.fork (fun () -> exec_rule rule_evaluation)
       >>= fun rule_execution ->
-      file.rule.exec <-
+      rule.exec <-
         Running { rule_evaluation
                 ; rule_execution
                 };
@@ -1255,7 +1258,7 @@ let rules_for_files t paths =
       load_dir t ~dir:(Path.parent_exn path);
     match Hashtbl.find t.files path with
     | None -> None
-    | Some (File_spec.T { rule; _ }) -> Some rule)
+    | Some (File_spec.T { rule; _ }) -> Some (Lazy.force rule))
   |> Ir_set.of_list
   |> Ir_set.to_list
 
@@ -1355,6 +1358,7 @@ let build_rules_internal ?(recursive=false) t ~request =
     | None ->
       Fiber.return ()
   and file_found fn (File_spec.T { rule = ir; _ }) =
+    let ir = Lazy.force ir in
     if Rule.Id.Set.mem !rules_seen ir.id then
       Fiber.return ()
     else begin
@@ -1441,6 +1445,7 @@ let package_deps t pkg files =
     match Hashtbl.find t.files fn with
     | None -> acc
     | Some (File_spec.T { rule = ir; _ }) ->
+      let ir = Lazy.force ir in
       if Rule.Id.Set.mem !rules_seen ir.id then
         acc
       else begin
