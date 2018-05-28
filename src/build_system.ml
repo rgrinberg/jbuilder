@@ -162,20 +162,25 @@ module Internal_rule = struct
       n
   end
 
-  type t =
-    { id               : Id.t
-    ; rule_deps        : Path.Set.t
-    ; static_deps      : Path.Set.t
-    ; targets          : Path.Set.t
-    ; context          : Context.t option
-    ; build            : (unit, Action.t) Build.t
-    ; mode             : Jbuild.Rule.Mode.t
-    ; loc              : Loc.t option
-    ; dir              : Path.t
-    ; mutable exec     : Exec_status.t
-    }
+  module T = struct
+    type t =
+      { id               : Id.t
+      ; rule_deps        : Path.Set.t
+      ; static_deps      : Path.Set.t
+      ; targets          : Path.Set.t
+      ; context          : Context.t option
+      ; build            : (unit, Action.t) Build.t
+      ; mode             : Jbuild.Rule.Mode.t
+      ; loc              : Loc.t option
+      ; dir              : Path.t
+      ; mutable exec     : Exec_status.t
+      }
 
-  let compare a b = Id.compare a.id b.id
+    let compare a b = Id.compare a.id b.id
+  end
+  include T
+
+  module Set = Set.Make(T)
 
   let loc ~file_tree ~dir t  = rule_loc ~file_tree ~dir ~loc:t.loc
 end
@@ -1247,8 +1252,6 @@ let do_build t ~request =
     update_universe t;
     eval_request t ~request ~process_target:(wait_for_file t))
 
-module Ir_set = Set.Make(Internal_rule)
-
 
 let rules_for_files t paths =
   Path.Set.fold paths ~init:[] ~f:(fun path acc ->
@@ -1257,8 +1260,8 @@ let rules_for_files t paths =
     match Hashtbl.find t.files path with
     | None -> acc
     | Some (File_spec.T { rule; _ }) -> rule :: acc)
-  |> Ir_set.of_list
-  |> Ir_set.to_list
+  |> Internal_rule.Set.of_list
+  |> Internal_rule.Set.to_list
 
 let rules_for_targets t targets =
   match
@@ -1401,11 +1404,10 @@ let build_rules_internal ?(recursive=false) t ~request =
         Path.Map.add acc fn r))
   in
   match
-    Rule.Id.Top_closure.top_closure
+    Internal_rule.Id.Top_closure.top_closure
       (rules_for_files rules !targets)
       ~key:(fun (r : Rule.t) -> r.id)
-      ~deps:(fun (r : Rule.t) ->
-        rules_for_files rules r.deps)
+      ~deps:(fun (r : Rule.t) -> rules_for_files rules r.deps)
   with
   | Ok l -> l
   | Error cycle ->
