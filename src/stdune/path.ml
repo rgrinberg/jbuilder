@@ -123,67 +123,54 @@ module Local : sig
     type t
 
     val make : local -> t
-    val drop : t -> local -> local option
 
     (* for all local path p, drop (invalid p = None) *)
     val invalid : t
   end with type local := t
+
+  val of_string'
+    : ?error_loc:Usexp.Loc.t -> strip_prefix:Prefix.t -> string
+    -> [`Prefix of t | `No_prefix of t]
 end = struct
   (* either "" for root, either a '/' separated list of components
      other that ".", ".."  and not containing '/'. *)
-  include Interned.Make(struct
+  module Comp = Interned.Make(struct
       let initial_size = 512
       let resize_policy = Interned.Greedy
     end)
 
-  let compare_val x y = String.compare (to_string x) (to_string y)
+  module T = struct
+    type t = Comp.t list
+    let compare = List.compare ~compare:Comp.compare
+  end
 
-  let root = make ""
+  include T
 
-  let to_istring = to_string
+  module Set = Set.Make(T)
 
-  let is_root t =
-    match compare root t with
-    | Ordering.Eq -> true
-    | Ordering.Lt | Gt -> false
+  let compare_val x y =
+    List.compare (List.rev x) (List.rev y) ~compare:(fun x y ->
+      String.compare (Comp.to_string x) (Comp.to_string y))
+
+  let root = []
+
+  let to_istring p =
+    List.rev_map ~f:Comp.to_string p
+    |> String.concat ~sep:"/"
+
+  let is_root = function
+    | [] -> true
+    | _::_ -> false
 
   let to_string t = if is_root t then "." else to_istring t
 
-  let to_list =
-    let rec loop t acc i j =
-      if i = 0 then
-        String.sub t ~pos:0 ~len:j :: acc
-      else
-        match t.[i - 1] with
-        | '/' -> loop t (String.sub t ~pos:i ~len:(j - i) :: acc) (i - 1) (i - 1)
-        | _   -> loop t acc (i - 1) j
-    in
-    fun t ->
-      if is_root t then
-        []
-      else
-        let t = to_istring t in
-        let len = String.length t in
-        loop t [] len len
+  let parent = function
+    | [] -> Exn.code_error "Path.Local.parent called on the root" []
+    | _::xs -> xs
 
-  let parent t =
-    if is_root t then
-      Exn.code_error "Path.Local.parent called on the root" []
-    else
-      let t = to_istring t in
-      match String.rindex_from t (String.length t - 1) '/' with
-      | exception Not_found -> root
-      | i -> make (String.sub t ~pos:0 ~len:i)
-
-  let basename t =
-    if is_root t then
-      Exn.code_error "Path.Local.basename called on the root" []
-    else
-      let t = to_istring t in
-      let len = String.length t in
-      match String.rindex_from t (len - 1) '/' with
-      | exception Not_found -> t
-      | i -> String.sub t ~pos:(i + 1) ~len:(len - i - 1)
+  let basename = function
+    | [] -> Exn.code_error "Path.Local.basename called on the root" []
+    | b::_ -> Comp.to_string b
 
   let sexp_of_t t = Sexp.To_sexp.string (to_istring t)
 
@@ -204,18 +191,66 @@ end = struct
         else
           loop (parent t) rest
       | fn :: rest ->
-        if is_root t then
-          loop (make fn) rest
-        else
-          loop (make (to_istring t ^ "/" ^ fn)) rest
+        loop (Comp.make fn :: t) rest
     in
     match loop t (explode_path path) with
     | Result.Ok t -> t
     | Error () ->
       Exn.fatalf ?loc:error_loc "path outside the workspace: %s from %s" path
         (to_string t)
+  ;;
 
-  let is_canonicalized =
+  let relative' ~strip_prefix ?error_loc t path =
+    if not (Filename.is_relative path) then (
+      Exn.code_error "Local.relative: received absolute path"
+        [ "t", sexp_of_t t
+        ; "path", Usexp.atom_or_quoted_string path
+        ]
+    );
+    let rec loop' t components =
+      match components with
+      | [] -> Result.Ok t
+      | "." :: rest -> loop' t rest
+      | ".." :: rest ->
+        if is_root t then
+          Result.Error ()
+        else
+          loop' (parent t) rest
+      | fn :: rest ->
+        loop' (Comp.make fn :: t) rest
+    and loop t prefix components =
+      match components, prefix with
+      | [], _::_ -> Result.Ok (`No_prefix t)
+      | [], [] -> Result.Ok (`Prefix t)
+      | "." :: rest, _ -> loop t prefix rest
+      | ".." :: rest, _ ->
+        if is_root t then
+          Result.Error ()
+        else
+          loop (parent t) prefix rest
+      | fn :: rest, [] ->
+        Result.map ~f:(fun x -> `No_prefix x)
+          (loop' ((Comp.make fn) :: t) rest)
+      | fn :: rest, p :: ps ->
+        begin match Comp.compare (Comp.make fn) p with
+        | Ordering.Eq -> loop (Comp.make fn :: t) ps rest
+        | _ -> Result.map
+                 ~f:(fun x -> `No_prefix x)
+                 (loop' (Comp.make fn :: t) rest)
+        end
+    in
+    match
+      match strip_prefix with
+      | Some strip_prefix -> loop t strip_prefix (explode_path path)
+      | None -> Result.map ~f:(fun x -> `No_prefix x)
+                  (loop' t (explode_path path))
+    with
+    | Result.Ok t -> t
+    | Error () ->
+      Exn.fatalf ?loc:error_loc "path outside the workspace: %s from %s" path
+        (to_string t)
+
+  let _is_canonicalized =
     let rec before_slash s i =
       if i < 0 then
         false
@@ -252,10 +287,10 @@ end = struct
       len = 0 || before_slash s (len - 1)
 
   let of_string ?error_loc s =
-    if is_canonicalized s then
-      make s
-    else
-      relative root s ?error_loc
+    relative root s ?error_loc
+
+  let of_string' ?error_loc ~strip_prefix s =
+    relative' root s ~strip_prefix ?error_loc
 
   let t sexp =
     of_string (Sexp.Of_sexp.string sexp)
@@ -283,83 +318,48 @@ end = struct
     match is_root a, is_root b with
     | true, _ -> b
     | _, true -> a
-    | _, _ -> make ((to_istring a) ^ "/" ^ (to_istring b))
+    | _, _ -> List.fold_right ~f:List.cons ~init:a b
 
   let descendant t ~of_ =
-    if is_root of_ then
-      Some t
-    else if compare t of_ = Ordering.Eq then
-      Some t
-    else
-      let t = to_istring t in
-      let of_ = to_istring of_ in
-      let of_len = String.length of_ in
-      let t_len = String.length t in
-      if (t_len > of_len && t.[of_len] = '/'
-          && String.is_prefix t ~prefix:of_) then
-        Some (make (String.sub t ~pos:(of_len + 1) ~len:(t_len - of_len - 1)))
-      else
-        None
+    let rec loop t of_ =
+      match t, of_ with
+      | t, [] -> Some (List.rev t)
+      | [], _::_ -> None
+      | x::xs, y::ys ->
+        begin match Comp.compare x y with
+        | Ordering.Eq -> loop xs ys
+        | _ -> None
+        end in
+    match t, of_ with
+    | t, []  -> Some t
+    | [], _ -> None
+    | x, y ->
+      begin match compare x y with
+      | Ordering.Eq -> Some x
+      | _ -> loop (List.rev t) (List.rev of_)
+      end
 
-  let is_descendant t ~of_ =
-    is_root of_
-    || compare t of_ = Ordering.Eq
-    || (
-      let t = to_istring t in
-      let of_ = to_istring of_ in
-      let of_len = String.length of_ in
-      let t_len = String.length t in
-      (t_len > of_len && t.[of_len] = '/' && String.is_prefix t ~prefix:of_))
+  let is_descendant t ~of_ = Option.is_some (descendant t ~of_)
 
   let reach t ~from =
     let rec loop t from =
       match t, from with
-      | a :: t, b :: from when a = b ->
-        loop t from
-      | _ ->
-        make (
-          match List.fold_left from ~init:t ~f:(fun acc _ -> ".." :: acc) with
-          | [] -> "."
-          | l -> (String.concat l ~sep:"/")
-        )
+      | x::xs, y::ys when Comp.compare x y = Ordering.Eq ->
+        loop xs ys
+      | _, _ ->
+        append (List.map ~f:(fun _ -> Comp.make "..") from) (List.rev t)
     in
-    loop (to_list t) (to_list from)
+    loop (List.rev t) (List.rev from)
 
-  let extend_basename t ~suffix = make (to_istring t ^ suffix)
+  let extend_basename t ~suffix =
+    match t with
+    | [] -> [Comp.make suffix]
+    | x::xs -> (Comp.make (Comp.to_string x ^ suffix)) :: xs
 
   module Prefix = struct
-    let make_path = make
-
-    type t =
-      { len        : int
-      ; path       : string
-      ; path_slash : string
-      }
-
-    let make p =
-      if is_root p then
-        Exn.code_error "Path.Local.Prefix.make"
-          [ "path", sexp_of_t p ];
-      let p = to_istring p in
-      { len        = String.length p
-      ; path       = p
-      ; path_slash = p ^ "/"
-      }
-
-    let drop t p =
-      let p = to_istring p in
-      let len = String.length p in
-      if len = t.len && p = t.path then
-        Some root
-      else
-        String.drop_prefix p ~prefix:t.path_slash
-        |> Option.map ~f:make_path
-
-    let invalid =
-      { len        = -1
-      ; path       = "/"
-      ; path_slash = "/"
-      }
+    type t = Comp.t list option
+    let make p = Some (List.rev p)
+    let invalid = None
   end
 end
 
@@ -512,11 +512,6 @@ let to_string_maybe_quoted t =
 
 let root = in_source_tree Local.root
 
-let make_local_path p =
-  match Local.Prefix.drop (Lazy.force build_dir_prefix) p with
-  | None -> in_source_tree p
-  | Some p -> in_build_dir p
-
 let relative ?error_loc t fn =
   if fn = "" then
     t
@@ -526,7 +521,11 @@ let relative ?error_loc t fn =
     match t with
     | In_source_tree p ->
       if Local.is_root p then
-        make_local_path (Local.of_string fn ?error_loc)
+        match Local.of_string' ~strip_prefix:(Lazy.force build_dir_prefix)
+                fn ?error_loc
+        with
+        | `No_prefix p -> in_source_tree p
+        | `Prefix p -> in_build_dir p
       else
         in_source_tree (Local.relative p fn ?error_loc)
     | In_build_dir p -> in_build_dir (Local.relative p fn ?error_loc)
@@ -539,7 +538,11 @@ let of_string ?error_loc s =
     if not (Filename.is_relative s) then
       external_ (External.of_string s)
     else
-      make_local_path (Local.of_string s ?error_loc)
+      match Local.of_string' ~strip_prefix:(Lazy.force build_dir_prefix)
+              s ?error_loc
+      with
+      | `No_prefix p -> in_source_tree p
+      | `Prefix p -> in_build_dir p
 
 let t = function
   (* the first 2 cases are necessary for old build dirs *)
