@@ -144,7 +144,6 @@ module Internal_rule = struct
     val compare : t -> t -> Ordering.t
     val gen : unit -> t
     module Set : Set.S with type elt = t
-    module Top_closure : Top_closure.S with type key := t
   end = struct
     module M = struct
       type t = int
@@ -152,7 +151,6 @@ module Internal_rule = struct
     end
     include M
     module Set = Set.Make(M)
-    module Top_closure = Top_closure.Make(Set)
     let to_int x = x
 
     let counter = ref 0
@@ -181,6 +179,8 @@ module Internal_rule = struct
   include T
 
   module Set = Set.Make(T)
+
+  module Top_closure_ir = Top_closure.C0(Set)(Id.Set)
 
   let loc ~file_tree ~dir t  = rule_loc ~file_tree ~dir ~loc:t.loc
 end
@@ -1261,11 +1261,10 @@ let rules_for_files t paths =
     | None -> acc
     | Some (File_spec.T { rule; _ }) -> rule :: acc)
   |> Internal_rule.Set.of_list
-  |> Internal_rule.Set.to_list
 
 let rules_for_targets t targets =
   match
-    Internal_rule.Id.Top_closure.top_closure (rules_for_files t targets)
+    Internal_rule.Top_closure_ir.top_closure (rules_for_files t targets)
       ~key:(fun (r : Internal_rule.t) -> r.id)
       ~deps:(fun (r : Internal_rule.t) ->
         rules_for_files t (Path.Set.union r.static_deps r.rule_deps))
@@ -1335,12 +1334,13 @@ end
 
 module Rule_set = Set.Make(Rule)
 
+module Rule_top_closure = Top_closure.C0(Rule_set)(Rule.Id.Set)
+
 let rules_for_files rules paths =
   Path.Set.fold paths ~init:Rule_set.empty ~f:(fun path acc ->
     match Path.Map.find rules path with
     | None -> acc
     | Some rule -> Rule_set.add acc rule)
-  |> Rule_set.to_list
 
 let build_rules_internal ?(recursive=false) t ~request =
   let rules_seen = ref Rule.Id.Set.empty in
@@ -1404,7 +1404,7 @@ let build_rules_internal ?(recursive=false) t ~request =
         Path.Map.add acc fn r))
   in
   match
-    Internal_rule.Id.Top_closure.top_closure
+    Rule_top_closure.top_closure
       (rules_for_files rules !targets)
       ~key:(fun (r : Rule.t) -> r.id)
       ~deps:(fun (r : Rule.t) -> rules_for_files rules r.deps)
