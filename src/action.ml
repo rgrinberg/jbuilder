@@ -283,9 +283,13 @@ module Var_expansion = struct
     | Paths   of Path.t list * Concat_or_split.t
     | Strings of string list * Concat_or_split.t
 
+  let is_singleton = function
+    | [_] -> true
+    | _ -> false
+
   let is_multivalued = function
-    | Paths (_, Split) | Strings (_, Split) -> true
-    | Paths (_, Concat) | Strings (_, Concat) -> false
+    | Paths (xs, _) -> not (is_singleton xs)
+    | Strings (xs, _) -> not (is_singleton xs)
 
   type context = Path.t (* For String_with_vars.Expand_to *)
 
@@ -307,10 +311,10 @@ module Var_expansion = struct
     | Paths   (l, _) -> concat (List.map l ~f:(string_of_path ~dir))
 
   let to_path dir = function
-    | Strings (l, _) -> path_of_string dir (concat l)
+    | Strings ([p], _) -> path_of_string dir p
     | Paths ([p], _) -> p
-    | Paths (l,   _) ->
-      path_of_string dir (concat (List.map l ~f:(string_of_path ~dir)))
+    | Strings (strs, _) -> die "quote your strings: %a" (Fmt.ocaml_list Format.pp_print_string) strs
+    | Paths (paths,  _) -> die "path isn't quoted: %a" (Fmt.ocaml_list Path.pp) paths
 
   let to_prog_and_args dir exp : Unresolved.Program.t * string list =
     let module P = Unresolved.Program in
