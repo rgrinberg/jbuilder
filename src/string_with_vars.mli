@@ -63,17 +63,25 @@ module type EXPANSION = sig
       using [to_string]. *)
 end
 
+type 'expansion expand =
+  [ `String of string
+  | `Expansion of 'expansion
+  ]
+
+type 'expansion partial_expand =
+  [ 'expansion expand
+  |  `Unexpanded of t
+  ]
+
 module Expand_to(V : EXPANSION) : sig
-  val expand : V.context -> t -> f:(Loc.t -> string -> V.t option) ->
-    (V.t, string) Either.t
+  val expand : V.context -> t -> f:(Loc.t -> string -> V.t option) -> V.t expand
   (** [expand t ~f] return [t] where all variables have been expanded
       using [f].  If [f loc var] return [Some x], the variable [var] is
       replaced by [x]; otherwise, the variable is inserted using the syntax
       it was originally defined with: ${..} or $(..) *)
 
   val partial_expand :
-    V.context -> t -> f:(Loc.t -> string -> V.t option) ->
-    ((V.t, string) either, t) Either.t
+    V.context -> t -> f:(Loc.t -> string -> V.t option) -> V.t partial_expand
     (** [partial_expand t ~f] is like [expand_generic] where all
         variables that could be expanded (i.e., those for which [f]
         returns [Some _]) are.  If all the variables of [t] were

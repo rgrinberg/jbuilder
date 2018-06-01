@@ -116,6 +116,16 @@ let concat_rev = function
   | [s] -> s
   | l -> String.concat (List.rev l) ~sep:""
 
+type 'expansion expand =
+  [ `String of string
+  | `Expansion of 'expansion
+  ]
+
+type 'expansion partial_expand =
+  [ 'expansion expand
+  |  `Unexpanded of t
+  ]
+
 module Expand_to(V: EXPANSION) = struct
 
   let expand ctx t ~f =
@@ -123,10 +133,10 @@ module Expand_to(V: EXPANSION) = struct
     | [Var (syntax, v)] when not t.quoted ->
       (* Unquoted single var *)
       (match f t.loc v with
-       | Some e -> Left e
-       | None -> Right (string_of_var syntax v))
+       | Some e -> `Expansion e
+       | None -> `String (string_of_var syntax v))
     | _ ->
-      Right (List.map t.items ~f:(function
+      `String (List.map t.items ~f:(function
         | Text s -> s
         | Var (syntax, v) ->
           match f t.loc v with
@@ -137,7 +147,7 @@ module Expand_to(V: EXPANSION) = struct
                 (string_of_var syntax v)
             else V.to_string ctx x
           | None -> string_of_var syntax v)
-             |> String.concat ~sep:"")
+               |> String.concat ~sep:"")
 
   let partial_expand ctx t ~f =
     let commit_text acc_text acc =
@@ -148,8 +158,8 @@ module Expand_to(V: EXPANSION) = struct
       match items with
       | [] -> begin
           match acc with
-          | [] -> Left  (Right (concat_rev acc_text))
-          | _  -> Right { t with items = List.rev (commit_text acc_text acc) }
+          | [] -> `String (concat_rev acc_text)
+          | _  -> `Unexpanded { t with items = List.rev (commit_text acc_text acc) }
         end
       | Text s :: items -> loop (s :: acc_text) acc items
       | Var (syntax, v) as it :: items ->
@@ -165,8 +175,8 @@ module Expand_to(V: EXPANSION) = struct
     | [Var (_, v)] when not t.quoted ->
       (* Unquoted single var *)
       (match f t.loc v with
-       | Some e -> Left (Left e)
-       | None   -> Right t)
+       | Some e -> `Expansion e
+       | None   -> `Unexpanded t)
     | _ -> loop [] [] t.items
 end
 
@@ -180,12 +190,13 @@ end
 module S = Expand_to(String_expansion)
 
 let expand t ~f =
-  match S.expand () t ~f with Left s | Right s -> s
+  match S.expand () t ~f with `String s | `Expansion s -> s
 
 let partial_expand t ~f =
   match S.partial_expand () t ~f with
-  | Left (Left s | Right s) -> Left s
-  | Right _ as x -> x
+  | `Expansion s -> Left s
+  | `String s -> Left s
+  | `Unexpanded s -> Right s
 
 let to_string t =
   match t.items with
