@@ -1077,7 +1077,7 @@ end
 module Menhir = struct
   type t =
     { merge_into : string option
-    ; flags      : Ordered_set_lang.Unexpanded.t
+    ; flags      : string list
     ; modules    : string list
     ; mode       : Rule.Mode.t
     ; loc        :  Loc.t
@@ -1086,7 +1086,7 @@ module Menhir = struct
   let v1 =
     record
       (field_o "merge_into" string >>= fun merge_into ->
-       field_oslu "flags" >>= fun flags ->
+       field "flags" (list string) ~default:[] >>= fun flags ->
        field "modules" (list string) >>= fun modules ->
        Rule.Mode.field >>= fun mode ->
        return
