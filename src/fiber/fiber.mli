@@ -113,6 +113,12 @@ val parallel_map : 'a list -> f:('a -> 'b t) -> 'b list t
 *)
 val parallel_iter : 'a list -> f:('a -> unit t) -> unit t
 
+val parallel_iter'
+  :  (('a -> unit) -> unit)
+  -> len:int
+  -> f:('a -> unit t)
+  -> unit t
+
 (** {1 Local storage} *)
 
 (** Variables local to a fiber *)

@@ -44,4 +44,8 @@ module Make(Elt : Comparable.S) : S with type elt = Elt.t = struct
   let max_elt = max_elt_opt
   let choose = choose_opt
   let split x t = split t x
+
+  module No_labels = struct
+    let iter t f = iter t ~f
+  end
 end

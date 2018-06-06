@@ -28,4 +28,8 @@ module type S = sig
   val split          : t -> elt -> t * bool * t
   val of_list        : elt list -> t
   val to_list        : t -> elt list
+
+  module No_labels : sig
+    val iter : t -> (elt -> unit) -> unit
+  end
 end

@@ -268,6 +268,23 @@ let parallel_iter l ~f ctx k =
       with exn ->
         EC.forward_error ctx exn)
 
+let parallel_iter' iter ~len ~f ctx k =
+  match len with
+  | 0 -> k ()
+  | 1 -> iter (fun x -> f x ctx k)
+  | _ ->
+    EC.add_refs ctx (len - 1);
+    let left_over = ref len in
+    let k () =
+      decr left_over;
+      if !left_over = 0 then k () else EC.deref ctx
+    in
+    iter (fun x ->
+      try
+        f x ctx k
+      with exn ->
+        EC.forward_error ctx exn)
+
 module Var = struct
   include Var0
 

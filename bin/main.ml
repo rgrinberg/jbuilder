@@ -1059,10 +1059,11 @@ let install_uninstall ~what =
                into multiple contexts!"
         | _ -> ());
        let module CMap = Map.Make(Context) in
-       let install_files_by_context =
-         CMap.of_list_multi install_files |> CMap.to_list
-       in
-       Fiber.parallel_iter install_files_by_context
+       let install_files_by_context = CMap.of_list_multi install_files in
+       let install_files_by_context_iter next =
+         CMap.iteri install_files_by_context ~f:(fun k v -> next (k, v)) in
+       Fiber.parallel_iter' install_files_by_context_iter
+         ~len:(CMap.cardinal install_files_by_context)
          ~f:(fun (context, install_files) ->
            let install_files_set = Path.Set.of_list install_files in
            get_prefix context ~from_command_line:prefix_from_command_line

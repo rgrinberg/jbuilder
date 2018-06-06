@@ -1093,7 +1093,9 @@ and wait_for_file_found fn (File_spec.T file) =
       Fiber.Future.wait rule_execution)
 
 and wait_for_deps t deps =
-  Fiber.parallel_iter (Path.Set.to_list deps) ~f:(wait_for_file t)
+  Fiber.parallel_iter' (Path.Set.No_labels.iter deps)
+    ~len:(Path.Set.cardinal deps)
+    ~f:(wait_for_file t)
 
 let stamp_file_for_files_of t ~dir ~ext =
   let files_of_dir =
@@ -1200,7 +1202,8 @@ let eval_request t ~request ~process_target =
   in
 
   let process_targets ts =
-    Fiber.parallel_iter (Path.Set.to_list ts) ~f:process_target
+    Fiber.parallel_iter' (Path.Set.No_labels.iter ts)
+      ~len:(Path.Set.cardinal ts) ~f:process_target
   in
 
   Fiber.fork_and_join_unit
@@ -1370,7 +1373,10 @@ let build_rules_internal ?(recursive=false) t ~request =
         Fiber.return ()
       else
         Fiber.Future.wait rule >>= fun rule ->
-        Fiber.parallel_iter (Path.Set.to_list rule.deps) ~f:loop
+        Fiber.parallel_iter'
+          (Path.Set.No_labels.iter rule.deps)
+          ~len:(Path.Set.cardinal rule.deps)
+          ~f:loop
     end
   in
   let targets = ref Path.Set.empty in
