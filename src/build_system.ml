@@ -146,13 +146,8 @@ module Internal_rule = struct
     module Set : Set.S with type elt = t
     module Top_closure : Top_closure.S with type key := t
   end = struct
-    module M = struct
-      type t = int
-      let compare (x : int) y = compare x y
-    end
-    include M
-    module Set = Set.Make(M)
-    module Top_closure = Top_closure.Make(Set)
+    include Int
+    module Top_closure = Top_closure.Make(Top_closure.Of_table(Table))
     let to_int x = x
 
     let counter = ref 0

@@ -17,17 +17,41 @@ module type S = sig
     -> ('a list, 'a list) result
 end
 
-module Make(Keys : Keys) = struct
+module type Keys_mutable = sig
+  type t
+  type elt
+  val create : unit -> t
+  val add : t -> elt -> unit
+  val mem : t -> elt -> bool
+end
+
+module To_mutable(K : Keys) = struct
+  type t = K.t ref
+  type elt = K.elt
+  let create () = ref K.empty
+  let add t x = t := K.add !t x
+  let mem t x = K.mem !t x
+end
+
+module Of_table(T : Hashtbl.S) = struct
+  type t = unit T.t
+  type elt = T.key
+  let create () = T.create 16
+  let add t x = T.replace t ~key:x ~data:()
+  let mem = T.mem
+end
+
+module Make(Keys : Keys_mutable) = struct
   let top_closure ~key ~deps elements =
-    let visited = ref Keys.empty in
+    let visited = Keys.create () in
     let res = ref [] in
     let rec loop elt ~temporarily_marked =
       let key = key elt in
-      if Keys.mem temporarily_marked key then
+      if List.mem ~set:temporarily_marked key then
         Error [elt]
-      else if not (Keys.mem !visited key) then begin
-        visited := Keys.add !visited key;
-        let temporarily_marked = Keys.add temporarily_marked key in
+      else if not (Keys.mem visited key) then begin
+        Keys.add visited key;
+        let temporarily_marked = key :: temporarily_marked in
         match iter_elts (deps elt) ~temporarily_marked with
         | Ok () -> res := elt :: !res; Ok ()
         | Error l -> Error (elt :: l)
@@ -41,10 +65,10 @@ module Make(Keys : Keys) = struct
         | Error _ as result -> result
         | Ok () -> iter_elts elts ~temporarily_marked
     in
-    match iter_elts elements ~temporarily_marked:Keys.empty with
+    match iter_elts elements ~temporarily_marked:[] with
     | Ok () -> Ok (List.rev !res)
     | Error elts -> Error elts
 end
 
-module Int    = Make(Int.Set)
-module String = Make(String.Set)
+module Int    = Make(Of_table(Int.Table))
+module String = Make(Of_table(String.Table))

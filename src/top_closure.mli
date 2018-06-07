@@ -8,6 +8,22 @@ module type Keys = sig
   val mem : t -> elt -> bool
 end
 
+module type Keys_mutable = sig
+  type t
+  type elt
+  val create : unit -> t
+  val add : t -> elt -> unit
+  val mem : t -> elt -> bool
+end
+
+module Of_table (T : Hashtbl.S) : Keys_mutable
+  with type t = unit T.t and type elt = T.key
+
+module To_mutable(K : Keys) : Keys_mutable with type elt = K.elt
+
+(* module Of_table(T : Hashtbl.S) : Keys_mutable
+ *   with type t = unit T.t and type elt = T.key *)
+
 module type S = sig
   type key
 
@@ -22,4 +38,4 @@ end
 module Int    : S with type key := int
 module String : S with type key := string
 
-module Make(Keys : Keys) : S with type key := Keys.elt
+module Make(Keys : Keys_mutable) : S with type key := Keys.elt
