@@ -7,9 +7,12 @@ module T = struct
       Eq
     else
       Gt
+  let hash (x : int) = Hashtbl.hash x
+  let equal (x : int) (y : int) = x = y
 end
 
 include T
 
 module Set = Set.Make(T)
 module Map = Map.Make(T)
+module Table = Hashtbl.Make(T)

@@ -15,6 +15,8 @@ let compare a b = Ordering.of_int (String.compare a b)
 
 module T = struct
   type t = StringLabels.t
+  let hash (x : t) = Hashtbl.hash x
+  let equal (x : t) (y : t) = x = y
   let compare = compare
 end
 
@@ -201,6 +203,7 @@ let maybe_quoted s =
 
 module Set = Set.Make(T)
 module Map = Map.Make(T)
+module Table = Hashtbl.Make(T)
 
 let enumerate_gen s =
   let s = " " ^ s ^ " " in
