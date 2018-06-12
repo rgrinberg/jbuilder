@@ -36,7 +36,7 @@ type t =
   ; root                  : Path.t
   ; version               : string option
   ; packages              : Package.t Package.Name.Map.t
-  ; mutable stanza_parser : Stanza.t list Sexp.Of_sexp.t
+  ; stanza_parser         : Stanza.t list Sexp.Of_sexp.t
   ; mutable project_file  : Path.t option
   }
 

@@ -117,7 +117,7 @@ type t =
   ; root                  : Path.t
   ; version               : string option
   ; packages              : Package.t Package.Name.Map.t
-  ; mutable stanza_parser : Stanza.t list Sexp.Of_sexp.t
+  ; stanza_parser         : Stanza.t list Sexp.Of_sexp.t
   ; mutable project_file  : Path.t option
   }
 
@@ -196,19 +196,21 @@ end
 
 let filename = "dune-project"
 
-let anonymous = lazy(
-  let t =
+let anonymous =
+  let rec t = lazy (
     { kind          = Dune
     ; name          = Name.anonymous_root
     ; packages      = Package.Name.Map.empty
     ; root          = Path.root
     ; version       = None
-    ; stanza_parser = (fun _ -> assert false)
+    ; stanza_parser
     ; project_file  = None
     }
+  )
+  and stanza_parser sexp =
+    Sexp.Of_sexp.sum (snd (Lang.latest "dune") (Lazy.force t)) sexp
   in
-  t.stanza_parser <- Sexp.Of_sexp.sum (snd (Lang.latest "dune") t);
-  t)
+  t
 
 let default_name ~dir ~packages =
   match Package.Name.Map.choose packages with
@@ -245,18 +247,19 @@ let parse ~dir ~lang_stanzas ~packages ~file =
        (fun (loc, name) ver args_loc args ->
           (name, (loc, ver, Sexp.Ast.List (args_loc, args))))
      >>= fun extensions ->
-     let t =
+     let rec t =
        { kind = Dune
        ; name
        ; root = dir
        ; version
        ; packages
-       ; stanza_parser = (fun _ -> assert false)
+       ; stanza_parser
        ; project_file  = Some file
        }
+     and extensions_stanzas = lazy (Extension.parse t extensions)
+     and stanza_parser sexp =
+       Sexp.Of_sexp.sum (lang_stanzas t @ (Lazy.force extensions_stanzas)) sexp
      in
-     let extenstions_stanzas = Extension.parse t extensions in
-     t.stanza_parser <- Sexp.Of_sexp.sum (lang_stanzas t @ extenstions_stanzas);
      return t)
 
 let load_dune_project ~dir packages =
@@ -267,17 +270,17 @@ let load_dune_project ~dir packages =
     parse ~dir ~lang_stanzas ~packages ~file:fname sexp)
 
 let make_jbuilder_project ~dir packages =
-  let t =
+  let rec t =
     { kind = Jbuilder
     ; name = default_name ~dir ~packages
     ; root = dir
     ; version = None
     ; packages
-    ; stanza_parser = (fun _ -> assert false)
+    ; stanza_parser
     ; project_file = None
     }
-  in
-  t.stanza_parser <- Sexp.Of_sexp.sum (snd (Lang.latest "dune") t);
+  and stanza_parser sexp =
+    Sexp.Of_sexp.sum (snd (Lang.latest "dune") t) sexp in
   t
 
 let load ~dir ~files =
