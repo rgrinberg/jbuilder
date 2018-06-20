@@ -194,6 +194,8 @@ module Pp_or_flags = struct
 
   let t =
     peek raw >>= function
+    | Template { loc; _ } ->
+      of_sexp_error loc "Variables are not allowed in preprocessors"
     | Atom _ | Quoted_string _ -> plain_string of_string
     | List _ -> list string >>| fun l -> Flags l
 
@@ -236,7 +238,7 @@ module Dep_conf = struct
         ]
     in
     peek raw >>= function
-    | Atom _ | Quoted_string _ ->
+    | Template _ | Atom _ | Quoted_string _ ->
       String_with_vars.t >>| fun x -> File x
     | List _ -> t
 
@@ -395,6 +397,7 @@ module Lib_dep = struct
           ; forbidden
           ; file
           }
+        | Template _
         | List _ ->
           of_sexp_errorf loc "(<[!]libraries>... -> <file>) expected"
         | (Atom (_, A s) | Quoted_string (_, s)) ->

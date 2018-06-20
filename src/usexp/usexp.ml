@@ -10,24 +10,16 @@ module Bytes = struct
     UnlabeledBytes.blit_string src src_pos dst dst_pos len
 end
 
+module Loc = Loc
 module Atom = Atom
+module Template = Template
 
-type t =
-  | Atom of Atom.t
-  | Quoted_string of string
-  | List of t list
-
-type sexp = t
+type sexp = Sexp.t
+include Sexp
 
 let atom s = Atom (Atom.of_string s)
 
 let unsafe_atom_of_string s = atom s
-
-let atom_or_quoted_string s =
-  if Atom.is_valid_dune s then
-    Atom (Atom.of_string s)
-  else
-    Quoted_string s
 
 let quote_length s =
   let n = ref 0 in
@@ -196,40 +188,24 @@ let prepare_formatter ppf =
            | _ -> n))
     }
 
-module Loc = struct
-  type t =
-    { start : Lexing.position
-    ; stop  : Lexing.position
-    }
-
-  let in_file fn =
-    let pos : Lexing.position =
-      { pos_fname = fn
-      ; pos_lnum  = 1
-      ; pos_cnum  = 0
-      ; pos_bol   = 0
-      }
-    in
-    { start = pos
-    ; stop = pos
-    }
-end
-
 module Ast = struct
   type t =
     | Atom of Loc.t * Atom.t
     | Quoted_string of Loc.t * string
+    | Template of Template.t
     | List of Loc.t * t list
 
   let atom_or_quoted_string loc s =
-    match atom_or_quoted_string s with
+    match Sexp.atom_or_quoted_string s with
     | Atom a -> Atom (loc, a)
     | Quoted_string s -> Quoted_string (loc, s)
     | List _ -> assert false
 
-  let loc (Atom (loc, _) | Quoted_string (loc, _) | List (loc, _)) = loc
+  let loc (Atom (loc, _) | Quoted_string (loc, _) | List (loc, _)
+          | Template { loc ; _ }) = loc
 
   let rec remove_locs : t -> sexp = function
+    | Template t -> Template.sexp_of_t t
     | Atom (_, s) -> Atom s
     | Quoted_string (_, s) -> Quoted_string s
     | List (_, l) -> List (List.map l ~f:remove_locs)
