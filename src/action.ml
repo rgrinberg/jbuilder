@@ -328,7 +328,8 @@ module Unexpanded = struct
   let t =
     let open Sexp.Of_sexp in
     peek raw >>= function
-    | Template _ | Atom _ | Quoted_string _ as sexp ->
+    | Template { loc; _ } -> no_templates_in loc "actions"
+    | Atom _ | Quoted_string _ as sexp ->
       of_sexp_errorf (Sexp.Ast.loc sexp)
         "if you meant for this to be executed with bash, write (bash \"...\") instead"
     | List _ -> t

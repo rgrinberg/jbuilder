@@ -177,6 +177,12 @@ module Of_sexp : sig
     -> ('a, unit, string, 'b) format4
     -> 'a
 
+  val no_templates_in
+    : ?hint:hint
+    -> Loc.t
+    -> ('a, unit, string, 'b) format4
+    -> 'a
+
   val located : 'a t -> (Loc.t * 'a) t
 
   val enum : (string * 'a) list -> 'a t

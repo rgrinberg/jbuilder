@@ -77,6 +77,9 @@ module Of_sexp = struct
     raise (Of_sexp (loc, msg, hint))
   let of_sexp_errorf ?hint loc fmt =
     Printf.ksprintf (fun msg -> of_sexp_error loc ?hint msg) fmt
+  let no_templates_in ?hint loc fmt =
+    Printf.ksprintf (fun msg ->
+      of_sexp_error loc ?hint ("No variables allowed in " ^ msg)) fmt
 
   type unparsed_field =
     { values : Ast.t list
