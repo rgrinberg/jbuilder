@@ -8,8 +8,14 @@ let is_valid_dune =
   let rec loop s i len =
     i = len ||
     match String.unsafe_get s i with
-    | '%' | '"' | '(' | ')' | ';' | '\000'..'\032' | '\127'..'\255' -> false
+    | '%' -> no_brace s (i + 1) len
+    | '"' | '(' | ')' | ';' | '\000'..'\032' | '\127'..'\255' -> false
     | _ -> loop s (i + 1) len
+  and no_brace s i len =
+    i = len ||
+    match String.unsafe_get s i with
+    | '{' -> false
+    | _ -> loop s i len
   in
   fun s ->
     let len = String.length s in

@@ -179,20 +179,12 @@ Different
 
 parse {|\$bar%foo%|}
 [%%expect{|
-- : parse_result =
-Different
- {jbuild = Ok [(atom "\\$bar%foo%")];
-  dune =
-   Error "Internal error in the S-expression parser, please report upstream."}
+- : parse_result = Same (Ok [(atom \$bar%foo%)])
 |}]
 
 parse {|\$bar\%foo%|}
 [%%expect{|
-- : parse_result =
-Different
- {jbuild = Ok [(atom "\\$bar\\%foo%")];
-  dune =
-   Error "Internal error in the S-expression parser, please report upstream."}
+- : parse_result = Same (Ok [(atom \$bar\%foo%)])
 |}]
 
 parse {|\$bar\%foo%{bar}|}
@@ -200,6 +192,5 @@ parse {|\$bar\%foo%{bar}|}
 - : parse_result =
 Different
  {jbuild = Ok [(atom "\\$bar\\%foo%{bar}")];
-  dune =
-   Error "Internal error in the S-expression parser, please report upstream."}
+  dune = Ok [(template "\\$bar\\%foo%{bar}")]}
 |}]

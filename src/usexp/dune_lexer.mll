@@ -97,8 +97,8 @@ let blank     = [' ' '\t' '\012']
 let digit     = ['0'-'9']
 let hexdigit  = ['0'-'9' 'a'-'f' 'A'-'F']
 
-let atom_char = [^ '%' ';' '(' ')' '"' '\000'-'\032' '\127'-'\255']
-let varname_char = atom_char # [ ':' '$' '{' '}' ]
+let atom_char = [^ ';' '(' ')' '"' '\000'-'\032' '\127'-'\255']
+let varname_char = atom_char # [ ':' '%' '{' '}' ]
 
 rule token = parse
   | newline
@@ -122,10 +122,12 @@ rule token = parse
     { atom [] (Lexing.lexeme_start_p lexbuf) lexbuf }
 
 and atom acc start = parse
-  | atom_char+ as s
+  | (atom_char # '%')+ as s
     { atom (Template.add_text acc s) start lexbuf }
   | "%{"
     { atom ((template_variable lexbuf) :: acc) start lexbuf }
+  | ('%' (atom_char # '{')?) as s
+    { atom (Template.add_text acc s) start lexbuf }
   | ""
     { Template.token acc ~quoted:false ~start lexbuf }
 
