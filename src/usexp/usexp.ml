@@ -274,6 +274,9 @@ module Parser = struct
     | Quoted_string s ->
       let loc = make_loc lexbuf in
       loop depth lexer lexbuf (Quoted_string (loc, s) :: acc)
+    | Template t ->
+      let loc = make_loc lexbuf in
+      loop depth lexer lexbuf (Template { t with loc } :: acc)
     | Lparen ->
       let start = Lexing.lexeme_start_p lexbuf in
       let sexps = loop (depth + 1) lexer lexbuf [] in

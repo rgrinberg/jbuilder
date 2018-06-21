@@ -112,11 +112,7 @@ end
 exception Parse_error of Parse_error.t
 
 module Lexer : sig
-  module Token : sig
-    type t
-  end
-
-  type t = Lexing.lexbuf -> Token.t
+  type t
 
   val token : t
   val jbuild_token : t
