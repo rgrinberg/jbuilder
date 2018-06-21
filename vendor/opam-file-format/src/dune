@@ -8,4 +8,4 @@
 (rule
  ((targets (opamParserTypes.ml))
   (deps    (opamParserTypes.mli))
-  (action  (copy# ${<} ${@}))))
+  (action  (copy# %{<} %{@}))))

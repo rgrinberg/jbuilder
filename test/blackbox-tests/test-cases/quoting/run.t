@@ -3,8 +3,8 @@ that ${@} is not quoted and doesn't contain exactly 1 element
 
   $ dune build --root bad x
   Entering directory 'bad'
-  File "dune", line 3, characters 26-30:
-  Error: Variable ${@} expands to 2 values, however a single value is expected here. Please quote this atom.
+  File "dune", line 3, characters 28-30:
+  Error: Variable %{@} expands to 2 values, however a single value is expected here. Please quote this atom.
   [1]
 
 The targets should only be interpreted as a single path when quoted
@@ -26,9 +26,11 @@ The targets should only be interpreted as a single path when quoted
   lines: foo bar baz
 
   $ dune build @quoted --root filename-space
-  Entering directory 'filename-space'
-  filename contains spaces
+  File "dune", line 4, characters 18-19:
+  Error: unexpected variable
+  [1]
 
   $ dune build @unquoted --root filename-space
-  Entering directory 'filename-space'
-  ${read:foo bar.txt}
+  File "dune", line 4, characters 18-19:
+  Error: unexpected variable
+  [1]

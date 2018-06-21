@@ -4,7 +4,7 @@
 (rule
  ((targets (dummy.ml))
   (deps ())
-  (action (with-stdout-to ${@} (echo "")))))
+  (action (with-stdout-to %{@} (echo "")))))
 
 (library
  ((name foo)
@@ -20,4 +20,4 @@
 (alias
  ((name bar-source)
   (deps (bar.h))
-  (action (echo "${read:bar.h}"))))
+  (action (echo "%{read:bar.h}"))))
