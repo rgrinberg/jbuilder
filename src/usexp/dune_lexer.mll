@@ -232,6 +232,10 @@ and escape_sequence = parse
   | newline
     { Lexing.new_line lexbuf;
       Newline }
+  | "%{" as s
+    { Template.Buffer.add_text s;
+      Other
+    }
   | ['\\' '\'' '"' 'n' 't' 'b' 'r'] as c
     { let c =
         match c with

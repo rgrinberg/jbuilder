@@ -134,8 +134,7 @@ Different {jbuild = Ok ["\\a"]; dune = Error "unknown escape sequence"}
 
 parse {|"\%{x}"|}
 [%%expect{|
-- : parse_result =
-Different {jbuild = Ok ["\\%{x}"]; dune = Error "unknown escape sequence"}
+- : parse_result = Different {jbuild = Ok ["\\%{x}"]; dune = Ok ["%{x}"]}
 |}]
 
 parse {|"$foo"|}
@@ -217,13 +216,8 @@ Different
       (template ((text "bar") ((name "") (payload "foo") (syntax "%{}")))))]}
 |}]
 
-parse {|"bar\\%{foo}"|}
+parse {|"bar\%{foo}"|}
 [%%expect{|
 - : parse_result =
-Different
- {jbuild = Ok ["bar\\%{foo}"];
-  dune =
-   Ok
-    [(template
-      (template ((text "bar\\") ((name "") (payload "foo") (syntax "%{}")))))]}
+Different {jbuild = Ok ["bar\\%{foo}"]; dune = Ok ["bar%{foo}"]}
 |}]
