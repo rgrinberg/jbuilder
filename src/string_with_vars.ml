@@ -4,7 +4,7 @@ open Usexp.Template
 
 type t = Usexp.Template.t
 
-let _literal ~quoted ~loc s =
+let literal ~quoted ~loc s =
   { parts = [Text s]
   ; quoted
   ; loc
@@ -84,11 +84,21 @@ end
 
 let t =
   let open Sexp.Of_sexp in
-  raw >>| function
-  | Template t -> t
-  | Atom(loc, A s) -> Jbuild.parse s ~loc ~quoted:false
-  | Quoted_string (loc, s) -> Jbuild.parse s ~loc ~quoted:true
-  | List (loc, _) -> Sexp.Of_sexp.of_sexp_error loc "Atom expected"
+  Syntax.get_exn Stanza.syntax >>= function
+  | (0, _) ->
+    begin raw >>| function
+    | Template _ -> assert false
+    | Atom(loc, A s) -> Jbuild.parse s ~loc ~quoted:false
+    | Quoted_string (loc, s) -> Jbuild.parse s ~loc ~quoted:true
+    | List (loc, _) -> Sexp.Of_sexp.of_sexp_error loc "Atom expected"
+    end
+  | (_, _) ->
+    begin raw >>| function
+    | Template t -> t
+    | Atom(loc, A s) -> literal ~quoted:false ~loc s
+    | Quoted_string (loc, s) -> literal ~quoted:true ~loc s
+    | List (loc, _) -> Sexp.Of_sexp.of_sexp_error loc "Unexpected list"
+    end
 
 let loc t = t.loc
 
