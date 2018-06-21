@@ -3,17 +3,23 @@ open Stdune;;
 open Sexp.Of_sexp;;
 
 let pp_sexp_ast =
-  let rec subst_atoms ~f (s : Sexp.t) =
+  let rec subst_atoms_templates s =
+    let open Sexp.Ast in
     match s with
-    | Atom a -> f a
+    | Atom (loc, (Sexp.Atom.A s)) ->
+      List (loc,
+            [ atom_or_quoted_string loc "atom"
+            ; atom_or_quoted_string loc s])
+    | Template (t : Sexp.Template.t) ->
+      List (t.loc, [atom_or_quoted_string t.loc "template"; Template t])
+    | List (loc, xs) ->
+      List (loc, List.map ~f:subst_atoms_templates xs)
     | Quoted_string _ -> s
-    | List xs -> List (List.map ~f:(subst_atoms ~f) xs)
   in
   fun ppf sexp ->
     sexp
+    |> subst_atoms_templates
     |> Sexp.Ast.remove_locs
-    |> subst_atoms ~f:(fun (A s) ->
-      List [(Sexp.atom "atom"); Sexp.atom_or_quoted_string s])
     |> Sexp.pp ppf
 ;;
 
@@ -168,7 +174,7 @@ parse {|\%{foo}|}
 [%%expect{|
 - : parse_result =
 Different
- {jbuild = Ok [(atom "\\%{foo}")]; dune = Error "Invalid atom character '%'"}
+ {jbuild = Ok [(atom "\\%{foo}")]; dune = Ok [(template "\\%{foo}")]}
 |}]
 
 parse {|\$bar%foo%|}
@@ -176,7 +182,8 @@ parse {|\$bar%foo%|}
 - : parse_result =
 Different
  {jbuild = Ok [(atom "\\$bar%foo%")];
-  dune = Error "Invalid atom character '%'"}
+  dune =
+   Error "Internal error in the S-expression parser, please report upstream."}
 |}]
 
 parse {|\$bar\%foo%|}
@@ -184,7 +191,8 @@ parse {|\$bar\%foo%|}
 - : parse_result =
 Different
  {jbuild = Ok [(atom "\\$bar\\%foo%")];
-  dune = Error "Invalid atom character '%'"}
+  dune =
+   Error "Internal error in the S-expression parser, please report upstream."}
 |}]
 
 parse {|\$bar\%foo%{bar}|}
@@ -192,5 +200,6 @@ parse {|\$bar\%foo%{bar}|}
 - : parse_result =
 Different
  {jbuild = Ok [(atom "\\$bar\\%foo%{bar}")];
-  dune = Error "Invalid atom character '%'"}
+  dune =
+   Error "Internal error in the S-expression parser, please report upstream."}
 |}]
