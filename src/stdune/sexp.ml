@@ -133,21 +133,20 @@ module Of_sexp = struct
 
   let get key ctx state = (Univ_map.find (get_user_context ctx) key, state)
 
+  let map_user_context
+    : type a. a context -> f:(Univ_map.t -> Univ_map.t) -> a context
+    = fun ctx ~f ->
+      match ctx with
+      | Values (loc, cstr, uc) -> Values (loc, cstr, f uc)
+      | Fields (loc, cstr, uc) -> Fields (loc, cstr, f uc)
+
   let set : type a b k. a Univ_map.Key.t -> a -> (b, k) parser -> (b, k) parser
     = fun key v t ctx state ->
-      match ctx with
-      | Values (loc, cstr, uc) ->
-        t (Values (loc, cstr, Univ_map.add uc key v)) state
-      | Fields (loc, cstr, uc) ->
-        t (Fields (loc, cstr, Univ_map.add uc key v)) state
+      t (map_user_context ctx ~f:(fun uc -> Univ_map.add uc key v)) state
 
   let set_many : type a k. Univ_map.t -> (a, k) parser -> (a, k) parser
     = fun map t ctx state ->
-      match ctx with
-      | Values (loc, cstr, uc) ->
-        t (Values (loc, cstr, Univ_map.superpose uc map)) state
-      | Fields (loc, cstr, uc) ->
-        t (Fields (loc, cstr, Univ_map.superpose uc map)) state
+      t (map_user_context ctx ~f:(fun uc -> Univ_map.superpose uc map)) state
 
   let loc : type k. k context -> k -> Loc.t * k = fun ctx state ->
     match ctx with
