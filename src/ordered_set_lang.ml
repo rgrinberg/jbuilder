@@ -177,13 +177,15 @@ module Unexpanded = struct
   type t = ast generic
   let t =
     let open Sexp.Of_sexp in
+    Syntax.get_exn Stanza.syntax >>= fun version ->
     raw >>| fun sexp ->
     let rec map (t : (Sexp.Ast.t, Ast.expanded) Ast.t) =
       let open Ast in
       match t with
       | Element x -> Element x
       | Union [Special (_, "include"); Element fn] ->
-        Include (Sexp.Of_sexp.parse String_with_vars.t Univ_map.empty fn)
+        let sw = Syntax.set Stanza.syntax version String_with_vars.t in
+        Include (Sexp.Of_sexp.parse sw Univ_map.empty fn)
       | Union [Special (loc, "include"); _]
       | Special (loc, "include") ->
         Loc.fail loc "(:include expects a single element (do you need to quote the filename?)"
