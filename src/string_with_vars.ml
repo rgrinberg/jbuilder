@@ -61,6 +61,7 @@ let items_of_string s = of_tokens (Token.tokenise s)
 
 let t =
   let open Sexp.Of_sexp in
+  Syntax.get_exn Stanza.syntax >>= fun (_ : (int * int)) ->
   raw >>| fun sexp ->
   match sexp with
   | Atom(loc, A s) -> { items = items_of_string s;  loc;  quoted = false }
