@@ -10,83 +10,91 @@ let _literal ~quoted ~loc s =
   ; loc
   }
 
-module Token = struct
-  type brace = Parens | Braces
-  type t =
-    | String of string
-    | Open   of brace
-    | Close  of brace
+(* This module implements the "old" template parsing that is only used in jbuild
+   files *)
+module Jbuild : sig
+  val parse : string -> loc:Loc.t -> quoted:bool -> t
+end = struct
+  type var_syntax = Parens | Braces
+  module Token = struct
+    type t =
+      | String of string
+      | Open   of var_syntax
+      | Close  of var_syntax
 
-  let tokenise s =
-    let len = String.length s in
-    let sub i j = String.sub s ~pos:i ~len:(j - i) in
-    let cons_str i j acc = if i = j then acc else String (sub i j) :: acc in
-    let rec loop i j =
-      if j = len
-      then cons_str i j []
-      else
-        match s.[j] with
-        | '}' -> cons_str i j (Close Braces :: loop (j + 1) (j + 1))
-        | ')' -> cons_str i j (Close Parens :: loop (j + 1) (j + 1))
-        | '$' when j + 1 < len -> begin
-            match s.[j + 1] with
-            | '{' -> cons_str i j (Open Braces :: loop (j + 2) (j + 2))
-            | '(' -> cons_str i j (Open Parens :: loop (j + 2) (j + 2))
-            | _   -> loop i (j + 1)
-          end
-        | _ -> loop i (j + 1)
-    in
-    loop 0 0
-
-  let to_string = function
-    | String s     -> s
-    | Open  Braces -> "${"
-    | Open  Parens -> "$("
-    | Close Braces -> "}"
-    | Close Parens -> ")"
-end
-
-(* Remark: Consecutive [Text] items are concatenated. *)
-let rec of_tokens
-  : Loc.t -> Token.t list -> part list = fun loc -> function
-  | [] -> []
-  | Open a :: String s :: Close b :: rest when a = b ->
-    let (name, payload) =
-      match String.lsplit2 s ~on:':' with
-      | None -> ("", s)
-      | Some v -> v
-    in
-    Var { loc
-        ; name
-        ; payload
-        ; syntax =
-            begin match a with
-            | Parens -> Dollar_paren
-            | Braces -> Dollar_brace
+    let tokenise s =
+      let len = String.length s in
+      let sub i j = String.sub s ~pos:i ~len:(j - i) in
+      let cons_str i j acc = if i = j then acc else String (sub i j) :: acc in
+      let rec loop i j =
+        if j = len
+        then cons_str i j []
+        else
+          match s.[j] with
+          | '}' -> cons_str i j (Close Braces :: loop (j + 1) (j + 1))
+          | ')' -> cons_str i j (Close Parens :: loop (j + 1) (j + 1))
+          | '$' when j + 1 < len -> begin
+              match s.[j + 1] with
+              | '{' -> cons_str i j (Open Braces :: loop (j + 2) (j + 2))
+              | '(' -> cons_str i j (Open Parens :: loop (j + 2) (j + 2))
+              | _   -> loop i (j + 1)
             end
-        } :: of_tokens loc rest
-  | token :: rest ->
-    let s = Token.to_string token in
-    match of_tokens loc rest with
-    | Text s' :: l -> Text (s ^ s') :: l
-    | l -> Text s :: l
+          | _ -> loop i (j + 1)
+      in
+      loop 0 0
 
-let items_of_string loc s = of_tokens loc (Token.tokenise s)
+    let to_string = function
+      | String s     -> s
+      | Open  Braces -> "${"
+      | Open  Parens -> "$("
+      | Close Braces -> "}"
+      | Close Parens -> ")"
+  end
+  (* Remark: Consecutive [Text] items are concatenated. *)
+  let rec of_tokens
+    : Loc.t -> Token.t list -> part list = fun loc -> function
+    | [] -> []
+    | Open a :: String s :: Close b :: rest when a = b ->
+      let (name, payload) =
+        match String.lsplit2 s ~on:':' with
+        | None -> ("", s)
+        | Some v -> v
+      in
+      Var { loc
+          ; name
+          ; payload
+          ; syntax =
+              begin match a with
+              | Parens -> Dollar_paren
+              | Braces -> Dollar_brace
+              end
+          } :: of_tokens loc rest
+    | token :: rest ->
+      let s = Token.to_string token in
+      match of_tokens loc rest with
+      | Text s' :: l -> Text (s ^ s') :: l
+      | l -> Text s :: l
+
+  let parse s ~loc ~quoted =
+    { parts = of_tokens loc (Token.tokenise s)
+    ; loc
+    ; quoted
+    }
+end
 
 let t =
   let open Sexp.Of_sexp in
   raw >>| function
   | Template t -> t
-  | Atom(loc, A s) -> { parts = items_of_string loc s; loc; quoted = false }
-  | Quoted_string (loc, s) ->
-    { parts = items_of_string loc s;  loc;  quoted = true }
+  | Atom(loc, A s) -> Jbuild.parse s ~loc ~quoted:false
+  | Quoted_string (loc, s) -> Jbuild.parse s ~loc ~quoted:true
   | List (loc, _) -> Sexp.Of_sexp.of_sexp_error loc "Atom expected"
 
 let loc t = t.loc
 
 let virt ?(quoted=false) pos s =
-  let loc = Loc.of_pos pos in
-  { parts = items_of_string loc s;  loc = Loc.of_pos pos;  quoted }
+  Jbuild.parse ~quoted ~loc:(Loc.of_pos pos) s
+
 let virt_var ?(quoted=false) pos s =
   assert (String.for_all s ~f:(function ':' -> false | _ -> true));
   let loc = Loc.of_pos pos in
