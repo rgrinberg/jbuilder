@@ -11,7 +11,10 @@ let pp_sexp_ast =
             [ atom_or_quoted_string loc "atom"
             ; atom_or_quoted_string loc s])
     | Template (t : Sexp.Template.t) ->
-      List (t.loc, [atom_or_quoted_string t.loc "template"; Template t])
+      let template_sexp =
+        Sexp.Template.to_debug_sexp t
+        |> Sexp.add_loc ~loc:t.loc in
+      List (t.loc, [atom_or_quoted_string t.loc "template"; template_sexp])
     | List (loc, xs) ->
       List (loc, List.map ~f:subst_atoms_templates xs)
     | Quoted_string _ -> s
@@ -174,7 +177,11 @@ parse {|\%{foo}|}
 [%%expect{|
 - : parse_result =
 Different
- {jbuild = Ok [(atom "\\%{foo}")]; dune = Ok [(template "\\%{foo}")]}
+ {jbuild = Ok [(atom "\\%{foo}")];
+  dune =
+   Ok
+    [(template
+      (template ((text "\\") ((name "") (payload "foo") (syntax "%{}")))))]}
 |}]
 
 parse {|\$bar%foo%|}
@@ -192,5 +199,31 @@ parse {|\$bar\%foo%{bar}|}
 - : parse_result =
 Different
  {jbuild = Ok [(atom "\\$bar\\%foo%{bar}")];
-  dune = Ok [(template "\\$bar\\%foo%{bar}")]}
+  dune =
+   Ok
+    [(template
+      (template
+       ((text "\\$bar\\%foo") ((name "") (payload "bar") (syntax "%{}")))))]}
+|}]
+
+parse {|"bar%{foo}"|}
+[%%expect{|
+- : parse_result =
+Different
+ {jbuild = Ok ["bar%{foo}"];
+  dune =
+   Ok
+    [(template
+      (template ((text "bar") ((name "") (payload "foo") (syntax "%{}")))))]}
+|}]
+
+parse {|"bar\\%{foo}"|}
+[%%expect{|
+- : parse_result =
+Different
+ {jbuild = Ok ["bar\\%{foo}"];
+  dune =
+   Ok
+    [(template
+      (template ((text "bar\\") ((name "") (payload "foo") (syntax "%{}")))))]}
 |}]

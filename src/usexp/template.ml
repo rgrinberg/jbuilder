@@ -56,3 +56,21 @@ let sexp_of_t t =
     Sexp.Quoted_string (to_string t)
   else
     Sexp.atom_or_quoted_string (to_string t)
+
+let syntax_to_string = function
+  | Dollar_brace -> "${}"
+  | Dollar_paren -> "$()"
+  | Percent -> "%{}"
+
+let to_debug_sexp t =
+  let a s = Sexp.Atom (Atom.of_string s) in
+  let rec loop = function
+    | [] -> []
+    | Text s :: parts -> (Sexp.List [a "text"; Quoted_string s]) :: loop parts
+    | Var { name; payload; syntax; loc=_ } :: parts ->
+      (List
+         [ List [a "name"; Quoted_string name]
+         ; List [a "payload"; Quoted_string payload]
+         ; List [a "syntax"; Quoted_string (syntax_to_string syntax) ]
+         ]) :: loop parts in
+  Sexp.List [a "template"; List (loop t.parts)]

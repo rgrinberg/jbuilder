@@ -57,6 +57,8 @@ module Template : sig
 
   val sexp_of_t : t -> sexp
 
+  val to_debug_sexp : t -> sexp
+
   val to_string : t -> string
 end with type sexp := t
 

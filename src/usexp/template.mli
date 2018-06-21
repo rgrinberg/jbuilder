@@ -20,3 +20,5 @@ type t =
 val to_string : t -> string
 
 val sexp_of_t : t -> Sexp.t
+
+val to_debug_sexp : t -> Sexp.t
