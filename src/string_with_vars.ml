@@ -163,11 +163,6 @@ let invalid_multivalue (v : var) x =
                   Please quote this atom."
     (string_of_var v) (List.length x)
 
-(* let rec rev_append acc = function
- *   | Nil -> acc
- *   | Text (s, xs) -> rev_append (Text (s, acc)) xs
- *   | Var v -> rev_append (Var { v with parts = acc }) v.parts *)
-
 let full_var_name (v : var) =
   match v.name with
   | "" -> v.payload
