@@ -60,7 +60,7 @@ module Test = struct
         ; atom (sprintf "test-cases/%s" t.name)
         ; List
             [ atom "progn"
-            ; Sexp.strings (["run"; "${exe:cram.exe}"]
+            ; Sexp.strings (["run"; "%{exe:cram.exe}"]
                             @ skip_version
                             @ skip_platforms
                             @ ["-test"; "run.t"])
@@ -90,7 +90,7 @@ end
 let exclusions =
   let open Test in
   let odoc = make ~external_deps:true ~skip_ocaml:"4.02.3" in
-  [ make "js_of_ocaml" ~external_deps:true ~js:true ~env:("NODE", "${bin:node}")
+  [ make "js_of_ocaml" ~external_deps:true ~js:true ~env:("NODE", "%{bin:node}")
   ; make "github25" ~env:("OCAMLPATH", "./findlib-packages")
   ; odoc "odoc"
   ; odoc "odoc-unique-mlds"

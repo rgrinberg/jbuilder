@@ -4,7 +4,7 @@
   (action
    (chdir
     test-cases/aliases
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name bad-alias-error)
@@ -12,7 +12,7 @@
   (action
    (chdir
     test-cases/bad-alias-error
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name block-strings)
@@ -20,7 +20,7 @@
   (action
    (chdir
     test-cases/block-strings
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name byte-code-only)
@@ -28,7 +28,7 @@
   (action
    (chdir
     test-cases/byte-code-only
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name c-stubs)
@@ -36,7 +36,7 @@
   (action
    (chdir
     test-cases/c-stubs
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name configurator)
@@ -45,7 +45,7 @@
    (chdir
     test-cases/configurator
     (progn
-     (run ${exe:cram.exe} -skip-platforms win -test run.t)
+     (run "%{exe:cram.exe}" -skip-platforms win -test run.t)
      (diff? run.t run.t.corrected))))))
 
 (alias
@@ -54,7 +54,7 @@
   (action
    (chdir
     test-cases/copy_files
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name cross-compilation)
@@ -62,7 +62,7 @@
   (action
    (chdir
     test-cases/cross-compilation
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name custom-build-dir)
@@ -70,7 +70,7 @@
   (action
    (chdir
     test-cases/custom-build-dir
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name depend-on-the-universe)
@@ -78,7 +78,7 @@
   (action
    (chdir
     test-cases/depend-on-the-universe
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name dune-ppx-driver-system)
@@ -86,7 +86,7 @@
   (action
    (chdir
     test-cases/dune-ppx-driver-system
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name dune-project-edition)
@@ -94,7 +94,7 @@
   (action
    (chdir
     test-cases/dune-project-edition
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name env)
@@ -102,7 +102,7 @@
   (action
    (chdir
     test-cases/env
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name exclude-missing-module)
@@ -110,7 +110,7 @@
   (action
    (chdir
     test-cases/exclude-missing-module
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name exec-cmd)
@@ -118,7 +118,7 @@
   (action
    (chdir
     test-cases/exec-cmd
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name findlib)
@@ -126,7 +126,7 @@
   (action
    (chdir
     test-cases/findlib
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name force-test)
@@ -134,7 +134,7 @@
   (action
    (chdir
     test-cases/force-test
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name gen-opam-install-file)
@@ -142,7 +142,7 @@
   (action
    (chdir
     test-cases/gen-opam-install-file
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name github20)
@@ -150,7 +150,7 @@
   (action
    (chdir
     test-cases/github20
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name github24)
@@ -158,7 +158,7 @@
   (action
    (chdir
     test-cases/github24
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name github25)
@@ -169,7 +169,7 @@
     ./findlib-packages
     (chdir
      test-cases/github25
-     (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))))
+     (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected)))))))
 
 (alias
  ((name github534)
@@ -177,7 +177,7 @@
   (action
    (chdir
     test-cases/github534
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name github568)
@@ -185,7 +185,7 @@
   (action
    (chdir
     test-cases/github568
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name github597)
@@ -193,7 +193,7 @@
   (action
    (chdir
     test-cases/github597
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name github644)
@@ -201,7 +201,7 @@
   (action
    (chdir
     test-cases/github644
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name github660)
@@ -209,7 +209,7 @@
   (action
    (chdir
     test-cases/github660
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name github717-odoc-index)
@@ -218,7 +218,7 @@
    (chdir
     test-cases/github717-odoc-index
     (progn
-     (run ${exe:cram.exe} -skip-versions 4.02.3 -test run.t)
+     (run "%{exe:cram.exe}" -skip-versions 4.02.3 -test run.t)
      (diff? run.t run.t.corrected))))))
 
 (alias
@@ -227,7 +227,7 @@
   (action
    (chdir
     test-cases/github734
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name github759)
@@ -235,7 +235,7 @@
   (action
    (chdir
     test-cases/github759
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name github761)
@@ -243,7 +243,7 @@
   (action
    (chdir
     test-cases/github761
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name github764)
@@ -252,7 +252,7 @@
    (chdir
     test-cases/github764
     (progn
-     (run ${exe:cram.exe} -skip-platforms win -test run.t)
+     (run "%{exe:cram.exe}" -skip-platforms win -test run.t)
      (diff? run.t run.t.corrected))))))
 
 (alias
@@ -261,7 +261,7 @@
   (action
    (chdir
     test-cases/github784
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name ignored_subdirs)
@@ -269,7 +269,7 @@
   (action
    (chdir
     test-cases/ignored_subdirs
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name include-loop)
@@ -277,7 +277,7 @@
   (action
    (chdir
     test-cases/include-loop
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name inline_tests)
@@ -285,7 +285,7 @@
   (action
    (chdir
     test-cases/inline_tests
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name installable-dup-private-libs)
@@ -294,7 +294,7 @@
   (action
    (chdir
     test-cases/installable-dup-private-libs
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name intf-only)
@@ -302,7 +302,7 @@
   (action
    (chdir
     test-cases/intf-only
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name js_of_ocaml)
@@ -310,10 +310,10 @@
   (action
    (setenv
     NODE
-    ${bin:node}
+    "%{bin:node}"
     (chdir
      test-cases/js_of_ocaml
-     (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))))
+     (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected)))))))
 
 (alias
  ((name lib-available)
@@ -321,7 +321,7 @@
   (action
    (chdir
     test-cases/lib-available
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name link-deps)
@@ -329,7 +329,7 @@
   (action
    (chdir
     test-cases/link-deps
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name loop)
@@ -337,7 +337,7 @@
   (action
    (chdir
     test-cases/loop
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name menhir)
@@ -345,7 +345,7 @@
   (action
    (chdir
     test-cases/menhir
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name merlin-tests)
@@ -353,7 +353,7 @@
   (action
    (chdir
     test-cases/merlin-tests
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name meta-gen)
@@ -361,7 +361,7 @@
   (action
    (chdir
     test-cases/meta-gen
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name misc)
@@ -369,7 +369,7 @@
   (action
    (chdir
     test-cases/misc
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name multiple-private-libs)
@@ -378,7 +378,7 @@
    (chdir
     test-cases/multiple-private-libs
     (progn
-     (run ${exe:cram.exe} -skip-versions 4.02.3 -test run.t)
+     (run "%{exe:cram.exe}" -skip-versions 4.02.3 -test run.t)
      (diff? run.t run.t.corrected))))))
 
 (alias
@@ -387,7 +387,7 @@
   (action
    (chdir
     test-cases/no-installable-mode
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name null-dep)
@@ -395,7 +395,7 @@
   (action
    (chdir
     test-cases/null-dep
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name ocaml-syntax)
@@ -403,7 +403,7 @@
   (action
    (chdir
     test-cases/ocaml-syntax
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name ocamldep-multi-stanzas)
@@ -411,7 +411,7 @@
   (action
    (chdir
     test-cases/ocamldep-multi-stanzas
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name odoc)
@@ -420,7 +420,7 @@
    (chdir
     test-cases/odoc
     (progn
-     (run ${exe:cram.exe} -skip-versions 4.02.3 -test run.t)
+     (run "%{exe:cram.exe}" -skip-versions 4.02.3 -test run.t)
      (diff? run.t run.t.corrected))))))
 
 (alias
@@ -430,7 +430,7 @@
    (chdir
     test-cases/odoc-unique-mlds
     (progn
-     (run ${exe:cram.exe} -skip-versions 4.02.3 -test run.t)
+     (run "%{exe:cram.exe}" -skip-versions 4.02.3 -test run.t)
      (diff? run.t run.t.corrected))))))
 
 (alias
@@ -441,7 +441,7 @@
     test-cases/output-obj
     (progn
      (run
-      ${exe:cram.exe}
+      "%{exe:cram.exe}"
       -skip-versions
       <4.06.0
       -skip-platforms
@@ -456,7 +456,7 @@
   (action
    (chdir
     test-cases/package-dep
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name ppx-rewriter)
@@ -465,7 +465,7 @@
    (chdir
     test-cases/ppx-rewriter
     (progn
-     (run ${exe:cram.exe} -skip-versions 4.02.3 -test run.t)
+     (run "%{exe:cram.exe}" -skip-versions 4.02.3 -test run.t)
      (diff? run.t run.t.corrected))))))
 
 (alias
@@ -474,7 +474,7 @@
   (action
    (chdir
     test-cases/private-public-overlap
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name promote)
@@ -482,7 +482,7 @@
   (action
    (chdir
     test-cases/promote
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name quoting)
@@ -490,7 +490,7 @@
   (action
    (chdir
     test-cases/quoting
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name reason)
@@ -498,7 +498,7 @@
   (action
    (chdir
     test-cases/reason
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name redirections)
@@ -506,7 +506,7 @@
   (action
    (chdir
     test-cases/redirections
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name scope-bug)
@@ -514,7 +514,7 @@
   (action
    (chdir
     test-cases/scope-bug
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name scope-ppx-bug)
@@ -522,7 +522,7 @@
   (action
    (chdir
     test-cases/scope-ppx-bug
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name select)
@@ -530,7 +530,7 @@
   (action
    (chdir
     test-cases/select
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name syntax-versioning)
@@ -538,7 +538,7 @@
   (action
    (chdir
     test-cases/syntax-versioning
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name use-meta)
@@ -546,7 +546,7 @@
   (action
    (chdir
     test-cases/use-meta
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name utop)
@@ -554,7 +554,7 @@
   (action
    (chdir
     test-cases/utop
-    (progn (run ${exe:cram.exe} -test run.t) (diff? run.t run.t.corrected))))))
+    (progn (run "%{exe:cram.exe}" -test run.t) (diff? run.t run.t.corrected))))))
 
 (alias
  ((name runtest)
