@@ -12,7 +12,7 @@ for cmd in $CMDS; do
 
 (rule
  ((targets (dune-$cmd.1))
-  (action  (with-stdout-to \${@}
+  (action  (with-stdout-to %{@}
             (run dune $cmd --help=groff)))))
 
 (install
