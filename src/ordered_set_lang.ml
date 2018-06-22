@@ -235,7 +235,7 @@ module Unexpanded = struct
       | Diff (l, r) ->
         loop (loop acc l) r
     in
-    loop String.Set.empty t.ast
+    (Usexp.Jbuild, loop String.Set.empty t.ast)
 
   let has_special_forms t =
     let rec loop (t : ast) =

@@ -23,3 +23,5 @@ module Error : sig
 end
 
 exception Error of Error.t
+
+val choose : Atom.syntax -> t

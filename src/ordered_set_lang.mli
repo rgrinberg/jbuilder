@@ -63,7 +63,10 @@ module Unexpanded : sig
   val has_special_forms : t -> bool
 
   (** List of files needed to expand this set *)
-  val files : t -> f:(String_with_vars.t -> string) -> String.Set.t
+  val files
+    : t
+    -> f:(String_with_vars.t -> string)
+    -> Sexp.syntax * String.Set.t
 
   (** Expand [t] using with the given file contents. [file_contents] is a map from
       filenames to their parsed contents. Every [(:include fn)] in [t] is replaced by

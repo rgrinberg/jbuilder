@@ -110,7 +110,8 @@ let expand_and_eval_set t ~scope ~dir ?extra_vars set ~standard =
   let open Build.O in
   let f = expand_vars t ~scope ~dir ?extra_vars in
   let parse ~loc:_ s = s in
-  match Ordered_set_lang.Unexpanded.files set ~f |> String.Set.to_list with
+  let (syntax, files) = Ordered_set_lang.Unexpanded.files set ~f in
+  match String.Set.to_list files with
   | [] ->
     let set =
       Ordered_set_lang.Unexpanded.expand set ~files_contents:String.Map.empty ~f
@@ -119,7 +120,8 @@ let expand_and_eval_set t ~scope ~dir ?extra_vars set ~standard =
     Ordered_set_lang.String.eval set ~standard ~parse
   | files ->
     let paths = List.map files ~f:(Path.relative dir) in
-    Build.fanout standard (Build.all (List.map paths ~f:Build.read_sexp))
+    Build.fanout standard (Build.all (List.map paths ~f:(fun f ->
+      Build.read_sexp f syntax)))
     >>^ fun (standard, sexps) ->
     let files_contents = List.combine files sexps |> String.Map.of_list_exn in
     let set = Ordered_set_lang.Unexpanded.expand set ~files_contents ~f in

@@ -2,10 +2,10 @@
 
     This library is internal to jbuilder and guarantees no API stability.*)
 
+type syntax = Jbuild | Dune
+
 module Atom : sig
   type t = private A of string [@@unboxed]
-
-  type syntax = Jbuild | Dune
 
   val is_valid : t -> syntax -> bool
 
@@ -118,6 +118,8 @@ module Lexer : sig
 
   val token : t
   val jbuild_token : t
+
+  val choose : syntax -> t
 end
 
 module Parser : sig

@@ -14,6 +14,8 @@ module Loc = Loc
 module Atom = Atom
 module Template = Template
 
+type syntax = Atom.syntax = Jbuild | Dune
+
 type sexp = Sexp.t
 include Sexp
 
