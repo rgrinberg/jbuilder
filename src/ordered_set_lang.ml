@@ -48,7 +48,7 @@ let t =
   raw >>| fun sexp ->
   let ast =
     parse_general sexp ~f:(function
-      | Template t -> (t.loc, Usexp.Template.to_string t)
+      | Template t -> no_templates_in t.loc "expanded ordered set fields"
       | Atom (loc, A s) | Quoted_string (loc, s) -> (loc, s)
       | List _ -> assert false)
   in
