@@ -250,8 +250,8 @@ module Unexpanded = struct
       let open Ast in
       match t with
       | Element s ->
-        Element (Sexp.Ast.loc s,
-                 f (Sexp.Of_sexp.parse String_with_vars.t Univ_map.empty s))
+        let sw = Syntax.set Stanza.syntax (0, 0) String_with_vars.t in
+        Element (Sexp.Ast.loc s, f (Sexp.Of_sexp.parse sw Univ_map.empty s))
       | Special (l, s) -> Special (l, s)
       | Include fn ->
         let sexp =
