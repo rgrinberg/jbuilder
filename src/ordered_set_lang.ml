@@ -176,6 +176,8 @@ let standard =
   ; context = Univ_map.empty
   }
 
+let field ?(default=standard) name = Sexp.Of_sexp.field name t ~default
+
 module Unexpanded = struct
   type ast = (Sexp.Ast.t, Ast.unexpanded) Ast.t
   type t = ast generic

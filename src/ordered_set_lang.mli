@@ -49,6 +49,8 @@ module Make(Key : Key)(Value : Value with type key = Key.t)
 val standard : t
 val is_standard : t -> bool
 
+val field : ?default:t -> string -> t Sexp.Of_sexp.fields_parser
+
 module Unexpanded : sig
   type expanded = t
   type t

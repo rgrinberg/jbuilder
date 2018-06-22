@@ -341,9 +341,7 @@ module Lint = struct
   let no_lint = default
 end
 
-let field_oslu name =
-  field name Ordered_set_lang.Unexpanded.t
-    ~default:Ordered_set_lang.Unexpanded.standard
+let field_oslu name = Ordered_set_lang.Unexpanded.field name
 
 module Js_of_ocaml = struct
 
@@ -503,8 +501,7 @@ module Buildable = struct
     ; allow_overlapping_dependencies : bool
     }
 
-  let modules_field name =
-    field name Ordered_set_lang.t ~default:Ordered_set_lang.standard
+  let modules_field name = Ordered_set_lang.field name
 
   let t =
     loc >>= fun loc ->
@@ -1244,7 +1241,7 @@ module Documentation = struct
   let t =
     record
       (Pkg.field >>= fun package ->
-       field "mld_files" Ordered_set_lang.t ~default:Ordered_set_lang.standard
+       Ordered_set_lang.field "mld_files"
        >>= fun mld_files ->
        return
          { package
