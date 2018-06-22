@@ -183,10 +183,12 @@ module Jbuild_driver = struct
      information. If it is, use the corresponding hardcoded driver
      information. *)
 
+  let context =
+    Univ_map.singleton (Syntax.key Stanza.syntax) (1, 0)
   let make name info : (Pp.t * Driver.t) Lazy.t = lazy (
     let info =
       Sexp.parse_string ~mode:Single ~fname:"<internal>" info
-      |> Sexp.Of_sexp.parse Driver.Info.parse Univ_map.empty
+      |> Sexp.Of_sexp.parse Driver.Info.parse context
     in
     (Pp.of_string name,
      { info
