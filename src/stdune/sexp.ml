@@ -148,6 +148,8 @@ module Of_sexp = struct
     = fun map t ctx state ->
       t (map_user_context ctx ~f:(fun uc -> Univ_map.superpose uc map)) state
 
+  let context ctx state = (get_user_context ctx, state)
+
   let loc : type k. k context -> k -> Loc.t * k = fun ctx state ->
     match ctx with
     | Values (loc, _, _) -> (loc, state)

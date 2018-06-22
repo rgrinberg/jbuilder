@@ -89,11 +89,14 @@ let set t ver parser =
   set t.key ver parser
 
 let get_exn t =
-  get t.key >>| function
-  | Some x -> x
+  get t.key >>= function
+  | Some x -> return x
   | None ->
+    context >>| fun context ->
     Exn.code_error "Syntax identifier is unset"
-      [ "name", Sexp.To_sexp.string t.name ]
+      [ "name", Sexp.To_sexp.string t.name
+      ; "bindings", Univ_map.sexp_of_t context
+      ]
 
 let desc () =
   kind >>| fun kind ->
