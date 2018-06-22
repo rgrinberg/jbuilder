@@ -137,6 +137,8 @@ module Of_sexp = struct
 
   let get key ctx state = (Univ_map.find (get_user_context ctx) key, state)
 
+  let context ctx state = (get_user_context ctx, state)
+
   let set : type a b k. a Univ_map.Key.t -> a -> (b, k) parser -> (b, k) parser
     = fun key v t ctx state ->
       match ctx with
