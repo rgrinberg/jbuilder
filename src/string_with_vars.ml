@@ -87,7 +87,7 @@ let t =
   Syntax.get_exn Stanza.syntax >>= function
   | (0, _) ->
     begin raw >>| function
-    | Template _ -> assert false
+    | Template t -> t
     | Atom(loc, A s) -> Jbuild.parse s ~loc ~quoted:false
     | Quoted_string (loc, s) -> Jbuild.parse s ~loc ~quoted:true
     | List (loc, _) -> Sexp.Of_sexp.of_sexp_error loc "Atom expected"
