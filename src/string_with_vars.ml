@@ -84,21 +84,23 @@ end
 
 let t =
   let open Sexp.Of_sexp in
-  Syntax.get_exn Stanza.syntax >>= function
-  | (0, _) ->
-    begin raw >>| function
+  let jbuild =
+    raw >>| function
     | Template t -> t
     | Atom(loc, A s) -> Jbuild.parse s ~loc ~quoted:false
     | Quoted_string (loc, s) -> Jbuild.parse s ~loc ~quoted:true
     | List (loc, _) -> Sexp.Of_sexp.of_sexp_error loc "Atom expected"
-    end
-  | (_, _) ->
-    begin raw >>| function
+  in
+  let dune =
+    raw >>| function
     | Template t -> t
     | Atom(loc, A s) -> literal ~quoted:false ~loc s
     | Quoted_string (loc, s) -> literal ~quoted:true ~loc s
     | List (loc, _) -> Sexp.Of_sexp.of_sexp_error loc "Unexpected list"
-    end
+  in
+  Syntax.get_exn Stanza.syntax >>= function
+  | (0, _) -> jbuild
+  | (_, _) -> dune
 
 let loc t = t.loc
 
