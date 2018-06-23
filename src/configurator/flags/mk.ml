@@ -18,8 +18,6 @@ let () =
     raise (Arg.Bad "Provide version with -ocamlv")
   else
     let (x, y, _) = parse_version !ocaml_version in
-    if x >= 4 && y > 2 then (
-      printf "()\n"
-    ) else (
-      printf "(-w -50)\n"
+    if not (x >= 4 && y > 2) then (
+      printf "-w\n-50\n"
     )
