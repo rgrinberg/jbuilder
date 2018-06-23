@@ -110,22 +110,37 @@ let expand_and_eval_set t ~scope ~dir ?extra_vars set ~standard =
   let open Build.O in
   let f = expand_vars t ~scope ~dir ?extra_vars in
   let parse ~loc:_ s = s in
-  let (syntax, files) = Ordered_set_lang.Unexpanded.files set ~f in
-  match String.Set.to_list files with
-  | [] ->
+  let files = Ordered_set_lang.Unexpanded.files set ~f in
+  let files_empty =
+    match files with
+    | Ordered_set_lang.Unexpanded.Jbuild files ->
+      String.Set.is_empty files
+    | Dune { read; read_lines } ->
+      String.Set.is_empty read && String.Set.is_empty read_lines
+  in
+  if files_empty then
     let set =
       Ordered_set_lang.Unexpanded.expand set ~files_contents:String.Map.empty ~f
     in
     standard >>^ fun standard ->
     Ordered_set_lang.String.eval set ~standard ~parse
-  | files ->
-    let paths = List.map files ~f:(Path.relative dir) in
-    Build.fanout standard (Build.all (List.map paths ~f:(fun f ->
-      Build.read_sexp f syntax)))
-    >>^ fun (standard, sexps) ->
-    let files_contents = List.combine files sexps |> String.Map.of_list_exn in
-    let set = Ordered_set_lang.Unexpanded.expand set ~files_contents ~f in
-    Ordered_set_lang.String.eval set ~standard ~parse
+  else
+    match files with
+    | Ordered_set_lang.Unexpanded.Dune _ ->
+      let set =
+        Ordered_set_lang.Unexpanded.expand set ~files_contents:String.Map.empty ~f
+      in
+      standard >>^ fun standard ->
+      Ordered_set_lang.String.eval set ~standard ~parse
+    | Jbuild files ->
+      let files = String.Set.to_list files in
+      let paths = List.map files ~f:(Path.relative dir) in
+      Build.fanout standard (Build.all (List.map paths ~f:(fun f ->
+        Build.read_sexp f Usexp.Jbuild)))
+      >>^ fun (standard, sexps) ->
+      let files_contents = List.combine files sexps |> String.Map.of_list_exn in
+      let set = Ordered_set_lang.Unexpanded.expand set ~files_contents ~f in
+      Ordered_set_lang.String.eval set ~standard ~parse
 
 module Env = struct
   open Env_node

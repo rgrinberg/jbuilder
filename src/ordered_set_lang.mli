@@ -58,6 +58,15 @@ module Unexpanded : sig
   include Sexp.Sexpable with type t := t
   val standard : t
 
+  type dune =
+    { read: String.Set.t
+    ; read_lines : String.Set.t
+    }
+
+  type files =
+    | Dune of dune
+    | Jbuild of String.Set.t
+
   val field : ?default:t -> string -> t Sexp.Of_sexp.fields_parser
 
   val has_special_forms : t -> bool
@@ -66,7 +75,7 @@ module Unexpanded : sig
   val files
     : t
     -> f:(String_with_vars.t -> string)
-    -> Sexp.syntax * String.Set.t
+    -> files
 
   (** Expand [t] using with the given file contents. [file_contents] is a map from
       filenames to their parsed contents. Every [(:include fn)] in [t] is replaced by

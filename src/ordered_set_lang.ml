@@ -18,6 +18,12 @@ type 'ast generic =
   ; context: Univ_map.t
   }
 
+let syntax context =
+  match Univ_map.find context (Syntax.key Stanza.syntax) with
+  | None
+  | Some (0, _) -> Usexp.Jbuild
+  | Some (_, _) -> Usexp.Dune
+
 type ast_expanded = (Loc.t * string, Ast.expanded) Ast.t
 type t = ast_expanded generic
 let loc t = t.loc
@@ -178,6 +184,14 @@ let standard =
 
 let field ?(default=standard) name = Sexp.Of_sexp.field name t ~default
 
+let string_with_vars_no_dune fn =
+  let open Sexp.Of_sexp in
+  Syntax.renamed_in Stanza.syntax (1, 0)
+    ~to_:(sprintf "Use %%{read-lines:%s} with one element per line"
+            (fn |> Usexp.Ast.remove_locs |> Usexp.to_string))
+  >>= fun () ->
+  String_with_vars.t
+
 module Unexpanded = struct
   type ast = (Sexp.Ast.t, Ast.unexpanded) Ast.t
   type t = ast generic
@@ -190,7 +204,7 @@ module Unexpanded = struct
       match t with
       | Element x -> Element x
       | Union [Special (_, "include"); Element fn] ->
-        Include (Sexp.Of_sexp.parse String_with_vars.t context fn)
+        Include (Sexp.Of_sexp.parse (string_with_vars_no_dune fn) context fn)
       | Union [Special (loc, "include"); _]
       | Special (loc, "include") ->
         Loc.fail loc "(:include expects a single element (do you need to quote the filename?)"
@@ -222,20 +236,64 @@ module Unexpanded = struct
 
   let field ?(default=standard) name = Sexp.Of_sexp.field name t ~default
 
-  let files t ~f =
-    let rec loop acc (t : ast) =
-      let open Ast in
-      match t with
-      | Element _
-      | Special _ -> acc
-      | Include fn ->
-        String.Set.add acc (f fn)
-      | Union l ->
-        List.fold_left l ~init:acc ~f:loop
-      | Diff (l, r) ->
-        loop (loop acc l) r
+  type dune =
+    { read: String.Set.t
+    ; read_lines : String.Set.t
+    }
+
+  type files =
+    | Dune of dune
+    | Jbuild of String.Set.t
+
+  let files =
+    let jbuild ~f =
+      let rec loop acc (t : ast) =
+        let open Ast in
+        match t with
+        | Element _
+        | Special _ -> acc
+        | Include fn -> String.Set.add acc (f fn)
+        | Union l ->
+          List.fold_left l ~init:acc ~f:loop
+        | Diff (l, r) ->
+          loop (loop acc l) r
+      in
+      loop String.Set.empty
     in
-    (Usexp.Jbuild, loop String.Set.empty t.ast)
+    let dune =
+      let loop_part acc (t : Usexp.Template.part) =
+        match t with
+        | Var { name="read-lines"; payload; _ } ->
+          { acc with read_lines = String.Set.add acc.read_lines payload }
+        | Var { name="read"; payload; _ } ->
+          { acc with read_lines = String.Set.add acc.read payload }
+        | Text _
+        | Var _ -> acc
+      in
+      let rec loop_ast acc (t : Usexp.Ast.t) =
+        match t with
+        | Template t -> List.fold_left ~init:acc ~f:loop_part t.parts
+        | List (_, xs) -> List.fold_left ~init:acc ~f:loop_ast xs
+        | Atom (_, _)
+        | Quoted_string (_, _) -> acc
+      in
+      let rec loop acc (t : ast) =
+        let open Ast in
+        match t with
+        | Element e -> loop_ast acc e
+        | Special _ -> acc
+        | Include _ -> assert false
+        | Union l ->
+          List.fold_left l ~init:acc ~f:loop
+        | Diff (l, r) ->
+          loop (loop acc l) r
+      in
+      loop { read = String.Set.empty; read_lines = String.Set.empty }
+    in
+    fun t ~f ->
+      match syntax t.context with
+      | Dune -> Dune (dune t.ast)
+      | Jbuild -> Jbuild (jbuild t.ast ~f)
 
   let has_special_forms t =
     let rec loop (t : ast) =
