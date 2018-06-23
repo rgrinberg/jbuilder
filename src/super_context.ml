@@ -126,11 +126,27 @@ let expand_and_eval_set t ~scope ~dir ?extra_vars set ~standard =
     Ordered_set_lang.String.eval set ~standard ~parse
   else
     match files with
-    | Ordered_set_lang.Unexpanded.Dune _ ->
-      let set =
-        Ordered_set_lang.Unexpanded.expand set ~files_contents:String.Map.empty ~f
+    | Ordered_set_lang.Unexpanded.Dune {read; read_lines} ->
+      let read =
+        let read = String.Set.to_list read in
+        let read_lines = String.Set.to_list read_lines in
+        let path = Path.relative dir in
+        List.map read ~f:(fun f ->
+          Build.contents (path f) >>^ fun s -> [Value.String s])
+        @ List.map read_lines ~f:(fun f ->
+          Build.lines_of (path f) >>^ Value.L.strings)
+        |> Build.all
+        >>^ (fun values ->
+          List.combine (read @ read_lines) values
+          |> String.Map.of_list_exn)
       in
-      standard >>^ fun standard ->
+      standard &&& read >>^ fun (standard, _values) ->
+      let set =
+        Ordered_set_lang.Unexpanded.expand set ~files_contents:String.Map.empty
+          ~f:(fun sw ->
+            String_with_vars
+          )
+      in
       Ordered_set_lang.String.eval set ~standard ~parse
     | Jbuild files ->
       let files = String.Set.to_list files in
