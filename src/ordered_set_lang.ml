@@ -235,7 +235,12 @@ module Unexpanded = struct
       | Diff (l, r) ->
         loop (loop acc l) r
     in
-    (Usexp.Jbuild, loop String.Set.empty t.ast)
+    let syntax =
+      match Univ_map.find t.context (Syntax.key Stanza.syntax) with
+      | Some (0, _)-> File_tree.Dune_file.Kind.Jbuild
+      | None | Some (_, _) -> Dune
+    in
+    (syntax, loop String.Set.empty t.ast)
 
   let has_special_forms t =
     let rec loop (t : ast) =
