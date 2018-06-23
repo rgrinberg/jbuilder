@@ -155,7 +155,7 @@ let read_sexp p syntax =
   contents p
   >>^ fun s ->
   Usexp.parse_string s
-    ~lexer:(Usexp.Lexer.choose syntax)
+    ~lexer:(File_tree.Dune_file.Kind.lexer syntax)
     ~fname:(Path.to_string p) ~mode:Single
 
 let if_file_exists p ~then_ ~else_ =
