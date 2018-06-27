@@ -354,7 +354,7 @@ module Unexpanded = struct
 
   let t =
     let open Sexp.Of_sexp in
-    peek raw >>= function
+    peek_exn >>= function
     | Atom _ | Quoted_string _ as sexp ->
       of_sexp_errorf (Sexp.Ast.loc sexp)
         "if you meant for this to be executed with bash, write (bash \"...\") instead"
@@ -614,7 +614,7 @@ module Promotion = struct
 
     let t =
       let open Sexp.Of_sexp in
-      peek raw >>= function
+      peek_exn >>= function
       | List (_, [_; Atom (_, A "as"); _]) ->
         enter
           (Path.t >>= fun src ->
