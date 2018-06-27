@@ -4,11 +4,15 @@ When there are explicit interfaces, modules must be rebuilt.
   Entering directory 'explicit-interfaces'
           main alias runtest
   hello
-  $ echo 'let x = 1' >> explicit-interfaces/lib_sub.ml
+  $ echo 'let _x = 1' >> explicit-interfaces/lib_sub.ml
   $ dune runtest --root explicit-interfaces
   Entering directory 'explicit-interfaces'
           main alias runtest
   hello
+
+CR-someday diml: this is weird that we need to do that:
+
+  $ rm -f explicit-interfaces/lib_sub.ml
 
 When there are no interfaces, the situation is the same, but it is not possible
 to rely on these.
@@ -17,8 +21,9 @@ to rely on these.
   Entering directory 'no-interfaces'
           main alias runtest
   hello
-  $ echo 'let x = 1' >> no-interfaces/lib_sub.ml
+  $ echo 'let _x = 1' >> no-interfaces/lib_sub.ml
   $ dune runtest --root no-interfaces
   Entering directory 'no-interfaces'
           main alias runtest
   hello
+  $ rm -f no-interfaces/lib_sub.ml
