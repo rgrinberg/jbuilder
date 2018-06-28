@@ -77,3 +77,5 @@ val partial_expand
   -> dir:Path.t
   -> f:(Var.t -> Syntax.Version.t -> Value.t list option)
   -> 'a Partial.t
+
+val fold_vars : t -> f:('a -> Var.kind -> 'a) -> init:'a -> 'a
