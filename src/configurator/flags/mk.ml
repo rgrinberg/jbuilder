@@ -19,7 +19,7 @@ let () =
   else
     let (x, y, _) = parse_version !ocaml_version in
     if x >= 4 && y > 2 then (
-      printf "()\n"
+      printf ""
     ) else (
-      printf "(-w -50)\n"
+      printf "-w\n-50\n"
     )

@@ -4,5 +4,5 @@
  (name        configurator)
  (public_name dune.configurator)
  (libraries   stdune ocaml_config)
- (flags       (:standard -safe-string (:include flags/flags.sexp)))
+ (flags       (:standard -safe-string %{read-lines:flags/flags}))
  (preprocess  no_preprocessing))
