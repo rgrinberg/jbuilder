@@ -238,24 +238,47 @@ module Unexpanded = struct
 
   let field ?(default=standard) name = Stanza.Of_sexp.field name t ~default
 
-  let files t ~f =
-    let rec loop acc (t : ast) =
+  type 'a files =
+    { sexp: 'a
+    ; read: 'a
+    ; read_lines: 'a
+    }
+
+  let map_files files ~f =
+    { sexp = f files.sexp
+    ; read = f files.read
+    ; read_lines = f files.read_lines
+    }
+
+  let files t ~dir ~f =
+    let rec loop (acc : _ files) (t : ast) =
       let open Ast in
       match t with
-      | Element _ | Standard -> acc
+      | Element v ->
+        String_with_vars.fold_vars v ~init:acc ~f:(fun acc a ->
+          match (a : String_with_vars.Var.kind) with
+          | Pair ("read-lines", v) ->
+            { acc with read_lines = String.Set.add acc.read_lines v}
+          | Pair ("read", v) ->
+            { acc with read_lines = String.Set.add acc.read v}
+          | Pair (_, _)
+          | Single _ -> acc)
+      | Standard -> acc
       | Include fn ->
-        String.Set.add acc (f fn)
+        { acc with sexp =
+                     String.Set.add acc.sexp (Value.L.concat ~dir (f fn))
+        }
       | Union l ->
         List.fold_left l ~init:acc ~f:loop
       | Diff (l, r) ->
         loop (loop acc l) r
     in
-    let syntax =
-      match Univ_map.find t.context (Syntax.key Stanza.syntax) with
-      | Some (0, _)-> File_tree.Dune_file.Kind.Jbuild
-      | None | Some (_, _) -> Dune
-    in
-    (syntax, loop String.Set.empty t.ast)
+    loop
+      { sexp = String.Set.empty
+      ; read = String.Set.empty
+      ; read_lines = String.Set.empty
+      }
+      t.ast
 
   let has_special_forms t =
     let rec loop (t : ast) =
@@ -291,14 +314,21 @@ module Unexpanded = struct
     in
     loop t.ast Pos init
 
-  let expand t ~files_contents ~f  =
+  let expand t ~dir ~files_contents ~f  =
     let context = t.context in
     let rec expand (t : ast) : ast_expanded =
       let open Ast in
       match t with
-      | Element s -> Element (String_with_vars.loc s, f s)
+      | Element s ->
+        let loc = String_with_vars.loc s in
+        let elem v = Element (loc, Value.to_string ~dir v) in
+        begin match f s with
+        | [x] -> elem x
+        | values -> Union (List.map ~f:elem values)
+        end
       | Standard -> Standard
       | Include fn ->
+        let f v = Value.L.concat ~dir (f v) in
         let sexp =
           let fn = f fn in
           match String.Map.find files_contents fn with

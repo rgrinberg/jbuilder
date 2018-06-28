@@ -298,7 +298,7 @@ let text_only t =
   | _ -> None
 
 let fold_vars t ~f ~init =
-  List.fold_left t.parts ~init ~f:(fun acc a ->
+  List.fold_left t.template.parts ~init ~f:(fun acc a ->
     match a with
     | Text _ -> acc
     | Var v -> f acc (Var.destruct v))

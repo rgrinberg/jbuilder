@@ -62,19 +62,29 @@ module Unexpanded : sig
 
   val has_special_forms : t -> bool
 
+  type 'a files =
+    { sexp: 'a
+    ; read: 'a
+    ; read_lines: 'a
+    }
+
+  val map_files : 'a files -> f:('a -> 'b) -> 'b files
+
   (** List of files needed to expand this set *)
   val files
     : t
-    -> f:(String_with_vars.t -> string)
-    -> Sexp.syntax * String.Set.t
+    -> dir:Path.t
+    -> f:(String_with_vars.t -> Value.t list)
+    -> String.Set.t files
 
   (** Expand [t] using with the given file contents. [file_contents] is a map from
       filenames to their parsed contents. Every [(:include fn)] in [t] is replaced by
       [Map.find files_contents fn]. Every element is converted to a string using [f]. *)
   val expand
     :  t
+    -> dir:Path.t
     -> files_contents:Sexp.Ast.t String.Map.t
-    -> f:(String_with_vars.t -> string)
+    -> f:(String_with_vars.t -> Value.t list)
     -> expanded
 
   type position = Pos | Neg

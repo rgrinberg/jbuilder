@@ -122,21 +122,46 @@ let expand_and_eval_set t ~scope ~dir ?bindings set ~standard =
   let open Build.O in
   let f = expand_vars_string t ~scope ~dir ?bindings in
   let parse ~loc:_ s = s in
-  let (syntax, files) = Ordered_set_lang.Unexpanded.files set ~f in
-  match String.Set.to_list files with
-  | [] ->
+  let files : _ Ordered_set_lang.Unexpanded.files
+    = Ordered_set_lang.Unexpanded.files set ~dir ~f in
+  if (String.Set.is_empty files.sexp
+      && String.Set.is_empty files.read
+      && String.Set.is_empty files.read_lines) then
     let set =
-      Ordered_set_lang.Unexpanded.expand set ~files_contents:String.Map.empty ~f
+      Ordered_set_lang.Unexpanded.expand set ~dir
+        ~files_contents:String.Map.empty ~f
     in
     standard >>^ fun standard ->
     Ordered_set_lang.String.eval set ~standard ~parse
-  | files ->
-    let paths = List.map files ~f:(Path.relative dir) in
-    Build.fanout standard (Build.all (List.map paths ~f:(fun f ->
-      Build.read_sexp f syntax)))
-    >>^ fun (standard, sexps) ->
-    let files_contents = List.combine files sexps |> String.Map.of_list_exn in
-    let set = Ordered_set_lang.Unexpanded.expand set ~files_contents ~f in
+  else
+    let files =
+      Ordered_set_lang.Unexpanded.map_files files ~f:String.Set.to_list in
+    Build.fanout4
+      standard
+      (Build.all (List.map files.sexp ~f:(fun f ->
+         Build.read_sexp (Path.relative dir f) Jbuild)))
+      (Build.all (List.map files.read ~f:(fun f ->
+         let path = Path.relative dir f in
+         Build.contents path
+         >>^ fun s -> [Value.String s])))
+      (Build.all (List.map files.read_lines ~f:(fun f ->
+         let path = Path.relative dir f in
+         Build.lines_of path
+         >>^ Value.L.strings)))
+    >>^ fun (standard, sexps, read, read_lines) ->
+    let f =
+      expand_vars_osl t ~scope ~dir
+        ~extra_vars:(
+          let make prefix keys =
+            List.combine (List.map ~f:(sprintf "%s:%s" prefix) keys) in
+          (make "read" files.read read)
+          @ (make "read-lines" files.read_lines read_lines)
+          |> String.Map.of_list_exn
+        ) in
+    let files_contents =
+      List.combine files.sexp sexps |> String.Map.of_list_exn in
+    let set = Ordered_set_lang.Unexpanded.expand set
+                ~dir ~files_contents ~f in
     Ordered_set_lang.String.eval set ~standard ~parse
 
 module Env = struct
