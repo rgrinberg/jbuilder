@@ -123,7 +123,7 @@ let expand_and_eval_set t ~scope ~dir ?bindings set ~standard =
   let f = expand_vars_string t ~scope ~dir ?bindings in
   let parse ~loc:_ s = s in
   let files : _ Ordered_set_lang.Unexpanded.files
-    = Ordered_set_lang.Unexpanded.files set ~dir ~f in
+    = Ordered_set_lang.Unexpanded.files set ~f in
   if (String.Set.is_empty files.sexp
       && String.Set.is_empty files.read
       && String.Set.is_empty files.read_lines) then

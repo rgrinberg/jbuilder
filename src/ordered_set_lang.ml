@@ -250,35 +250,24 @@ module Unexpanded = struct
     ; read_lines = f files.read_lines
     }
 
-  let files t ~dir ~f =
-    let rec loop (acc : _ files) (t : ast) =
+  let files t ~f =
+    let rec loop acc (t : ast) =
       let open Ast in
       match t with
-      | Element v ->
-        String_with_vars.fold_vars v ~init:acc ~f:(fun acc a ->
-          match (a : String_with_vars.Var.kind) with
-          | Pair ("read-lines", v) ->
-            { acc with read_lines = String.Set.add acc.read_lines v}
-          | Pair ("read", v) ->
-            { acc with read_lines = String.Set.add acc.read v}
-          | Pair (_, _)
-          | Single _ -> acc)
-      | Standard -> acc
+      | Element _ | Standard -> acc
       | Include fn ->
-        { acc with sexp =
-                     String.Set.add acc.sexp (Value.L.concat ~dir (f fn))
-        }
+        String.Set.add acc (f fn)
       | Union l ->
         List.fold_left l ~init:acc ~f:loop
       | Diff (l, r) ->
         loop (loop acc l) r
     in
-    loop
-      { sexp = String.Set.empty
-      ; read = String.Set.empty
-      ; read_lines = String.Set.empty
-      }
-      t.ast
+    let syntax =
+      match Univ_map.find t.context (Syntax.key Stanza.syntax) with
+      | Some (0, _)-> File_tree.Dune_file.Kind.Jbuild
+      | None | Some (_, _) -> Dune
+    in
+    (syntax, loop String.Set.empty t.ast)
 
   let has_special_forms t =
     let rec loop (t : ast) =
