@@ -1,3 +1,9 @@
+next
+----
+
+- Change the location of preprocessed files inside the build directory
+  (#1004, @diml)
+
 1.0.0 (10/07/2018)
 ------------------
 
