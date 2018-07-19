@@ -1519,6 +1519,15 @@ end
 
 module Include_subdirs = struct
   type t = True | False
+
+  let t =
+    if_eos
+      ~then_:(return True)
+      ~else_:
+        (enum
+           [ "true", True
+           ; "false", False
+           ])
 end
 
 type Stanza.t +=
@@ -1600,6 +1609,10 @@ module Stanzas = struct
     ; "env",
       (let%map x = Dune_env.Stanza.t in
        [Dune_env.T x])
+    ; "include_subdirs",
+      (let%map () = Syntax.since Stanza.syntax (1, 1)
+       and t = Include_subdirs.t in
+       [Include_subdirs t])
     ]
 
   let jbuild_parser =
