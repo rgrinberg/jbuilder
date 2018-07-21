@@ -238,6 +238,8 @@ module Library : sig
     ; sub_systems              : Sub_system_info.t Sub_system_name.Map.t
     ; no_keep_locs             : bool
     ; dune_version             : Syntax.Version.t
+    ; virtual_modules          : Ordered_set_lang.t option
+    ; implements               : (Loc.t * string) option
     }
 
   val has_stubs : t -> bool
@@ -245,6 +247,7 @@ module Library : sig
   val dll : t -> dir:Path.t -> ext_dll:string -> Path.t
   val archive : t -> dir:Path.t -> ext:string -> Path.t
   val best_name : t -> string
+  val is_virtual : t -> bool
 end
 
 module Install_conf : sig

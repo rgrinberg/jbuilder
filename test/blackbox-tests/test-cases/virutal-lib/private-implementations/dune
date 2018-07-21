@@ -1,0 +1,16 @@
+(executable
+ (name using_impl1)
+ (modules using_impl1)
+ (libraries impl1))
+
+(executable
+ (name using_impl2)
+ (modules using_impl2)
+ (libraries impl2))
+
+(alias
+ (name default)
+ (action
+  (progn
+   (run ./using_impl1.exe)
+   (run ./using_impl2.exe))))

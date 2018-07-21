@@ -9,17 +9,6 @@ open! Stdune
 open Import
 open Dune_file
 
-(** A directory with a jbuild *)
-module Dir_with_jbuild : sig
-  type t =
-    { src_dir : Path.t
-    ; ctx_dir : Path.t (** [_build/context-name/src_dir] *)
-    ; stanzas : Stanzas.t
-    ; scope   : Scope.t
-    ; kind    : File_tree.Dune_file.Kind.t
-    }
-end
-
 module Installable : sig
   type t =
     { dir    : Path.t

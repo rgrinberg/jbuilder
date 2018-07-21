@@ -797,6 +797,14 @@
    (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
 
 (alias
+ (name virutal-lib)
+ (deps (package dune) (source_tree test-cases/virutal-lib))
+ (action
+  (chdir
+   test-cases/virutal-lib
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name windows-diff)
  (deps (package dune) (source_tree test-cases/windows-diff))
  (action
@@ -910,6 +918,7 @@
   (alias use-meta)
   (alias utop)
   (alias utop-default)
+  (alias virutal-lib)
   (alias windows-diff)
   (alias workspaces)))
 
@@ -999,6 +1008,7 @@
   (alias too-many-parens)
   (alias use-meta)
   (alias utop-default)
+  (alias virutal-lib)
   (alias windows-diff)
   (alias workspaces)))
 

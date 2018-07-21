@@ -33,6 +33,12 @@ val dune_version : t -> Syntax.Version.t option
     the process *)
 val unique_id : t -> int
 
+type virtual_modules =
+  | Expanded of Module.Name.t list
+  | Unexpanded
+
+val virtual_modules : t -> virtual_modules option
+
 module Set : Set.S with type elt = t
 
 module Map : Map.S with type key = t
@@ -106,6 +112,8 @@ module Info : sig
     ; pps              : (Loc.t * Dune_file.Pp.t) list
     ; optional         : bool
     ; virtual_deps     : (Loc.t * string) list
+    ; virtual_modules  : virtual_modules option
+    ; implements       : (Loc.t * string) option
     ; dune_version : Syntax.Version.t option
     ; sub_systems      : Dune_file.Sub_system_info.t Sub_system_name.Map.t
     }

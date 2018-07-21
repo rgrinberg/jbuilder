@@ -250,9 +250,11 @@ module Gen (P : Install_rules.Params) = struct
         build_cxx_file lib ~scope ~dir ~includes (resolve_name name ~ext:".cpp")
       )
     in
-    match lib.self_build_stubs_archive with
-    | Some _ -> ()
-    | None -> build_self_stubs lib ~dir ~scope ~o_files
+    match lib.self_build_stubs_archive, Library.is_virtual lib with
+    | Some _, true (* XXX should this be an error? *)
+    | None, true
+    | Some _, false -> ()
+    | None, false -> build_self_stubs lib ~dir ~scope ~o_files
 
   let build_shared lib ~dir ~flags ~(ctx : Context.t) =
     Option.iter ctx.ocamlopt ~f:(fun ocamlopt ->
@@ -292,8 +294,63 @@ module Gen (P : Install_rules.Params) = struct
     in
     let flags = SC.ocaml_flags sctx ~scope ~dir lib.buildable in
     let { Dir_contents.Library_modules.
-          modules; main_module_name; alias_module } =
+          modules; main_module_name; alias_module
+          ; virtual_modules = _ } =
       Dir_contents.modules_of_library dir_contents ~name:(Library.best_name lib)
+    in
+    let () =
+      Option.iter lib.implements ~f:begin fun (loc, implements) ->
+        match Lib.DB.find (Scope.libs scope) implements with
+        | Error _ ->
+          Loc.fail loc
+            "Cannot implement %s as that library isn't available"
+            implements
+        | Ok l ->
+          let virtual_modules =
+            match Lib.virtual_modules l with
+            | None ->
+              Loc.fail lib.buildable.loc
+                "Library %s isn't virtual and cannot be implemented"
+                implements
+            | Some Unexpanded ->
+              let dir_contents = Dir_contents.get sctx ~dir:(Lib.src_dir l) in
+              let { Dir_contents.Library_modules.
+                    virtual_modules ; _ } =
+                Dir_contents.modules_of_library dir_contents
+                  ~name:(Lib.name l) in
+              Module.Name.Map.keys virtual_modules
+            | Some Expanded virtual_modules ->
+              virtual_modules
+          in
+          let (missing_modules, impl_modules_with_intf) =
+            List.fold_left virtual_modules ~init:([], [])
+              ~f:(fun (mms, ims) m ->
+                match Module.Name.Map.find modules m with
+                | None -> (m :: mms, ims)
+                | Some m ->
+                  if Module.has_intf m then
+                    (mms, (Module.name m) :: ims)
+                  else
+                    (mms, ims))
+          in
+          let module_list ms =
+            List.map ms ~f:Module.Name.to_string
+            |> String.concat ~sep:"\n"
+          in
+          if missing_modules <> [] then begin
+            Loc.fail lib.buildable.loc
+              "Library %s cannot implement %s because the following \
+               modules lack an implementation:\n%s"
+              lib.name implements
+              (module_list missing_modules)
+          end;
+          if impl_modules_with_intf <> [] then begin
+            Loc.fail lib.buildable.loc
+              "The following modules cannot have .mli files as they implement \
+               virtual modules:\n%s"
+              (module_list impl_modules_with_intf)
+          end
+      end
     in
     let source_modules = modules in
     (* Preprocess before adding the alias module as it doesn't need
@@ -376,20 +433,26 @@ module Gen (P : Install_rules.Params) = struct
          else
            acc)
      in
-     let top_sorted_modules =
-       Ocamldep.Dep_graph.top_closed_implementations dep_graphs.impl modules
-     in
-     List.iter Mode.all ~f:(fun mode ->
-       build_lib lib ~scope ~flags ~dir ~obj_dir ~mode ~top_sorted_modules
-         ~modules));
-    (* Build *.cma.js *)
-    SC.add_rules sctx (
-      let src = Library.archive lib ~dir ~ext:(Mode.compiled_lib_ext Mode.Byte) in
-      let target = Path.extend_basename src ~suffix:".js" in
-      Js_of_ocaml_rules.build_cm cctx ~js_of_ocaml ~src ~target);
 
-    if Dynlink_supported.By_the_os.get ctx.natdynlink_supported then
-      build_shared lib ~dir ~flags ~ctx;
+     if not virtual_library then
+       let top_sorted_modules =
+         Ocamldep.Dep_graph.top_closed_implementations dep_graphs.impl modules
+       in
+       List.iter Mode.all ~f:(fun mode ->
+         build_lib lib ~scope ~flags ~dir ~obj_dir ~mode ~top_sorted_modules
+           ~modules));
+
+    if not virtual_library then (
+      (* Build *.cma.js *)
+      SC.add_rules sctx (
+        let src =
+          Library.archive lib ~dir ~ext:(Mode.compiled_lib_ext Mode.Byte) in
+        let target = Path.extend_basename src ~suffix:".js" in
+        Js_of_ocaml_rules.build_cm cctx ~js_of_ocaml ~src ~target);
+
+      if Dynlink_supported.By_the_os.get ctx.natdynlink_supported then
+        build_shared lib ~dir ~flags ~ctx;
+    );
 
     Odoc.setup_library_odoc_rules lib ~requires ~modules ~dep_graphs ~scope;
 
@@ -429,5 +492,4 @@ module Gen (P : Install_rules.Params) = struct
       ~f:(fun () ->
         library_rules lib ~dir_contents ~dir ~scope ~compile_info
           ~dir_kind)
-
 end

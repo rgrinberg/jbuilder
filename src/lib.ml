@@ -25,6 +25,10 @@ module Status = struct
     | Installed | Public _ -> false
 end
 
+type virtual_modules =
+  | Expanded of Module.Name.t list
+  | Unexpanded
+
 module Info = struct
   module Deps = struct
     type t =
@@ -64,6 +68,8 @@ module Info = struct
     ; pps              : (Loc.t * Dune_file.Pp.t) list
     ; optional         : bool
     ; virtual_deps     : (Loc.t * string) list
+    ; virtual_modules  : virtual_modules option
+    ; implements       : (Loc.t * string) option
     ; dune_version : Syntax.Version.t option
     ; sub_systems      : Dune_file.Sub_system_info.t Sub_system_name.Map.t
     }
@@ -87,17 +93,31 @@ module Info = struct
       | None   -> Status.Private (Dune_project.name conf.project)
       | Some p -> Public p.package
     in
+    let virtual_library = Option.is_some conf.virtual_modules in
     let foreign_archives =
-      let stubs =
-        if Dune_file.Library.has_stubs conf then
-          [Dune_file.Library.stubs_archive conf ~dir ~ext_lib]
-        else
-          []
-      in
-      { Mode.Dict.
-        byte   = stubs
-      ; native = Path.relative dir (conf.name ^ ext_lib) :: stubs
-      }
+      if virtual_library then
+        Mode.Dict.make_both []
+      else
+        let stubs =
+          if Dune_file.Library.has_stubs conf then
+            [Dune_file.Library.stubs_archive conf ~dir ~ext_lib]
+          else
+            []
+        in
+        { Mode.Dict.
+          byte   = stubs
+        ; native = Path.relative dir conf.name :: stubs
+        }
+    in
+    let (archives, plugins) =
+      if virtual_library then
+        ( Mode.Dict.make_both []
+        , Mode.Dict.make_both []
+        )
+      else
+        ( archive_files ~f_ext:Mode.compiled_lib_ext
+        , archive_files ~f_ext:Mode.plugin_ext
+        )
     in
     { loc = conf.buildable.loc
     ; kind     = conf.kind
@@ -105,8 +125,8 @@ module Info = struct
     ; obj_dir  = Utils.library_object_directory ~dir conf.name
     ; version  = None
     ; synopsis = conf.synopsis
-    ; archives = archive_files ~f_ext:Mode.compiled_lib_ext
-    ; plugins  = archive_files ~f_ext:Mode.plugin_ext
+    ; archives
+    ; plugins
     ; optional = conf.optional
     ; foreign_archives
     ; jsoo_runtime
@@ -116,7 +136,10 @@ module Info = struct
     ; ppx_runtime_deps = conf.ppx_runtime_libraries
     ; pps = Dune_file.Preprocess_map.pps conf.buildable.preprocess
     ; sub_systems = conf.sub_systems
+    ; virtual_modules  =
+        Option.map conf.virtual_modules ~f:(fun _ -> Unexpanded)
     ; dune_version = Some conf.dune_version
+    ; implements = conf.implements
     }
 
   let of_findlib_package pkg =
@@ -141,12 +164,14 @@ module Info = struct
     ; ppx_runtime_deps = List.map (P.ppx_runtime_deps pkg) ~f:add_loc
     ; pps              = []
     ; virtual_deps     = []
+    ; virtual_modules  = None
     ; optional         = false
     ; status           = Installed
     ; (* We don't know how these are named for external libraries *)
       foreign_archives = Mode.Dict.make_both []
     ; sub_systems      = sub_systems
     ; dune_version = None
+    ; implements = None
     }
 end
 
@@ -225,6 +250,7 @@ type t =
   { info              : Info.t
   ; name              : string
   ; unique_id         : int
+  ; implements        : t Or_exn.t option
   ; requires          : t list Or_exn.t
   ; ppx_runtime_deps  : t list Or_exn.t
   ; pps               : t list Or_exn.t
@@ -335,6 +361,8 @@ let archives     t = t.info.archives
 let plugins      t = t.info.plugins
 let jsoo_runtime t = t.info.jsoo_runtime
 let unique_id    t = t.unique_id
+
+let virtual_modules t = t.info.virtual_modules
 
 let dune_version t = t.info.dune_version
 
@@ -623,7 +651,16 @@ let rec instantiate db name (info : Info.t) ~stack ~hidden =
   let allow_private_deps = Status.is_private info.status in
 
   let requires, pps, resolved_selects =
-    resolve_user_deps db info.requires ~allow_private_deps ~pps:info.pps ~stack
+    let full_requires =
+      match info.implements with
+      | None -> info.requires
+      | Some l ->
+        begin match info.requires with
+        | Simple reqs -> Simple (l :: reqs)
+        | Complex reqs -> Complex (Direct l :: reqs)
+        end
+    in
+    resolve_user_deps db full_requires ~allow_private_deps ~pps:info.pps ~stack
   in
   let ppx_runtime_deps =
     resolve_simple_deps db info.ppx_runtime_deps ~allow_private_deps ~stack
@@ -634,16 +671,25 @@ let rec instantiate db name (info : Info.t) ~stack ~hidden =
   in
   let requires         = map_error requires         in
   let ppx_runtime_deps = map_error ppx_runtime_deps in
+
+  let implements =
+    Option.map info.implements ~f:(fun impl ->
+      resolve_simple_deps db [impl] ~allow_private_deps ~stack >>| function
+      | [x] -> x
+      | _ -> assert false)
+  in
+
   let resolve (loc, name) =
     resolve_dep db name ~allow_private_deps ~loc ~stack in
   let t =
-    { info
-    ; name
+    { info              = info
+    ; name              = name
+    ; implements
     ; unique_id         = id.unique_id
-    ; requires
-    ; ppx_runtime_deps
-    ; pps
-    ; resolved_selects
+    ; requires          = requires
+    ; ppx_runtime_deps  = ppx_runtime_deps
+    ; pps               = pps
+    ; resolved_selects  = resolved_selects
     ; user_written_deps = Info.user_written_deps info
     ; sub_systems       = Sub_system_name.Map.empty
     }
@@ -880,6 +926,15 @@ let closure_with_overlap_checks db l =
 
 let closure l = closure_with_overlap_checks None l
 
+let validate_virtual_libs libs =
+  List.fold_left ~init:Map.empty ~f:(fun acc l ->
+    match l.info.implements with
+    | None -> acc
+    | Some _ -> acc
+  ) libs
+  |> ignore;
+  Result.Ok libs
+
 let to_exn res =
   match res with
   | Ok    x -> x
@@ -1047,6 +1102,8 @@ module DB = struct
       res
       >>=
       closure_with_overlap_checks (Option.some_if (not allow_overlaps) t)
+      >>=
+      validate_virtual_libs
     in
     { Compile.
       direct_requires = res

@@ -86,6 +86,8 @@ val iter : t -> f:(Ml_kind.t -> File.t -> unit) -> unit
 
 val has_impl : t -> bool
 
+val has_intf : t -> bool
+
 (** Prefix the object name with the library name. *)
 val with_wrapper : t -> libname:string -> t
 

@@ -5,16 +5,6 @@ open Dune_file
 module A = Action
 module Alias = Build_system.Alias
 
-module Dir_with_jbuild = struct
-  type t =
-    { src_dir : Path.t
-    ; ctx_dir : Path.t
-    ; stanzas : Stanzas.t
-    ; scope   : Scope.t
-    ; kind    : File_tree.Dune_file.Kind.t
-    }
-end
-
 module Installable = struct
   type t =
     { dir    : Path.t

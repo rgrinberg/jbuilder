@@ -148,6 +148,7 @@ module Gen(P : Params) = struct
         in
         Module.Name.Map.values modules
       in
+      let virtual_library = Option.is_some lib.virtual_modules in
       List.concat
         [ List.concat_map modules ~f:(fun m ->
             List.concat
@@ -159,10 +160,10 @@ module Gen(P : Params) = struct
                   | None -> None
                   | Some f -> Some f.path)
               ])
-        ; if_ byte [ Library.archive ~dir lib ~ext:".cma" ]
-        ; if_ (Library.has_stubs lib)
+        ; if_ (byte && not virtual_library) [ Library.archive ~dir lib ~ext:".cma" ]
+        ; if_ (Library.has_stubs lib && not virtual_library)
             [ Library.stubs_archive ~dir lib ~ext_lib:ctx.ext_lib ]
-        ; if_ native
+        ; if_ (native && not virtual_library)
             (let files =
                [ Library.archive ~dir lib ~ext:".cmxa"
                ; Library.archive ~dir lib ~ext:ctx.ext_lib

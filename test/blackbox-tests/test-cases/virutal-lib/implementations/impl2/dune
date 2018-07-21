@@ -1,0 +1,4 @@
+(library
+ (name impl2)
+ (public_name foo.impl2)
+ (implements foo.vlib))

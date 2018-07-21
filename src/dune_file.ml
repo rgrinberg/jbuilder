@@ -942,6 +942,8 @@ module Library = struct
     ; sub_systems              : Sub_system_info.t Sub_system_name.Map.t
     ; no_keep_locs             : bool
     ; dune_version             : Syntax.Version.t
+    ; virtual_modules          : Ordered_set_lang.t option
+    ; implements               : (Loc.t * string) option
     }
 
   let dparse =
@@ -976,6 +978,14 @@ module Library = struct
          Sub_system_info.record_parser ()
        and project = Dune_project.get_exn ()
        and dune_version = Syntax.get_exn Stanza.syntax
+       and virtual_modules =
+         field_o "virtual_modules" (
+           Syntax.since Stanza.syntax (1, 1)
+           >>= fun () -> Ordered_set_lang.t)
+       and implements =
+         field_o "implements" (
+           Syntax.since Stanza.syntax (1, 1)
+           >>= fun () -> (located string))
        in
        let name =
          let open Syntax.Version.Infix in
@@ -1005,6 +1015,12 @@ module Library = struct
                "name field is missing"
            )
        in
+       Option.both virtual_modules implements
+       |> Option.iter ~f:(fun (virtual_modules, (_, impl)) ->
+         of_sexp_errorf
+           (Ordered_set_lang.loc virtual_modules
+           |> Option.value_exn)
+           "A library cannot be both virtual and implement %s" impl);
        { name
        ; public
        ; synopsis
@@ -1028,6 +1044,8 @@ module Library = struct
        ; sub_systems
        ; no_keep_locs
        ; dune_version
+       ; virtual_modules
+       ; implements
        })
 
   let has_stubs t =
@@ -1048,6 +1066,8 @@ module Library = struct
     match t.public with
     | None -> t.name
     | Some p -> snd p.name
+
+  let is_virtual t = Option.is_some t.virtual_modules
 end
 
 module Install_conf = struct

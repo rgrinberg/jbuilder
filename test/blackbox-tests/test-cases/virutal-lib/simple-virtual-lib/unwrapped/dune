@@ -1,0 +1,5 @@
+(library
+ (public_name vlibs.one)
+ (name one)
+ (wrapped false)
+ (virtual_modules one_foo))
