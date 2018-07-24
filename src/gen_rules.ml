@@ -267,7 +267,7 @@ module Gen(P : Install_rules.Params) = struct
       | None ->
         let ocamlmklib ~sandbox ~custom ~targets =
           SC.add_rule sctx ~sandbox
-            (SC.expand_and_eval_set sctx ~scope ~dir
+            (Compilation_context.expand_and_eval_set cctx
                lib.c_library_flags ~standard:(Build.return [])
              >>>
              Build.run ~context:ctx

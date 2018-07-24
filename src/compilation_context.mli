@@ -44,3 +44,10 @@ val requires             : t -> Lib.t list Or_exn.t
 val includes             : t -> string list Arg_spec.t Cm_kind.Dict.t
 val preprocessing        : t -> Preprocessing.t
 val no_keep_locs         : t -> bool
+
+val expand_and_eval_set
+  : t
+  -> ?bindings:Pform.Map.t
+  -> Ordered_set_lang.Unexpanded.t
+  -> standard:(unit, string list) Build.t
+  -> (unit, string list) Build.t

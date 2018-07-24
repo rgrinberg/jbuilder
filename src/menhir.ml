@@ -13,6 +13,13 @@ type stanza =
 
 module type PARAMS = sig
 
+  (* [cctx] is the compilation context. It represents all the necessary
+     information to preprocess and compile OCaml files. Exactly one compilation
+     context is associated to each library, executable and executbales stanza.
+  *)
+
+  val cctx: Compilation_context.t
+
   (* [sctx] is the super context. It stores all the information about the
      current build context. The current compiler can be obtained via
      [(SC.context sctx).ocamlc]. *)
@@ -24,12 +31,6 @@ module type PARAMS = sig
      is of the form [_build/<context>/src], e.g., [_build/default/src]. *)
 
   val dir: Path.t
-
-  (* [scope] represents the scope this stanza is part of. Dune allows building
-     multiple projects at once and splits the source tree into one scope per
-     project. *)
-
-  val scope: Scope.t
 
   (* [stanza] is the [(menhir ...)] stanza, as found in the [jbuild] file. *)
 
@@ -65,8 +66,8 @@ module Run (P : PARAMS) = struct
      flags. *)
 
   let flags =
-    SC.expand_and_eval_set
-      sctx ~scope ~dir stanza.flags ~standard:(Build.return [])
+    Compilation_context.expand_and_eval_set
+      cctx stanza.flags ~standard:(Build.return [])
 
   (* Find the menhir binary. *)
 
@@ -153,9 +154,9 @@ let module_names (stanza : Jbuild.Menhir.t) =
 
 let gen_rules cctx stanza =
   let module R = Run(struct
+    let cctx = cctx
     let sctx = Compilation_context.super_context cctx
     let dir = Compilation_context.dir cctx
-    let scope = Compilation_context.scope cctx
     let stanza = stanza
   end) in
   ()

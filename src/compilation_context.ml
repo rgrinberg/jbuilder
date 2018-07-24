@@ -88,3 +88,6 @@ let for_alias_module t =
   ; includes     = Includes.empty
   ; alias_module = None
   }
+
+let expand_and_eval_set t =
+  SC.expand_and_eval_set t.super_context ~scope:t.scope ~dir:t.dir

@@ -162,7 +162,7 @@ let link_exe
     let cm_and_flags =
       Build.fanout
         (modules_and_cm_files >>^ snd)
-        (SC.expand_and_eval_set sctx ~scope:(CC.scope cctx) ~dir
+        (Compilation_context.expand_and_eval_set cctx
            js_of_ocaml.flags
            ~standard:(Build.return (Js_of_ocaml_rules.standard sctx)))
     in
