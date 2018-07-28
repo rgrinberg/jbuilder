@@ -1065,9 +1065,16 @@ Dune accepts three kinds of preprocessing:
 - ``(action <action>)`` to preprocess files using the given action
 - ``(pps <ppx-rewriters-and-flags>)`` to preprocess files using the given list
   of ppx rewriters
+- ``(pps_using_typer <ppx-rewriters-and-flags>)`` is the same as ``(pps ...)``
+  except that it supports ppx rewriters that use the OCaml typer such as
+  `ppx_import <https://github.com/ocaml-ppx/ppx_import>`__
 
-Note that in any cases, files are preprocessed only once. Dune doesn't use
-the ``-pp`` or ``-ppx`` of the various OCaml tools.
+Note that except for ``pps_using_typer``, files are preprocessed only
+once by Dune as it doesn't use the ``-pp`` or ``-ppx`` of the various
+OCaml tools.
+
+Compilation will be noticeably slower when using ``pps_using_typer``,
+however it is required for some ppx rewriters.
 
 Preprocessing with actions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

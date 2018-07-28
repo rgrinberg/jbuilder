@@ -53,6 +53,17 @@ Test the argument syntax
   test_ppx_args.pp.ml
   --impl
   test_ppx_args.ml
+  --as-ppx
   Error: Rule failed to generate the following targets:
   - test_ppx_args.pp.ml
   [1]
+
+Test that going throught the -ppx option of the compiler works
+
+  $ dune build test_ppx_using_typer.cma
+      ocamldep .test_ppx_using_typer.objs/test_ppx_using_typer.ml.d
+  tool name: ocamldep
+  args:--cookie library-name="test_ppx_using_typer"
+        ocamlc .test_ppx_using_typer.objs/test_ppx_using_typer.{cmi,cmo,cmt}
+  tool name: ocamlc
+  args:--cookie library-name="test_ppx_using_typer"

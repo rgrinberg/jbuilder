@@ -355,7 +355,12 @@ module Dep_conf = struct
 end
 
 module Preprocess = struct
-  type pps = { loc : Loc.t; pps : (Loc.t * Pp.t) list; flags : string list }
+  type pps =
+    { loc : Loc.t
+    ; pps : (Loc.t * Pp.t) list
+    ; flags : string list
+    ; using_typer : bool
+    }
   type t =
     | No_preprocessing
     | Action of Loc.t * Action.Unexpanded.t
@@ -370,7 +375,12 @@ module Preprocess = struct
       ; "pps",
         (let%map loc = loc
          and pps, flags = Pps_and_flags.t in
-         Pps { loc; pps; flags })
+         Pps { loc; pps; flags; using_typer = false })
+      ; "pps_using_typer",
+        (let%map () = Syntax.since Stanza.syntax (1, 1)
+         and loc = loc
+         and pps, flags = Pps_and_flags.t in
+         Pps { loc; pps; flags; using_typer = true })
       ]
 
   let pps = function

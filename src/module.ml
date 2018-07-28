@@ -39,6 +39,7 @@ type t =
   ; impl     : File.t option
   ; intf     : File.t option
   ; obj_name : string
+  ; pp       : (unit, string list) Build.t option
   }
 
 let name t = t.name
@@ -68,6 +69,7 @@ let make ?impl ?intf ?obj_name name =
   ; impl
   ; intf
   ; obj_name
+  ; pp = None
   }
 
 let real_unit_name t = Name.of_string (Filename.basename t.obj_name)
@@ -118,3 +120,5 @@ let map_files t ~f =
     impl = Option.map t.impl ~f:(f Ml_kind.Impl)
   ; intf = Option.map t.intf ~f:(f Ml_kind.Intf)
   }
+
+let set_pp t pp = { t with pp }

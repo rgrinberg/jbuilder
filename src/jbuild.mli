@@ -15,6 +15,7 @@ module Preprocess : sig
     { loc   : Loc.t
     ; pps   : (Loc.t * Pp.t) list
     ; flags : string list
+    ; using_typer : bool
     }
 
   type t =

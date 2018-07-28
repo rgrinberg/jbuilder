@@ -18,6 +18,9 @@ next
 - Interpret `X` in `--libdir X` as relative to `PREFIX` when `X` is relative
   (#1072, fix #1070, @diml)
 
+- Add `(pps_using_typer ...)` to support ppx rewriters using the OCaml
+  typer such as `ppx_import` (#1080, fix #193, @diml)
+
 1.0.1 (19/07/2018)
 ------------------
 
