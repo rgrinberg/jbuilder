@@ -1,0 +1,5 @@
+(executable (name foo))
+
+(alias
+ (name runtest)
+ (action (exec ./foo.exe)))

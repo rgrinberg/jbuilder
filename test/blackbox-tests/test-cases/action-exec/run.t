@@ -1,0 +1,2 @@
+  $ dune runtest
+  hello foo

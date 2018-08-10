@@ -1,4 +1,12 @@
 (alias
+ (name action-exec)
+ (deps (package dune) (source_tree test-cases/action-exec))
+ (action
+  (chdir
+   test-cases/action-exec
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name action-modifying-a-dependency)
  (deps (package dune) (source_tree test-cases/action-modifying-a-dependency))
  (action
@@ -775,6 +783,7 @@
 (alias
  (name runtest)
  (deps
+  (alias action-exec)
   (alias action-modifying-a-dependency)
   (alias aliases)
   (alias bad-alias-error)
@@ -871,6 +880,7 @@
 (alias
  (name runtest-no-deps)
  (deps
+  (alias action-exec)
   (alias action-modifying-a-dependency)
   (alias aliases)
   (alias bad-alias-error)
