@@ -30,10 +30,15 @@ let exec_run_direct ~(run_type : Action_intf.Run_type.t)
     invalid_prefix (Path.relative Path.build_dir target.name);
     invalid_prefix (Path.relative Path.build_dir ("install/" ^ target.name));
   end;
-  Process.run Strict ~dir ~env
-    ~stdout_to ~stderr_to
-    ~purpose:ectx.purpose
-    prog args
+  begin match run_type with
+  | Run ->
+    Process.run Strict ~dir ~env
+      ~stdout_to ~stderr_to
+      ~purpose:ectx.purpose
+      prog args
+  | Exec ->
+    Process.exec ~dir ~env prog args
+  end
 
 let exec_run ~stdout_to ~stderr_to =
   let stdout_to = get_std_output stdout_to in

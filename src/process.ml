@@ -362,3 +362,21 @@ let run_capture_line ?dir ?stderr_to ~env ?(purpose=Internal_job) fail_mode
       | _ ->
         die "command returned too many lines: %s\n%s"
           cmdline (String.concat l ~sep:"\n"))
+
+let exec ?dir ~env prog argv =
+  let env = Env.to_unix env in
+  let prog = Path.reach_for_running ?from:dir prog in
+  let argv = Array.of_list argv in
+  Option.iter dir ~f:(fun dir ->
+    Sys.chdir (Path.to_absolute_filename dir));
+  if Sys.win32 then
+    let pid = Unix.create_process_env prog argv env
+                Unix.stdin Unix.stdout Unix.stderr
+    in
+    match snd (Unix.waitpid [] pid) with
+    | WEXITED   0 -> exit 0
+    | WEXITED   n -> exit n
+    | WSIGNALED _ -> exit 255
+    | WSTOPPED  _ -> assert false
+  else
+    Unix.execve prog argv env

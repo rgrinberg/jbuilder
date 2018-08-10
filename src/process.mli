@@ -48,6 +48,13 @@ val run
   -> string list
   -> 'a Fiber.t
 
+val exec
+  :  ?dir:Path.t
+  -> env:Env.t
+  -> Path.t
+  -> string list
+  -> _
+
 (** Run a command and capture its output *)
 val run_capture
   :  ?dir:Path.t
