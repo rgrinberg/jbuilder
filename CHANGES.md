@@ -4,6 +4,8 @@ next
 - Ignore stderr output when trying to find out the number of jobs
   available (#1118, fix #1116, @diml)
 
+- Highlight error locations in error messages (#1121, @emillon)
+
 1.1.1 (08/08/2018)
 ------------------
 
