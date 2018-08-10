@@ -33,7 +33,12 @@ struct
           (let%map prog = Program.t
            and args = repeat string
            in
-           Run (prog, args))
+           Run (Run, prog, args))
+        ; "exec",
+          (let%map prog = Program.t
+           and args = repeat string
+           in
+           Run (Exec, prog, args))
         ; "chdir",
           (let%map dn = path
            and t = t
@@ -132,8 +137,14 @@ struct
   let rec sexp_of_t : _ -> Sexp.t =
     let path = Path.sexp_of_t and string = String.sexp_of_t in
     function
-    | Run (a, xs) -> List (Sexp.unsafe_atom_of_string "run"
-                           :: Program.sexp_of_t a :: List.map xs ~f:string)
+    | Run (run_type, a, xs) ->
+      let atom =
+        match run_type with
+        | Run -> "run"
+        | Exec -> "exec"
+      in
+      List (Sexp.unsafe_atom_of_string atom
+            :: Program.sexp_of_t a :: List.map xs ~f:string)
     | Chdir (a, r) -> List [Sexp.unsafe_atom_of_string "chdir" ;
                             path a ; sexp_of_t r]
     | Setenv (k, v, r) -> List [Sexp.unsafe_atom_of_string "setenv" ;
@@ -183,7 +194,7 @@ struct
         ; path target
         ]
 
-  let run prog args = Run (prog, args)
+  let run prog args = Run (Run, prog, args)
   let chdir path t = Chdir (path, t)
   let setenv var value t = Setenv (var, value, t)
   let with_stdout_to path t = Redirect (Stdout, path, t)
@@ -215,8 +226,8 @@ module Make_mapper
 = struct
   let rec map (t : Src.t) ~dir ~f_program ~f_string ~f_path : Dst.t =
     match t with
-    | Run (prog, args) ->
-      Run (f_program ~dir prog, List.map args ~f:(f_string ~dir))
+    | Run (run_type, prog, args) ->
+      Run (run_type, f_program ~dir prog, List.map args ~f:(f_string ~dir))
     | Chdir (fn, t) ->
       Chdir (f_path ~dir fn, map t ~dir:fn ~f_program ~f_string ~f_path)
     | Setenv (var, value, t) ->
@@ -434,7 +445,7 @@ module Unexpanded = struct
 
     let rec expand t ~dir ~map_exe ~f : Unresolved.t =
       match t with
-      | Run (prog, args) ->
+      | Run (run_type, prog, args) ->
         let args = List.concat_map args ~f:(E.strings ~dir ~f) in
         let prog, more_args = E.prog_and_args ~dir ~f prog in
         let prog =
@@ -442,7 +453,7 @@ module Unexpanded = struct
           | Search _ -> prog
           | This path -> This (map_exe path)
         in
-        Run (prog, more_args @ args)
+        Run (run_type, prog, more_args @ args)
       | Chdir (fn, t) ->
         let fn = E.path ~dir ~f fn in
         Chdir (fn, expand t ~dir:fn ~map_exe ~f)
@@ -511,7 +522,7 @@ module Unexpanded = struct
 
   let rec partial_expand t ~dir ~map_exe ~f : Partial.t =
     match t with
-    | Run (prog, args) ->
+    | Run (run_type, prog, args) ->
       let args =
         List.concat_map args ~f:(fun arg ->
           match E.strings ~dir ~f arg with
@@ -527,9 +538,9 @@ module Unexpanded = struct
             | Search _ -> prog
             | This path -> This (map_exe path)
           in
-          Run (Left prog, more_args @ args)
+          Run (run_type, Left prog, more_args @ args)
         | Right _ as prog ->
-          Run (prog, args)
+          Run (run_type, prog, args)
       end
     | Chdir (fn, t) -> begin
         let res = E.path ~dir ~f fn in
@@ -667,7 +678,7 @@ module Infer = struct
     open Prim
     let rec infer acc t =
       match t with
-      | Run (prog, _) -> acc +<! prog
+      | Run (_, prog, _) -> acc +<! prog
       | Redirect (_, fn, t)  -> infer (acc +@ fn) t
       | Cat fn               -> acc +< fn
       | Write_file (fn, _)  -> acc +@ fn

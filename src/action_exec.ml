@@ -13,8 +13,9 @@ let get_std_output : _ -> Process.std_output_to = function
                 ; tail = false
                 ; desc = Channel oc }
 
-
-let exec_run_direct ~ectx ~dir ~env ~stdout_to ~stderr_to prog args =
+let exec_run_direct ~(run_type : Action_intf.Run_type.t)
+      ~ectx ~dir ~env ~stdout_to ~stderr_to prog args =
+  let _ = run_type in
   begin match ectx.context with
   | None
   | Some { Context.for_host = None; _ } -> ()
@@ -47,10 +48,10 @@ let exec_echo stdout_to str =
 
 let rec exec t ~ectx ~dir ~env ~stdout_to ~stderr_to =
   match (t : Action.t) with
-  | Run (Error e, _) ->
+  | Run (_, Error e, _) ->
     Action.Prog.Not_found.raise e
-  | Run (Ok prog, args) ->
-    exec_run ~ectx ~dir ~env ~stdout_to ~stderr_to prog args
+  | Run (run_type, Ok prog, args) ->
+    exec_run ~run_type ~ectx ~dir ~env ~stdout_to ~stderr_to prog args
   | Chdir (dir, t) ->
     exec t ~ectx ~dir ~env ~stdout_to ~stderr_to
   | Setenv (var, value, t) ->
@@ -59,7 +60,7 @@ let rec exec t ~ectx ~dir ~env ~stdout_to ~stderr_to =
   | Redirect (Stdout, fn, Echo s) ->
     Io.write_file fn (String.concat s ~sep:" ");
     Fiber.return ()
-  | Redirect (outputs, fn, Run (Ok prog, args)) ->
+  | Redirect (outputs, fn, Run (Run, Ok prog, args)) ->
     let out = Process.File fn in
     let stdout_to, stderr_to =
       match outputs with
@@ -67,7 +68,8 @@ let rec exec t ~ectx ~dir ~env ~stdout_to ~stderr_to =
       | Stderr -> (get_std_output stdout_to, out)
       | Outputs -> (out, out)
     in
-    exec_run_direct ~ectx ~dir ~env ~stdout_to ~stderr_to prog args
+    exec_run_direct ~run_type:Run ~ectx ~dir ~env ~stdout_to
+      ~stderr_to prog args
   | Redirect (outputs, fn, t) ->
     redirect ~ectx ~dir outputs fn t ~env ~stdout_to ~stderr_to
   | Ignore (outputs, t) ->
@@ -125,9 +127,9 @@ let rec exec t ~ectx ~dir ~env ~stdout_to ~stderr_to =
     let path, arg =
       Utils.system_shell_exn ~needed_to:"interpret (system ...) actions"
     in
-    exec_run ~ectx ~dir ~env ~stdout_to ~stderr_to path [arg; cmd]
+    exec_run ~run_type:Run ~ectx ~dir ~env ~stdout_to ~stderr_to path [arg; cmd]
   | Bash cmd ->
-    exec_run ~ectx ~dir ~env ~stdout_to ~stderr_to
+    exec_run ~run_type:Run ~ectx ~dir ~env ~stdout_to ~stderr_to
       (Utils.bash_exn ~needed_to:"interpret (bash ...) actions")
       ["-e"; "-u"; "-o"; "pipefail"; "-c"; cmd]
   | Write_file (fn, s) ->

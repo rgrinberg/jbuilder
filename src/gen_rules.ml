@@ -602,7 +602,10 @@ module Gen(P : Install_rules.Params) = struct
     List.iter t.exes.names ~f:(fun (loc, s) ->
       let run_action =
         Action.Unexpanded.Run
-          (String_with_vars.make_text loc ("./" ^ s ^ ".exe"), []) in
+          ( Run
+          , String_with_vars.make_text loc ("./" ^ s ^ ".exe")
+          , []
+          ) in
       let base_alias =
         { Alias_conf.
           name = "runtest"

@@ -14,6 +14,12 @@ module Diff_mode = struct
     | Text_jbuild (** diffing but no newline normalization *)
 end
 
+module Run_type = struct
+  type t =
+    | Run
+    | Exec
+end
+
 module type Ast = sig
   type program
   type path
@@ -31,7 +37,7 @@ module type Ast = sig
   end
 
   type t =
-    | Run            of program * string list
+    | Run            of Run_type.t * program * string list
     | Chdir          of path * t
     | Setenv         of string * string * t
     | Redirect       of Outputs.t * path * t

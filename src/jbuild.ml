@@ -1532,12 +1532,13 @@ module Rule = struct
           (loc,
            Chdir
              (S.virt_var __POS__ "workspace_root",
-              Run (S.virt_text __POS__ "ocamllex",
-                   [ S.virt_text __POS__ "-q"
-                   ; S.virt_text __POS__ "-o"
-                   ; S.virt_var __POS__ "targets"
-                   ; S.virt_var __POS__"deps"
-                   ])))
+              Run ( Run
+                  , S.virt_text __POS__ "ocamllex",
+                  [ S.virt_text __POS__ "-q"
+                  ; S.virt_text __POS__ "-o"
+                  ; S.virt_var __POS__ "targets"
+                  ; S.virt_var __POS__"deps"
+                  ])))
       ; mode
       ; locks = []
       ; loc
@@ -1553,8 +1554,9 @@ module Rule = struct
           (loc,
            Chdir
              (S.virt_var __POS__ "workspace_root",
-              Run (S.virt_text __POS__ "ocamlyacc",
-                   [S.virt_var __POS__ "deps"])))
+              Run ( Run
+                  , S.virt_text __POS__ "ocamlyacc"
+                  , [S.virt_var __POS__ "deps"])))
       ; mode
       ; locks = []
       ; loc
