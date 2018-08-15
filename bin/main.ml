@@ -810,7 +810,7 @@ let fswatch_command root_path =
      not reliable (at least on Linux), so don't try to use it, instead act on all events.
   *)
   let use_fswatch =
-    let excludes = List.(map (fun x -> ["--exclude"; x]) excludes |> concat) in
+    let excludes = List.(map ~f:(fun x -> ["--exclude"; x]) excludes |> concat) in
     let args = [ "-r"; path; "-1" ] @ excludes in
     "fswatch", args
   in
