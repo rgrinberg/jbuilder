@@ -56,7 +56,7 @@ type common =
     orig_args             : string list
   ; config                : Config.t
   ; default_target        : string
-  (* For build only *)
+  (* For build & runtest only *)
   ; watch : bool
   }
 
@@ -143,24 +143,30 @@ module Scheduler = struct
     in
     Scheduler.go ?log ~config:common.config fiber
 
-  let loop ?log ~common ~fiber ~continue_on_error =
-    let fiber =
+  let poll ?log ~common ~once ~wait_success ~wait_failure =
+    let once =
       Main.set_concurrency ?log common.config
       >>= fun () ->
-      fiber
+      once ()
     in
-    let continue_on_error =
-      Main.set_concurrency ?log common.config
-      >>= fun () ->
-      continue_on_error
+    let rec main_loop () =
+      once
+      >>= fun _ ->
+      wait_success ()
+      >>= fun _ ->
+      main_loop ()
     in
-
+    let continue_on_error () =
+      wait_failure ()
+      >>= fun _ ->
+      main_loop ()
+    in
     try
-      Scheduler.go ?log ~config:common.config fiber
+      Scheduler.go ?log ~config:common.config (main_loop ())
     with Fiber.Never ->
       let rec continue_loop () =
         try
-          Scheduler.go ?log ~config:common.config continue_on_error
+          Scheduler.go ?log ~config:common.config (continue_on_error ())
         with Fiber.Never ->
           continue_loop ()
       in
@@ -783,18 +789,10 @@ let resolve_targets_exn ~log common setup user_targets =
       targets)
 
 let fswatch_command root_path =
-  let excludes = [ {|/\.#|}
+  let excludes = [ {|\.#|}
                  ; {|_build|}
-                 ; {|hg-check.*|}
                  ; {|\.hg|}
                  ; {|\.git|}
-                 ; {|\.cm.*|}
-                 ; {|\.annot$|}
-                 ; {|\.o$|}
-                 ; {|\.a$|}
-                 ; {|\.run$|}
-                 ; {|\.omake.*|}
-                 ; {|\.tmp$|}
                  ; {|~$|}
                  ; {|/#[^#]*#$|}
                  ; {|\.install$|}
@@ -823,6 +821,23 @@ let fswatch_command root_path =
     let args = [ "-r"; path; "-1" ] @ excludes in
     "fswatch", args
 
+let clear_all_caches () =
+  Dir_contents.clear_cache ();
+  Report_error.clear_cache ()
+
+let watch_changes () =
+  fswatch_command Path.root
+  >>= fun (fswatch, args) ->
+  let fswatch =
+    match Bin.which fswatch with
+    | Some x -> x
+    | None ->
+      (* Don't throw an exception here to prevent a loop. *)
+      Format.eprintf "Error: executable not found: %s\n" fswatch;
+      exit 1
+  in
+  Process.run_capture Strict fswatch args ~env:Env.initial
+
 let build_targets =
   let doc = "Build the given targets, or all installable targets if none are given." in
   let man =
@@ -843,67 +858,34 @@ let build_targets =
     in
     set_common common ~targets;
     let log = Log.create common in
-
-    let setup = Main.setup ~log common in
-
-    let build_once setup =
-       let targets = resolve_targets_exn ~log common setup targets in
-       do_build setup targets
+    let build_once () =
+      Main.setup ~log common
+      >>= fun setup ->
+      let targets = resolve_targets_exn ~log common setup targets in
+      do_build setup targets
     in
-
-    let clear_all_caches () =
-      Dir_contents.clear_cache ();
-      Report_error.clear_cache ()
-    in
-
-    let build_poll =
-      let rec loop () =
-        (setup
-         >>= fun setup ->
-         build_once setup
-         >>= fun () ->
-         fswatch_command File_tree.(Dir.path (root setup.file_tree))
-         >>= fun (fswatch, args) ->
-         let fswatch =
-           match Bin.which fswatch with
-           | Some x -> x
-           | None -> Utils.program_not_found fswatch ~loc:None
-         in
-         Scheduler.set_status_line_generator
-           (fun () -> Some "Success, polling filesystem for changes...")
-         >>>
-         Process.run_capture Strict fswatch args ~env:Env.initial
-         >>= fun _ ->
-         clear_all_caches ();
-         loop ())
-      in
-      loop ()
-    in
-
-    let wait_for_changes_after_error =
-      fswatch_command (Path.of_string ".")
-      >>= fun (fswatch, args) ->
-      let fswatch =
-        match Bin.which fswatch with
-        | Some x -> x
-        | None ->
-          (* Don't throw an exception here to prevent a loop. *)
-          Format.eprintf "Error: executable not found: %s\n" fswatch;
-          exit 1
-      in
-      Scheduler.set_status_line_generator
-        (fun () -> Some "Had errors, polling filesystem for changes...")
-      >>>
-      Process.run_capture Strict fswatch args ~env:Env.initial
-      >>= fun _ ->
-      clear_all_caches ();
-      build_poll
-    in
-
     if common.watch then
-      Scheduler.loop ~log ~common ~fiber:build_poll ~continue_on_error:wait_for_changes_after_error
+      let once () =
+        clear_all_caches ();
+        build_once ()
+      in
+      let wait_success () =
+        Scheduler.set_status_line_generator
+          (fun () -> Some "Success, polling filesystem for changes...")
+        >>= fun () ->
+        watch_changes ()
+        >>| ignore
+      in
+      let wait_failure () =
+        Scheduler.set_status_line_generator
+          (fun () -> Some "Had errors, polling filesystem for changes...")
+        >>= fun () ->
+        watch_changes ()
+        >>| ignore
+      in
+      Scheduler.poll ~log ~common ~once ~wait_success ~wait_failure
     else
-      Scheduler.go ~log ~common (setup >>= build_once)
+      Scheduler.go ~log ~common (build_once ())
   in
   (term, Term.info "build" ~doc ~man)
 
@@ -927,16 +909,40 @@ let runtest =
         | dir when dir.[String.length dir - 1] = '/' -> sprintf "@%sruntest" dir
         | dir -> sprintf "@%s/runtest" dir));
     let log = Log.create common in
-    Scheduler.go ~log ~common
-      (Main.setup ~log common >>= fun setup ->
-       let check_path = check_path setup.contexts in
-       let targets =
-         List.map dirs ~f:(fun dir ->
-           let dir = Path.(relative root) (prefix_target common dir) in
-           check_path dir;
-           Alias_rec (Path.relative dir "runtest"))
-       in
-       do_build setup targets)
+    let build_once () =
+      Main.setup ~log common
+      >>= fun setup ->
+      let check_path = check_path setup.contexts in
+      let targets =
+        List.map dirs ~f:(fun dir ->
+          let dir = Path.(relative root) (prefix_target common dir) in
+          check_path dir;
+          Alias_rec (Path.relative dir "runtest"))
+      in
+      do_build setup targets
+    in
+    if common.watch then
+      let once () =
+        clear_all_caches ();
+        build_once ()
+      in
+      let wait_success () =
+        Scheduler.set_status_line_generator
+          (fun () -> Some "Tests pass, polling filesystem for changes...")
+        >>= fun () ->
+        watch_changes ()
+        >>| ignore
+      in
+      let wait_failure () =
+        Scheduler.set_status_line_generator
+          (fun () -> Some "Had errors, polling filesystem for changes...")
+        >>= fun () ->
+        watch_changes ()
+        >>| ignore
+      in
+      Scheduler.poll ~log ~common ~once ~wait_success ~wait_failure
+    else
+      Scheduler.go ~log ~common (build_once ())
   in
   (term, Term.info "runtest" ~doc ~man)
 
