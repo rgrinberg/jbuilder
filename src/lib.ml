@@ -93,7 +93,7 @@ module Info = struct
       | None   -> Status.Private (Dune_project.name conf.project)
       | Some p -> Public p.package
     in
-    let virtual_library = Option.is_some conf.virtual_modules in
+    let virtual_library = Dune_file.Library.is_virtual conf in
     let foreign_archives =
       if virtual_library then
         Mode.Dict.make_both []
@@ -106,7 +106,7 @@ module Info = struct
         in
         { Mode.Dict.
           byte   = stubs
-        ; native = Path.relative dir conf.name :: stubs
+        ; native = archive_file ext_lib :: stubs
         }
     in
     let (archives, plugins) =

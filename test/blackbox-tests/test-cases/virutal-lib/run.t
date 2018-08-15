@@ -8,6 +8,8 @@ virtual libraries may not implement their virtual modules
   $ dune build --root invalid-virtual-lib
   Entering directory 'invalid-virtual-lib'
   File "dune", line 3, characters 18-21:
+   (virtual_modules foo bar))
+                    ^^^
   Error: Module Foo has an implementation, it cannot be listed here
   [1]
 
