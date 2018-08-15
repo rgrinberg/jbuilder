@@ -801,27 +801,27 @@ let fswatch_command root_path =
                  ]
   in
   let path = Path.to_string_maybe_quoted root_path in
-  (* On Linux, use inotifywait. *)
-  let use_inotifywait =
-    let excludes = String.concat ~sep:"|" excludes in
-    "inotifywait", ["-r"; path; "--exclude"; excludes; "-e"; "close_write"; "-q"]
+  let uname =
+    match Bin.which "uname" with
+    | Some uname ->
+      Process.run_capture Strict uname [] ~env:Env.initial >>| String.trim
+    | None -> Fiber.return "Unknown"
   in
-  (* On all other platforms, try to use fswatch. fswatch's event filtering is
-     not reliable (at least on Linux), so don't try to use it, instead act on all events.
-  *)
-  let use_fswatch =
-    let excludes = List.(map ~f:(fun x -> ["--exclude"; x]) excludes |> concat) in
+  uname >>| function
+  | "Linux" ->
+    (* On Linux, use inotifywait. *)
+    let excludes = String.concat ~sep:"|" excludes in
+    "inotifywait",
+    ["-r"; path; "--exclude"; excludes; "-e"; "close_write"; "-q"]
+  | _ ->
+    (* On all other platforms, try to use fswatch. fswatch's event
+       filtering is not reliable (at least on Linux), so don't try to
+       use it, instead act on all events. *)
+    let excludes =
+      List.(map ~f:(fun x -> ["--exclude"; x]) excludes |> concat)
+    in
     let args = [ "-r"; path; "-1" ] @ excludes in
     "fswatch", args
-  in
-  match Bin.which "uname" with
-  | Some uname ->
-    (Process.run_capture Strict uname [] ~env:Env.initial
-    >>| fun uname ->
-    match String.trim uname with
-    | "Linux" -> use_inotifywait
-    | _ -> use_fswatch)
-  | _ -> Fiber.return use_fswatch
 
 let build_targets =
   let doc = "Build the given targets, or all installable targets if none are given." in
