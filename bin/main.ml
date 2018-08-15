@@ -873,8 +873,10 @@ let build_targets =
         Scheduler.set_status_line_generator
           (fun () -> Some "Success, polling filesystem for changes...")
         >>= fun () ->
-        watch_changes ()
-        >>| ignore
+        if Promotion.were_files_promoted () then
+          Fiber.return ()
+        else
+          (watch_changes () >>| ignore)
       in
       let wait_failure () =
         Scheduler.set_status_line_generator
@@ -930,8 +932,10 @@ let runtest =
         Scheduler.set_status_line_generator
           (fun () -> Some "Tests pass, polling filesystem for changes...")
         >>= fun () ->
-        watch_changes ()
-        >>| ignore
+        if Promotion.were_files_promoted () then
+          Fiber.return ()
+        else
+          (watch_changes () >>| ignore)
       in
       let wait_failure () =
         Scheduler.set_status_line_generator
