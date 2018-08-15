@@ -1286,7 +1286,8 @@ let update_universe t =
 let do_build t ~request =
   entry_point t ~f:(fun () ->
     update_universe t;
-    eval_request t ~request ~process_target:(wait_for_file ~loc:None t))
+    eval_request t ~request ~process_target:(wait_for_file ~loc:None t)
+    >>| fun x -> finalize t; x)
 
 module Ir_set = Set.Make(Internal_rule)
 

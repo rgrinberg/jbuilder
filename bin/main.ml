@@ -56,6 +56,8 @@ type common =
     orig_args             : string list
   ; config                : Config.t
   ; default_target        : string
+  (* For build only *)
+  ; watch : bool
   }
 
 let prefix_target common s = common.target_prefix ^ s
@@ -74,6 +76,7 @@ let set_common_other c ~targets =
   Clflags.diff_command := c.diff_command;
   Clflags.auto_promote := c.auto_promote;
   Clflags.force := c.force;
+  Clflags.watch := c.watch;
   Clflags.external_lib_deps_hint :=
     List.concat
       [ ["dune"; "external-lib-deps"; "--missing"]
@@ -139,6 +142,29 @@ module Scheduler = struct
       fiber
     in
     Scheduler.go ?log ~config:common.config fiber
+
+  let loop ?log ~common ~fiber ~continue_on_error =
+    let fiber =
+      Main.set_concurrency ?log common.config
+      >>= fun () ->
+      fiber
+    in
+    let continue_on_error =
+      Main.set_concurrency ?log common.config
+      >>= fun () ->
+      continue_on_error
+    in
+
+    try
+      Scheduler.go ?log ~config:common.config fiber
+    with Fiber.Never ->
+      let rec continue_loop () =
+        try
+          Scheduler.go ?log ~config:common.config continue_on_error
+        with Fiber.Never ->
+          continue_loop ()
+      in
+      continue_loop ()
 end
 
 type target =
@@ -330,6 +356,12 @@ let common =
          & info ["force"; "f"]
              ~doc:"Force actions associated to aliases to be re-executed even
                    if their dependencies haven't changed.")
+  and watch =
+    Arg.(value
+         & flag
+         & info ["watch"; "w"]
+        ~doc:"Instead of terminating build after completion, wait continuously
+              for file changes.")
   and root,
       only_packages,
       ignore_promoted_rules,
@@ -555,6 +587,7 @@ let common =
   ; config
   ; build_dir
   ; default_target
+  ; watch
   }
 
 let installed_libraries =
@@ -749,6 +782,47 @@ let resolve_targets_exn ~log common setup user_targets =
     | Ok targets ->
       targets)
 
+let fswatch_command root_path =
+  let excludes = [ {|/\.#|}
+                 ; {|_build|}
+                 ; {|hg-check.*|}
+                 ; {|\.hg|}
+                 ; {|\.git|}
+                 ; {|\.cm.*|}
+                 ; {|\.annot$|}
+                 ; {|\.o$|}
+                 ; {|\.a$|}
+                 ; {|\.run$|}
+                 ; {|\.omake.*|}
+                 ; {|\.tmp$|}
+                 ; {|~$|}
+                 ; {|/#[^#]*#$|}
+                 ; {|\.install$|}
+                 ]
+  in
+  let path = Path.to_string_maybe_quoted root_path in
+  (* On Linux, use inotifywait. *)
+  let use_inotifywait =
+    let excludes = String.concat ~sep:"|" excludes in
+    "inotifywait", ["-r"; path; "--exclude"; excludes; "-e"; "close_write"; "-q"]
+  in
+  (* On all other platforms, try to use fswatch. fswatch's event filtering is
+     not reliable (at least on Linux), so don't try to use it, instead act on all events.
+  *)
+  let use_fswatch =
+    let excludes = List.(map (fun x -> ["--exclude"; x]) excludes |> concat) in
+    let args = [ "-r"; path; "-1" ] @ excludes in
+    "fswatch", args
+  in
+  match Bin.which "uname" with
+  | Some uname ->
+    (Process.run_capture Strict uname [] ~env:Env.initial
+    >>| fun uname ->
+    match String.trim uname with
+    | "Linux" -> use_inotifywait
+    | _ -> use_fswatch)
+  | _ -> Fiber.return use_fswatch
+
 let build_targets =
   let doc = "Build the given targets, or all installable targets if none are given." in
   let man =
@@ -769,10 +843,67 @@ let build_targets =
     in
     set_common common ~targets;
     let log = Log.create common in
-    Scheduler.go ~log ~common
-      (Main.setup ~log common >>= fun setup ->
+
+    let setup = Main.setup ~log common in
+
+    let build_once setup =
        let targets = resolve_targets_exn ~log common setup targets in
-       do_build setup targets)
+       do_build setup targets
+    in
+
+    let clear_all_caches () =
+      Dir_contents.clear_cache ();
+      Report_error.clear_cache ()
+    in
+
+    let build_poll =
+      let rec loop () =
+        (setup
+         >>= fun setup ->
+         build_once setup
+         >>= fun () ->
+         fswatch_command File_tree.(Dir.path (root setup.file_tree))
+         >>= fun (fswatch, args) ->
+         let fswatch =
+           match Bin.which fswatch with
+           | Some x -> x
+           | None -> Utils.program_not_found fswatch ~loc:None
+         in
+         Scheduler.set_status_line_generator
+           (fun () -> Some "Success, polling filesystem for changes...")
+         >>>
+         Process.run_capture Strict fswatch args ~env:Env.initial
+         >>= fun _ ->
+         clear_all_caches ();
+         loop ())
+      in
+      loop ()
+    in
+
+    let wait_for_changes_after_error =
+      fswatch_command (Path.of_string ".")
+      >>= fun (fswatch, args) ->
+      let fswatch =
+        match Bin.which fswatch with
+        | Some x -> x
+        | None ->
+          (* Don't throw an exception here to prevent a loop. *)
+          Format.eprintf "Error: executable not found: %s\n" fswatch;
+          exit 1
+      in
+      Scheduler.set_status_line_generator
+        (fun () -> Some "Had errors, polling filesystem for changes...")
+      >>>
+      Process.run_capture Strict fswatch args ~env:Env.initial
+      >>= fun _ ->
+      clear_all_caches ();
+      build_poll
+    in
+
+    if common.watch then
+      Scheduler.loop ~log ~common ~fiber:build_poll ~continue_on_error:wait_for_changes_after_error
+    else
+      Scheduler.go ~log ~common (setup >>= build_once)
   in
   (term, Term.info "build" ~doc ~man)
 

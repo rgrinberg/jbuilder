@@ -10,6 +10,9 @@
     We cache what is actually printed to the screen.  *)
 val report : exn -> unit
 
+(** Clears the above mentioned error cache. *)
+val clear_cache : unit -> unit
+
 type printer =
   { loc       : Loc.t option
   ; pp        : Format.formatter -> unit

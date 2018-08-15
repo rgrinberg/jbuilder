@@ -597,6 +597,10 @@ end
 
 let cache = Hashtbl.create 32
 
+let clear_cache () =
+  Hashtbl.reset cache
+;;
+
 let rec get sctx ~dir =
   match Hashtbl.find cache dir with
   | Some t -> t
