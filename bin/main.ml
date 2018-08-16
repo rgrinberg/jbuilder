@@ -788,7 +788,7 @@ let resolve_targets_exn ~log common setup user_targets =
     | Ok targets ->
       targets)
 
-let fswatch_command root_path =
+let watch_command root_path =
   let excludes = [ {|\.#|}
                  ; {|_build|}
                  ; {|\.hg|}
@@ -799,44 +799,36 @@ let fswatch_command root_path =
                  ]
   in
   let path = Path.to_string_maybe_quoted root_path in
-  let uname =
-    match Bin.which "uname" with
-    | Some uname ->
-      Process.run_capture Strict uname [] ~env:Env.initial >>| String.trim
-    | None -> Fiber.return "Unknown"
-  in
-  uname >>| function
-  | "Linux" ->
+  match Bin.which "inotifywait" with
+  | Some inotifywait ->
     (* On Linux, use inotifywait. *)
     let excludes = String.concat ~sep:"|" excludes in
-    "inotifywait",
-    ["-r"; path; "--exclude"; excludes; "-e"; "close_write"; "-q"]
-  | _ ->
+    inotifywait, ["-r"; path; "--exclude"; excludes; "-e"; "close_write"; "-q"]
+  | None ->
     (* On all other platforms, try to use fswatch. fswatch's event
        filtering is not reliable (at least on Linux), so don't try to
        use it, instead act on all events. *)
-    let excludes =
-      List.(map ~f:(fun x -> ["--exclude"; x]) excludes |> concat)
-    in
-    let args = [ "-r"; path; "-1" ] @ excludes in
-    "fswatch", args
+    (match Bin.which "fswatch" with
+     | Some fswatch ->
+       let excludes =
+         List.(map ~f:(fun x -> ["--exclude"; x]) excludes |> concat)
+       in
+       fswatch, ["-r"; path; "-1"] @ excludes
+     | None ->
+      (* Exit immediately to prevent a loop of these errors. *)
+      Format.eprintf "Error: fswatch not found. \
+                      It needs to be installed for polling mode to work.\n";
+      exit 1
+    )
 
 let clear_all_caches () =
   Dir_contents.clear_cache ();
   Report_error.clear_cache ()
 
 let watch_changes () =
-  fswatch_command Path.root
-  >>= fun (fswatch, args) ->
-  let fswatch =
-    match Bin.which fswatch with
-    | Some x -> x
-    | None ->
-      (* Don't throw an exception here to prevent a loop. *)
-      Format.eprintf "Error: executable not found: %s\n" fswatch;
-      exit 1
-  in
-  Process.run_capture Strict fswatch args ~env:Env.initial
+  let watch, args = watch_command Path.root in
+  Process.run_capture Strict watch args ~env:Env.initial
+  >>| ignore
 
 let build_targets =
   let doc = "Build the given targets, or all installable targets if none are given." in
@@ -876,14 +868,13 @@ let build_targets =
         if Promotion.were_files_promoted () then
           Fiber.return ()
         else
-          (watch_changes () >>| ignore)
+          watch_changes ()
       in
       let wait_failure () =
         Scheduler.set_status_line_generator
           (fun () -> Some "Had errors, polling filesystem for changes...")
         >>= fun () ->
         watch_changes ()
-        >>| ignore
       in
       Scheduler.poll ~log ~common ~once ~wait_success ~wait_failure
     else
@@ -935,14 +926,13 @@ let runtest =
         if Promotion.were_files_promoted () then
           Fiber.return ()
         else
-          (watch_changes () >>| ignore)
+          watch_changes ()
       in
       let wait_failure () =
         Scheduler.set_status_line_generator
           (fun () -> Some "Had errors, polling filesystem for changes...")
         >>= fun () ->
         watch_changes ()
-        >>| ignore
       in
       Scheduler.poll ~log ~common ~once ~wait_success ~wait_failure
     else
