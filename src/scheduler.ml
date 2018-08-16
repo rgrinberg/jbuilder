@@ -1,6 +1,8 @@
 open Import
 open Fiber.O
 
+type status_line_config = string option * [`Show_jobs | `Don't_show_jobs]
+
 type running_job =
   { pid  : int
   ; ivar : Unix.process_status Fiber.Ivar.t
@@ -65,7 +67,7 @@ type t =
   ; mutable concurrency       : int
   ; waiting_for_available_job : t Fiber.Ivar.t Queue.t
   ; mutable status_line       : string
-  ; mutable gen_status_line   : unit -> string option
+  ; mutable gen_status_line   : unit -> status_line_config
   }
 
 let log t = t.log
@@ -135,13 +137,16 @@ let rec go_rec t =
   end else begin
     if t.display = Progress then begin
       match t.gen_status_line () with
-      | None ->
+      | None, _ ->
         if t.status_line <> "" then begin
           hide_status_line t.status_line;
           flush stderr
         end
-      | Some status_line ->
-        let status_line = sprintf "%s (jobs: %u)" status_line count in
+      | Some status_line, should_show ->
+        let status_line = match should_show with
+          | `Show_jobs -> sprintf "%s (jobs: %u)" status_line count
+          | `Don't_show_jobs -> status_line
+        in
         hide_status_line t.status_line;
         show_status_line   status_line;
         flush stderr;
@@ -156,7 +161,7 @@ let rec go_rec t =
   end
 
 let go ?(log=Log.no_log) ?(config=Config.default)
-      ?(gen_status_line=fun () -> None) fiber =
+      ?(gen_status_line=fun () -> None, `Don't_show_jobs) fiber =
   Log.infof log "Workspace root: %s"
     (Path.to_absolute_filename Path.root |> String.maybe_quoted);
   let cwd = Sys.getcwd () in

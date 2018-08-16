@@ -831,18 +831,18 @@ let watch_changes () =
 let polling_loop ~log ~common ~once =
   let wait_success () =
     Scheduler.set_status_line_generator
-      (fun () -> Some "Success, polling filesystem for changes...")
+      (fun () -> Some "Success, polling filesystem for changes...", `Don't_show_jobs)
+    >>= fun () ->
+    watch_changes ()
+  in
+  let wait_failure () =
+    Scheduler.set_status_line_generator
+      (fun () -> Some "Had errors, polling filesystem for changes...", `Don't_show_jobs)
     >>= fun () ->
     if Promotion.were_files_promoted () then
       Fiber.return ()
     else
       watch_changes ()
-  in
-  let wait_failure () =
-    Scheduler.set_status_line_generator
-      (fun () -> Some "Had errors, polling filesystem for changes...")
-    >>= fun () ->
-    watch_changes ()
   in
   Scheduler.poll ~log ~common ~once ~wait_success ~wait_failure
 

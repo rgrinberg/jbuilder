@@ -2,13 +2,15 @@
 
 open Stdune
 
+type status_line_config = string option * [`Show_jobs | `Don't_show_jobs]
+
 (** [go ?log ?config ?gen_status_line fiber] runs the following fiber until it
     terminates. [gen_status_line] is used to print a status line when [config.display =
     Progress]. *)
 val go
   :  ?log:Log.t
   -> ?config:Config.t
-  -> ?gen_status_line:(unit -> string option)
+  -> ?gen_status_line:(unit -> status_line_config)
   -> 'a Fiber.t
   -> 'a
 
@@ -16,7 +18,7 @@ val go
 val wait_for_process : int -> Unix.process_status Fiber.t
 
 (** Set the status line generator for the current scheduler *)
-val set_status_line_generator : (unit -> string option) -> unit Fiber.t
+val set_status_line_generator : (unit -> status_line_config) -> unit Fiber.t
 
 val set_concurrency : int -> unit Fiber.t
 

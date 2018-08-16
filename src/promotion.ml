@@ -1,4 +1,4 @@
-open Stdune
+open Import
 
 module File = struct
   type t =
@@ -30,9 +30,9 @@ module File = struct
   let register t = db := t :: !db
 
   let promote { src; dst } =
-    Format.eprintf "Promoting %s to %s.@."
+    print_to_console (Format.sprintf "Promoting %s to %s.@."
       (Path.to_string_maybe_quoted src)
-      (Path.to_string_maybe_quoted dst);
+      (Path.to_string_maybe_quoted dst));
     Io.copy_file ~src ~dst ()
 end
 
