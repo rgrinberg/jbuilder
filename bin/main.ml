@@ -161,16 +161,13 @@ module Scheduler = struct
       >>= fun _ ->
       main_loop ()
     in
-    try
-      Scheduler.go ?log ~config:common.config (main_loop ())
-    with Fiber.Never ->
-      let rec continue_loop () =
-        try
-          Scheduler.go ?log ~config:common.config (continue_on_error ())
-        with Fiber.Never ->
-          continue_loop ()
-      in
-      continue_loop ()
+    let rec loop f =
+      try
+        Scheduler.go ?log ~config:common.config (f ())
+      with Fiber.Never ->
+        loop continue_on_error
+    in
+    loop main_loop
 end
 
 type target =
@@ -830,6 +827,24 @@ let watch_changes () =
   Process.run_capture Strict watch args ~env:Env.initial
   >>| ignore
 
+let polling_loop ~log ~common ~once =
+  let wait_success () =
+    Scheduler.set_status_line_generator
+      (fun () -> Some "Success, polling filesystem for changes...")
+    >>= fun () ->
+    if Promotion.were_files_promoted () then
+      Fiber.return ()
+    else
+      watch_changes ()
+  in
+  let wait_failure () =
+    Scheduler.set_status_line_generator
+      (fun () -> Some "Had errors, polling filesystem for changes...")
+    >>= fun () ->
+    watch_changes ()
+  in
+  Scheduler.poll ~log ~common ~once ~wait_success ~wait_failure
+
 let build_targets =
   let doc = "Build the given targets, or all installable targets if none are given." in
   let man =
@@ -851,32 +866,14 @@ let build_targets =
     set_common common ~targets;
     let log = Log.create common in
     let build_once () =
+      clear_all_caches ();
       Main.setup ~log common
       >>= fun setup ->
       let targets = resolve_targets_exn ~log common setup targets in
       do_build setup targets
     in
     if common.watch then
-      let once () =
-        clear_all_caches ();
-        build_once ()
-      in
-      let wait_success () =
-        Scheduler.set_status_line_generator
-          (fun () -> Some "Success, polling filesystem for changes...")
-        >>= fun () ->
-        if Promotion.were_files_promoted () then
-          Fiber.return ()
-        else
-          watch_changes ()
-      in
-      let wait_failure () =
-        Scheduler.set_status_line_generator
-          (fun () -> Some "Had errors, polling filesystem for changes...")
-        >>= fun () ->
-        watch_changes ()
-      in
-      Scheduler.poll ~log ~common ~once ~wait_success ~wait_failure
+      polling_loop ~log ~common ~once:build_once
     else
       Scheduler.go ~log ~common (build_once ())
   in
@@ -902,7 +899,8 @@ let runtest =
         | dir when dir.[String.length dir - 1] = '/' -> sprintf "@%sruntest" dir
         | dir -> sprintf "@%s/runtest" dir));
     let log = Log.create common in
-    let build_once () =
+    let run_once () =
+      clear_all_caches ();
       Main.setup ~log common
       >>= fun setup ->
       let check_path = check_path setup.contexts in
@@ -915,28 +913,9 @@ let runtest =
       do_build setup targets
     in
     if common.watch then
-      let once () =
-        clear_all_caches ();
-        build_once ()
-      in
-      let wait_success () =
-        Scheduler.set_status_line_generator
-          (fun () -> Some "Tests pass, polling filesystem for changes...")
-        >>= fun () ->
-        if Promotion.were_files_promoted () then
-          Fiber.return ()
-        else
-          watch_changes ()
-      in
-      let wait_failure () =
-        Scheduler.set_status_line_generator
-          (fun () -> Some "Had errors, polling filesystem for changes...")
-        >>= fun () ->
-        watch_changes ()
-      in
-      Scheduler.poll ~log ~common ~once ~wait_success ~wait_failure
+      polling_loop ~log ~common ~once:run_once
     else
-      Scheduler.go ~log ~common (build_once ())
+      Scheduler.go ~log ~common (run_once ())
   in
   (term, Term.info "runtest" ~doc ~man)
 
