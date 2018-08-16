@@ -820,7 +820,8 @@ let watch_command root_path =
 
 let clear_all_caches () =
   Dir_contents.clear_cache ();
-  Report_error.clear_cache ()
+  Report_error.clear_cache ();
+  Promotion.clear_cache ()
 
 let watch_changes () =
   let watch, args = watch_command Path.root in

@@ -36,6 +36,9 @@ module File = struct
     Io.copy_file ~src ~dst ()
 end
 
+let clear_cache () =
+  File.db := []
+
 module P = Utils.Persistent(struct
     type t = File.t list
     let name = "TO-PROMOTE"
