@@ -132,6 +132,43 @@ module Log = struct
     Log.create ~display:common.config.display ()
 end
 
+let watch_command root_path =
+  let excludes = [ {|\.#|}
+                 ; {|_build|}
+                 ; {|\.hg|}
+                 ; {|\.git|}
+                 ; {|~$|}
+                 ; {|/#[^#]*#$|}
+                 ; {|\.install$|}
+                 ]
+  in
+  let path = Path.to_string_maybe_quoted root_path in
+  match Bin.which "inotifywait" with
+  | Some inotifywait ->
+    (* On Linux, use inotifywait. *)
+    let excludes = String.concat ~sep:"|" excludes in
+    inotifywait, ["-r"; path; "--exclude"; excludes; "-e"; "close_write"; "-q"]
+  | None ->
+    (* On all other platforms, try to use fswatch. fswatch's event
+       filtering is not reliable (at least on Linux), so don't try to
+       use it, instead act on all events. *)
+    (match Bin.which "fswatch" with
+     | Some fswatch ->
+       let excludes =
+         List.(map ~f:(fun x -> ["--exclude"; x]) excludes |> concat)
+       in
+       fswatch, ["-r"; path; "-1"] @ excludes
+     | None ->
+      (* Exit immediately to prevent a loop of these errors. *)
+      Format.eprintf "Error: fswatch not found. \
+                      It needs to be installed for polling mode to work.\n";
+      exit 1
+    )
+
+let watch_changes () =
+  let watch, args = watch_command Path.root in
+  Process.run Strict watch args ~env:Env.initial ~stdout_to:(File Config.dev_null)
+
 module Scheduler = struct
   include Dune.Scheduler
 
@@ -143,21 +180,72 @@ module Scheduler = struct
     in
     Scheduler.go ?log ~config:common.config fiber
 
-  let poll ?log ~common ~once ~wait_success ~wait_failure =
-    let once =
+  (** Fiber loop looks like this:
+                /------------------\
+                v                  |
+      init --> once --> finally  --/
+
+      The result of ~init gets passed in every call to ~once and ~finally.
+      If cache_init is false, every iteration reexecutes init instead of
+      saving it.
+  *)
+  let poll ?log ?(cache_init=true) ~common ~init ~once ~finally () =
+    let saved_config = ref None in
+    let config () =
+      match !saved_config with
+      | Some c -> c
+      | None ->
+        Format.eprintf "Internal error: setup failed.\n";
+        exit 1
+    in
+    let init =
       Main.set_concurrency ?log common.config
       >>= fun () ->
-      once ()
+      init ()
+      >>| fun config ->
+      saved_config := Some config
+    in
+    let wait_success () =
+      Scheduler.set_status_line_generator
+        (fun () -> Some "Success, polling filesystem for changes...", `Don't_show_jobs)
+      >>= fun () ->
+      watch_changes ()
+    in
+    let wait_failure () =
+      Scheduler.set_status_line_generator
+        (fun () -> Some "Had errors, polling filesystem for changes...", `Don't_show_jobs)
+      >>= fun () ->
+      if Promotion.were_files_promoted () then
+        Fiber.return ()
+      else
+        watch_changes ()
     in
     let rec main_loop () =
-      once
+      (if cache_init then
+        Fiber.return ()
+      else
+        init)
+      >>= fun _ ->
+      once (config ())
+      >>= fun _ ->
+      finally (config ())
       >>= fun _ ->
       wait_success ()
       >>= fun _ ->
       main_loop ()
     in
     let continue_on_error () =
+      finally (config ())
+      >>= fun _ ->
       wait_failure ()
+      >>= fun _ ->
+      main_loop ()
+    in
+    let main () =
+      (if cache_init then
+         init
+       else
+         Fiber.return ())
       >>= fun _ ->
       main_loop ()
     in
@@ -167,7 +255,7 @@ module Scheduler = struct
       with Fiber.Never ->
         loop continue_on_error
     in
-    loop main_loop
+    loop main
 end
 
 type target =
@@ -785,66 +873,24 @@ let resolve_targets_exn ~log common setup user_targets =
     | Ok targets ->
       targets)
 
-let watch_command root_path =
-  let excludes = [ {|\.#|}
-                 ; {|_build|}
-                 ; {|\.hg|}
-                 ; {|\.git|}
-                 ; {|~$|}
-                 ; {|/#[^#]*#$|}
-                 ; {|\.install$|}
-                 ]
-  in
-  let path = Path.to_string_maybe_quoted root_path in
-  match Bin.which "inotifywait" with
-  | Some inotifywait ->
-    (* On Linux, use inotifywait. *)
-    let excludes = String.concat ~sep:"|" excludes in
-    inotifywait, ["-r"; path; "--exclude"; excludes; "-e"; "close_write"; "-q"]
-  | None ->
-    (* On all other platforms, try to use fswatch. fswatch's event
-       filtering is not reliable (at least on Linux), so don't try to
-       use it, instead act on all events. *)
-    (match Bin.which "fswatch" with
-     | Some fswatch ->
-       let excludes =
-         List.(map ~f:(fun x -> ["--exclude"; x]) excludes |> concat)
-       in
-       fswatch, ["-r"; path; "-1"] @ excludes
-     | None ->
-      (* Exit immediately to prevent a loop of these errors. *)
-      Format.eprintf "Error: fswatch not found. \
-                      It needs to be installed for polling mode to work.\n";
-      exit 1
-    )
-
 let clear_all_caches () =
   Dir_contents.clear_cache ();
   Report_error.clear_cache ();
   Promotion.clear_cache ()
 
-let watch_changes () =
-  let watch, args = watch_command Path.root in
-  Process.run_capture Strict watch args ~env:Env.initial
-  >>| ignore
-
-let polling_loop ~log ~common ~once =
-  let wait_success () =
-    Scheduler.set_status_line_generator
-      (fun () -> Some "Success, polling filesystem for changes...", `Don't_show_jobs)
-    >>= fun () ->
-    watch_changes ()
+let run_build_command ~log ~common ~targets =
+  let init () = Main.setup ~log common in
+  let once setup =
+    do_build setup (targets setup)
   in
-  let wait_failure () =
-    Scheduler.set_status_line_generator
-      (fun () -> Some "Had errors, polling filesystem for changes...", `Don't_show_jobs)
-    >>= fun () ->
-    if Promotion.were_files_promoted () then
-      Fiber.return ()
-    else
-      watch_changes ()
+  let finally (setup : Main.setup) =
+    Build_system.finalize setup.build_system;
+    Fiber.return (clear_all_caches ())
   in
-  Scheduler.poll ~log ~common ~once ~wait_success ~wait_failure
+  if common.watch then
+    Scheduler.poll ~cache_init:false ~log ~common ~init ~once ~finally ()
+  else
+    Scheduler.go ~log ~common (init () >>= once)
 
 let build_targets =
   let doc = "Build the given targets, or all installable targets if none are given." in
@@ -866,17 +912,8 @@ let build_targets =
     in
     set_common common ~targets;
     let log = Log.create common in
-    let build_once () =
-      clear_all_caches ();
-      Main.setup ~log common
-      >>= fun setup ->
-      let targets = resolve_targets_exn ~log common setup targets in
-      do_build setup targets
-    in
-    if common.watch then
-      polling_loop ~log ~common ~once:build_once
-    else
-      Scheduler.go ~log ~common (build_once ())
+    let targets setup = resolve_targets_exn ~log common setup targets in
+    run_build_command ~log ~common ~targets
   in
   (term, Term.info "build" ~doc ~man)
 
@@ -900,23 +937,14 @@ let runtest =
         | dir when dir.[String.length dir - 1] = '/' -> sprintf "@%sruntest" dir
         | dir -> sprintf "@%s/runtest" dir));
     let log = Log.create common in
-    let run_once () =
-      clear_all_caches ();
-      Main.setup ~log common
-      >>= fun setup ->
+    let targets (setup : Main.setup) =
       let check_path = check_path setup.contexts in
-      let targets =
-        List.map dirs ~f:(fun dir ->
-          let dir = Path.(relative root) (prefix_target common dir) in
-          check_path dir;
-          Alias_rec (Path.relative dir "runtest"))
-      in
-      do_build setup targets
+      List.map dirs ~f:(fun dir ->
+        let dir = Path.(relative root) (prefix_target common dir) in
+        check_path dir;
+        Alias_rec (Path.relative dir "runtest"))
     in
-    if common.watch then
-      polling_loop ~log ~common ~once:run_once
-    else
-      Scheduler.go ~log ~common (run_once ())
+    run_build_command ~log ~common ~targets
   in
   (term, Term.info "runtest" ~doc ~man)
 

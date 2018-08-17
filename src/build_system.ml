@@ -1282,11 +1282,7 @@ let update_universe t =
 let do_build t ~request =
   entry_point t ~f:(fun () ->
     update_universe t;
-    Fiber.with_error_handler
-      (fun () -> eval_request t ~request ~process_target:(wait_for_file ~loc:None t))
-      ~on_error:(fun e -> finalize t; reraise e)
-    >>| fun x ->
-    finalize t; x)
+    eval_request t ~request ~process_target:(wait_for_file ~loc:None t))
 
 module Ir_set = Set.Make(Internal_rule)
 
