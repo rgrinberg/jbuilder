@@ -950,12 +950,13 @@ module Library = struct
     let name = "variants"
 
     let syntax =
-      Syntax.create ~name
-        ~desc:"experimental variants feature"
-        [ (1, 0) ]
-
-    let () =
-      Dune_project.Extension.register syntax (return [])
+      let syntax =
+        Syntax.create ~name
+          ~desc:"experimental variants feature"
+          [ (1, 0) ]
+      in
+      Dune_project.Extension.register syntax (return []);
+      syntax
   end
 
   let dparse =
@@ -996,7 +997,7 @@ module Library = struct
            >>= fun () -> Ordered_set_lang.dparse)
        and implements =
          field_o "implements" (
-           Syntax.since Stanza.syntax (1, 1)
+           Syntax.since Variants.syntax (1, 0)
            >>= fun () -> (located string))
        in
        let name =

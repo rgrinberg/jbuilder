@@ -37,7 +37,6 @@ implementations may be private
 we cannot use more than implementation per lib in an executable
 
   $ dune exec ./foo.exe --root duplicate-implementations
-  Info: creating file dune-project with this contents: (lang dune 1.1)
   Entering directory 'duplicate-implementations'
   Entering directory 'duplicate-implementations'
       ocamlopt foo.exe (exit 2)
