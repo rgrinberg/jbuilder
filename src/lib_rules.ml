@@ -288,14 +288,14 @@ module Gen (P : Install_rules.Params) = struct
   let implements_rules ~(lib : Library.t) ~scope ~modules (loc, implements) =
     match Lib.DB.find (Scope.libs scope) implements with
     | Error _ ->
-      Loc.fail loc
+      Errors.fail loc
         "Cannot implement %s as that library isn't available"
         implements
     | Ok l ->
       let virtual_modules =
         match Lib.virtual_modules l with
         | None ->
-          Loc.fail lib.buildable.loc
+          Errors.fail lib.buildable.loc
             "Library %s isn't virtual and cannot be implemented"
             implements
         | Some Unexpanded ->
@@ -324,14 +324,14 @@ module Gen (P : Install_rules.Params) = struct
         |> String.concat ~sep:"\n"
       in
       if missing_modules <> [] then begin
-        Loc.fail lib.buildable.loc
+        Errors.fail lib.buildable.loc
           "Library %s cannot implement %s because the following \
            modules lack an implementation:\n%s"
           lib.name implements
           (module_list missing_modules)
       end;
       if impl_modules_with_intf <> [] then begin
-        Loc.fail lib.buildable.loc
+        Errors.fail lib.buildable.loc
           "The following modules cannot have .mli files as they implement \
            virtual modules:\n%s"
           (module_list impl_modules_with_intf)

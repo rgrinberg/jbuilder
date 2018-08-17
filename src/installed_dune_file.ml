@@ -1,5 +1,17 @@
 open! Stdune
 
+module Virtual_library = struct
+  type t =
+    { virtual_modules: Module.Name.t list
+    }
+
+  let dgen { virtual_modules } =
+    let open Dsexp.To_sexp in
+    record
+      [ "virtual_modules", ((list Module.Name.dgen) virtual_modules)
+      ]
+end
+
 let parse_sub_systems ~parsing_context sexps =
   List.filter_map sexps ~f:(fun sexp ->
     let name, ver, data =
@@ -52,6 +64,16 @@ let of_sexp =
           parse_sub_systems ~parsing_context sub_systems))
     ]
 
+type t =
+  { virtual_library : Virtual_library.t option
+  ; sub_systems     : Dune_file.Sub_system_info.t Sub_system_name.Map.t
+  }
+
+let empty =
+  { virtual_library = None
+  ; sub_systems = Sub_system_name.Map.empty
+  }
+
 let load fname =
   Io.with_lexbuf_from_file fname ~f:(fun lexbuf ->
     (* Installed dune files are versioned but they don't use the
@@ -80,10 +102,13 @@ let load fname =
       );
       token
     in
-    Dsexp.Of_sexp.parse of_sexp Univ_map.empty
-      (Dsexp.Parser.parse ~lexer ~mode:Single lexbuf))
+    { sub_systems =
+        Dsexp.Of_sexp.parse of_sexp Univ_map.empty
+          (Dsexp.Parser.parse ~lexer ~mode:Single lexbuf)
+    ; virtual_library = None
+    })
 
-let gen ~(dune_version : Syntax.Version.t) confs =
+let gen ~(dune_version : Syntax.Version.t) ~virtual_library confs =
   let sexps =
     Sub_system_name.Map.to_list confs
     |> List.map ~f:(fun (name, (ver, conf)) ->
@@ -92,6 +117,17 @@ let gen ~(dune_version : Syntax.Version.t) confs =
                 ; Syntax.Version.dgen ver
                 ; conf
                 ])
+  in
+  let sexps =
+    match virtual_library with
+    | None -> sexps
+    | Some virtual_library ->
+      Dsexp.List
+        [ Dsexp.atom "virtual_library"
+        ; Syntax.Version.dgen (1, 0)
+        ; Virtual_library.dgen virtual_library
+        ]
+      :: sexps
   in
   Dsexp.List
     [ Dsexp.unsafe_atom_of_string "dune"

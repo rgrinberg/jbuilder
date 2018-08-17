@@ -25,7 +25,7 @@ module Gen(P : Params) = struct
          Format.asprintf "%a@."
            (Dsexp.pp (Stanza.File_kind.of_syntax dune_version))
            (Lib.Sub_system.dump_config lib
-            |> Installed_dune_file.gen ~dune_version))
+            |> Installed_dune_file.gen ~dune_version ~virtual_library:None))
        >>> Build.write_file_dyn
              (lib_dune_file ~dir:(Lib.src_dir lib) ~name:(Lib.name lib)))
 

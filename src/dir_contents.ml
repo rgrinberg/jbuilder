@@ -140,7 +140,7 @@ end = struct
       List.map ~f:(fun (_, m) -> Module.name m |> Module.Name.uncapitalize) in
     if virt_intf_overlaps <> [] then begin
       let (loc, _) = List.hd virt_intf_overlaps in
-      Loc.fail loc
+      Errors.fail loc
         "These modules appear in the virtual_libraries \
          and modules_without_implementation fields: \
          \n%s\nThis is not possible."

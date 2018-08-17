@@ -981,7 +981,7 @@ module Library = struct
        and virtual_modules =
          field_o "virtual_modules" (
            Syntax.since Stanza.syntax (1, 1)
-           >>= fun () -> Ordered_set_lang.t)
+           >>= fun () -> Ordered_set_lang.dparse)
        and implements =
          field_o "implements" (
            Syntax.since Stanza.syntax (1, 1)

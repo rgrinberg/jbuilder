@@ -146,10 +146,16 @@ module Info = struct
     let module P = Findlib.Package in
     let loc = Loc.in_file (Path.to_string (P.meta_file pkg)) in
     let add_loc x = (loc, x) in
-    let sub_systems =
+    let { Installed_dune_file.
+          sub_systems ; virtual_library } =
       match P.dune_file pkg with
-      | None -> Sub_system_name.Map.empty
+      | None -> Installed_dune_file.empty
       | Some fn -> Installed_dune_file.load fn
+    in
+    let virtual_modules =
+      match virtual_library with
+      | None -> None
+      | Some { virtual_modules } -> Some (Expanded virtual_modules)
     in
     { loc              = loc
     ; kind             = Normal
@@ -164,7 +170,7 @@ module Info = struct
     ; ppx_runtime_deps = List.map (P.ppx_runtime_deps pkg) ~f:add_loc
     ; pps              = []
     ; virtual_deps     = []
-    ; virtual_modules  = None
+    ; virtual_modules
     ; optional         = false
     ; status           = Installed
     ; (* We don't know how these are named for external libraries *)
