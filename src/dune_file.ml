@@ -946,6 +946,18 @@ module Library = struct
     ; implements               : (Loc.t * string) option
     }
 
+  module Variants = struct
+    let name = "variants"
+
+    let syntax =
+      Syntax.create ~name
+        ~desc:"experimental variants feature"
+        [ (1, 0) ]
+
+    let () =
+      Dune_project.Extension.register syntax (return [])
+  end
+
   let dparse =
     record
       (let%map buildable = Buildable.dparse
@@ -980,7 +992,7 @@ module Library = struct
        and dune_version = Syntax.get_exn Stanza.syntax
        and virtual_modules =
          field_o "virtual_modules" (
-           Syntax.since Stanza.syntax (1, 1)
+           Syntax.since Variants.syntax (1, 0)
            >>= fun () -> Ordered_set_lang.dparse)
        and implements =
          field_o "implements" (
