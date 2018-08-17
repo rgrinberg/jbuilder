@@ -20,9 +20,9 @@ Otherwise this test fails on OSX
 
   $ printf titi > x
   $ dune build --display short --diff-command false @blah --auto-promote 2>&1 | sed 's/.*false.*/DIFF/'
-  Promoting _build/default/x.gen to x.
             sh (internal) (exit 1)
   DIFF
+  Promoting _build/default/x.gen to x.
   $ cat x
   toto
   $ dune build --display short --diff-command false @blah
