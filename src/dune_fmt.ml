@@ -13,7 +13,7 @@ let parse_file path_opt =
       let contents = String.concat ~sep:"\n" lines in
       ("<stdin>", contents)
   in
-  Sexp.parse_string
+  Dsexp.parse_string
     ~fname
     ~mode:Usexp.Parser.Mode.Many
     contents

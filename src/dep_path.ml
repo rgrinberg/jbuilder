@@ -14,7 +14,7 @@ module Entry = struct
     | Library (path, lib_name) ->
       sprintf "library %S in %s" lib_name (Path.to_string_maybe_quoted path)
     | Preprocess l ->
-      Sexp.to_string ~syntax:Dune
+      Dsexp.to_string ~syntax:Dune
         (List [ Sexp.unsafe_atom_of_string "pps"
               ; Sexp.To_sexp.(list string) l])
     | Loc loc ->
