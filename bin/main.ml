@@ -180,82 +180,21 @@ module Scheduler = struct
     in
     Scheduler.go ?log ~config:common.config fiber
 
-  (** Fiber loop looks like this (if cache_init is true):
-                /------------------\
-                v                  |
-      init --> once --> finally  --/
-
-      The result of ~init gets passed in every call to ~once and ~finally.
-      If cache_init is false, every iteration reexecutes init instead of
-      saving it.
-  *)
-  let poll ?log ?(cache_init=true) ~common ~init ~once ~finally () =
-    let saved_config = ref None in
-    let config () =
-      match !saved_config with
-      | Some c -> c
-      | None ->
-        Format.eprintf "Internal error: setup failed.\n";
-        exit 1
-    in
-    let init =
+  let poll ?log ?cache_init ~common ~init ~once ~finally () =
+    let init () =
       Main.set_concurrency ?log common.config
       >>= fun () ->
       init ()
-      >>| fun config ->
-      saved_config := Some config
     in
-    let wait_success () =
-      Scheduler.set_status_line_generator
-        (fun () -> Some "Success, polling filesystem for changes...", `Don't_show_jobs)
-      >>= fun () ->
-      watch_changes ()
-    in
-    let wait_failure () =
-      Scheduler.set_status_line_generator
-        (fun () -> Some "Had errors, polling filesystem for changes...", `Don't_show_jobs)
-      >>= fun () ->
-      if Promotion.were_files_promoted () then
-        Fiber.return ()
-      else
-        watch_changes ()
-    in
-    let rec main_loop () =
-      (if cache_init then
-        Fiber.return ()
-      else
-        init)
-      >>= fun _ ->
-      once (config ())
-      >>= fun _ ->
-      finally (config ())
-      >>= fun _ ->
-      wait_success ()
-      >>= fun _ ->
-      main_loop ()
-    in
-    let continue_on_error () =
-      finally (config ())
-      >>= fun _ ->
-      wait_failure ()
-      >>= fun _ ->
-      main_loop ()
-    in
-    let main () =
-      (if cache_init then
-         init
-       else
-         Fiber.return ())
-      >>= fun _ ->
-      main_loop ()
-    in
-    let rec loop f =
-      try
-        Scheduler.go ?log ~config:common.config (f ())
-      with Fiber.Never ->
-        loop continue_on_error
-    in
-    loop main
+    Scheduler.poll
+      ?log
+      ~config:common.config
+      ?cache_init
+      ~init
+      ~once
+      ~finally
+      ~watch:watch_changes
+      ()
 end
 
 type target =

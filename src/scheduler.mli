@@ -14,6 +14,28 @@ val go
   -> 'a Fiber.t
   -> 'a
 
+(** Runs a fiber loop that looks like this (if cache_init is true, as default):
+              /------------------\
+              v                  |
+    init --> once --> finally  --/
+
+    The result of [~init] gets passed in every call to [~once] and [~finally].
+    If cache_init is false, every iteration reexecutes init instead of
+    saving it.
+
+    [~watch] should return after the first change to any of the project files.
+*)
+val poll
+  :  ?log:Log.t
+  -> ?config:Config.t
+  -> ?cache_init:bool
+  -> init:(unit -> 'a Fiber.t)
+  -> once:('a -> 'b Fiber.t)
+  -> finally:('a -> 'c Fiber.t)
+  -> watch:(unit -> unit Fiber.t)
+  -> unit
+  -> 'd
+
 (** Wait for the following process to terminate *)
 val wait_for_process : int -> Unix.process_status Fiber.t
 
