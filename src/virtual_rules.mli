@@ -4,6 +4,8 @@ module Implementation : sig
   type t
 
   val vlib_stubs_o_files : t -> Path.t list
+
+  val dep_graph : t -> Ocamldep.Dep_graphs.t
 end
 
 module Gen (S : sig val sctx : Super_context.t end) : sig

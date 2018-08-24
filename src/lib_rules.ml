@@ -348,7 +348,11 @@ module Gen (P : Install_rules.Params) = struct
         ~opaque
     in
 
-    let dep_graphs = Ocamldep.rules cctx in
+    let dep_graphs =
+      match impl with
+      | None -> Ocamldep.rules cctx
+      | Some impl -> Virtual_rules.Implementation.dep_graph impl
+    in
 
     let dynlink =
       Dynlink_supported.get lib.dynlink ctx.supports_shared_libraries
