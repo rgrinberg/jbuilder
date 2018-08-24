@@ -19,7 +19,7 @@ module File = struct
   let register t = db := t :: !db
 
   let promote { src; dst } =
-    print_to_console (Format.sprintf "Promoting %s to %s.@."
+    Errors.print_to_console (Format.sprintf "Promoting %s to %s.@."
       (Path.to_string_maybe_quoted src)
       (Path.to_string_maybe_quoted dst));
     Io.copy_file ~src ~dst ()
