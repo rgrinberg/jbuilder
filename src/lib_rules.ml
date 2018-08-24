@@ -366,8 +366,14 @@ module Gen (P : Install_rules.Params) = struct
       ~f:(build_alias_module ~main_module_name ~modules ~cctx ~dynlink
             ~js_of_ocaml);
 
-    if Library.has_stubs lib then (* TODO virtual lib can also have stubs *)
-      build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl;
+    begin match Library.has_stubs lib, impl with
+    | true, _ ->
+      build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl
+    | false, Some i ->
+      if Virtual_rules.Implementation.vlib_has_stubs i then
+        build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl
+    | false, None -> ()
+    end;
 
     List.iter Cm_kind.all ~f:(fun cm_kind ->
       let files =
