@@ -211,7 +211,7 @@ module Gen (P : Install_rules.Params) = struct
       ocamlmklib ~sandbox:true ~custom:false ~targets:[dynamic]
     end
 
-  let build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl =
+  let build_stubs lib ~dir ~scope ~requires ~dir_contents ~vlib_stubs_o_files =
     let all_dirs = Dir_contents.dirs dir_contents in
     let h_files =
       List.fold_left all_dirs ~init:[] ~f:(fun acc dc ->
@@ -256,13 +256,7 @@ module Gen (P : Install_rules.Params) = struct
     | None, true
     | Some _, false -> ()
     | None, false ->
-      let o_files =
-        match impl with
-        | Some i ->
-          Virtual_rules.Implementation.o_files_of_vlib i @ o_files
-        | None ->
-          o_files
-      in
+      let o_files = vlib_stubs_o_files @ o_files in
       build_self_stubs lib ~dir ~scope ~o_files
 
   let build_shared lib ~dir ~flags ~(ctx : Context.t) =
@@ -366,13 +360,14 @@ module Gen (P : Install_rules.Params) = struct
       ~f:(build_alias_module ~main_module_name ~modules ~cctx ~dynlink
             ~js_of_ocaml);
 
-    begin match Library.has_stubs lib, impl with
-    | true, _ ->
-      build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl
-    | false, Some i ->
-      if Virtual_rules.Implementation.vlib_has_stubs i then
-        build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl
-    | false, None -> ()
+    begin
+      let vlib_stubs_o_files =
+        match impl with
+        | None -> []
+        | Some i -> Virtual_rules.Implementation.vlib_stubs_o_files i
+      in
+      if Library.has_stubs lib || not (List.is_empty vlib_stubs_o_files) then
+        build_stubs lib ~dir ~scope ~requires ~dir_contents ~vlib_stubs_o_files
     end;
 
     List.iter Cm_kind.all ~f:(fun cm_kind ->

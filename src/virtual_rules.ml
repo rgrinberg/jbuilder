@@ -4,9 +4,7 @@ open Dune_file
 module Implementation = struct
   type t = unit
 
-  let o_files_of_vlib _ = []
-
-  let vlib_has_stubs _ = false
+  let vlib_stubs_o_files _ = []
 end
 
 module Gen (S : sig val sctx : Super_context.t end) = struct

@@ -3,9 +3,7 @@ open! Stdune
 module Implementation : sig
   type t
 
-  val o_files_of_vlib : t -> Path.t list
-
-  val vlib_has_stubs : t -> bool
+  val vlib_stubs_o_files : t -> Path.t list
 end
 
 module Gen (S : sig val sctx : Super_context.t end) : sig
