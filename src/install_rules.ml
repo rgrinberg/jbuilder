@@ -117,6 +117,7 @@ module Gen(P : Params) = struct
 
   let lib_install_files ~dir_contents ~dir ~sub_dir ~name ~scope ~dir_kind
         (lib : Library.t) =
+    let ext_obj = ctx.ext_obj in
     let obj_dir = Utils.library_object_directory ~dir lib.name in
     let make_entry section ?dst fn =
       Install.Entry.make section fn
@@ -155,6 +156,8 @@ module Gen(P : Params) = struct
               [ [ Module.cm_file_unsafe m ~obj_dir Cmi ]
               ; if_ (native && Module.has_impl m)
                   [ Module.cm_file_unsafe m ~obj_dir Cmx ]
+              ; if_ (native && Module.has_impl m && virtual_library)
+                  [ Module.obj_file m ~obj_dir ~ext:ext_obj ]
               ; List.filter_map Ml_kind.all ~f:(Module.cmt_file m ~obj_dir)
               ; List.filter_map [m.intf;m.impl] ~f:(function
                   | None -> None
