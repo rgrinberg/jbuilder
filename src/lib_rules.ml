@@ -385,17 +385,14 @@ module Gen (P : Install_rules.Params) = struct
          Path.relative dir (header ^ ".h"))
        |> Path.Set.of_list);
 
-    let virtual_library = Library.is_virtual lib in
-
-    (let modules =
-       Module.Name.Map.fold modules ~init:[] ~f:(fun m acc ->
-         if Module.has_impl m then
-           m :: acc
-         else
-           acc)
-     in
-
-     if not virtual_library then
+    if not (Library.is_virtual lib) then begin
+      (let modules =
+         Module.Name.Map.fold modules ~init:[] ~f:(fun m acc ->
+           if Module.has_impl m then
+             m :: acc
+           else
+             acc)
+       in
        let top_sorted_modules =
          Ocamldep.Dep_graph.top_closed_implementations dep_graphs.impl modules
        in
@@ -403,7 +400,6 @@ module Gen (P : Install_rules.Params) = struct
          build_lib lib ~scope ~flags ~dir ~obj_dir ~mode ~top_sorted_modules
            ~modules));
 
-    if not virtual_library then (
       (* Build *.cma.js *)
       SC.add_rules sctx (
         let src =
@@ -413,7 +409,7 @@ module Gen (P : Install_rules.Params) = struct
 
       if Dynlink_supported.By_the_os.get ctx.natdynlink_supported then
         build_shared lib ~dir ~flags ~ctx;
-    );
+    end;
 
     Odoc.setup_library_odoc_rules lib ~requires ~modules ~dep_graphs ~scope;
 
