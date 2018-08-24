@@ -1,3 +1,4 @@
+open! Stdune
 open Import
 open Fiber.O
 
@@ -200,7 +201,7 @@ let prepare ?(log=Log.no_log) ?(config=Config.default)
     ; waiting_for_available_job = Queue.create ()
     }
   in
-  printer := print t;
+  Errors.printer := print t;
   t
 
 let run t fiber =

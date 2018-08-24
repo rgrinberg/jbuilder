@@ -1,3 +1,4 @@
+open! Stdune
 open Import
 open Build.O
 open Dune_file
@@ -196,7 +197,7 @@ module Gen (P : Install_rules.Params) = struct
     let ocamlmklib = ocamlmklib lib ~scope ~dir ~o_files in
     if modes.native &&
        modes.byte   &&
-       lib.dynlink
+       Dynlink_supported.get lib.dynlink ctx.supports_shared_libraries
     then begin
       (* If we build for both modes and support dynlink, use a
          single invocation to build both the static and dynamic
@@ -226,7 +227,7 @@ module Gen (P : Install_rules.Params) = struct
       if not (match Path.parent p with
         | None -> false
         | Some p -> Path.Set.mem all_dirs p) then
-        Loc.fail loc
+        Errors.fail loc
           "File %a is not part of the current directory group. \
            This is not allowed."
           Path.pp (Path.drop_optional_build_context p)
@@ -340,7 +341,9 @@ module Gen (P : Install_rules.Params) = struct
 
     let dep_graphs = Ocamldep.rules cctx in
 
-    let dynlink = lib.dynlink in
+    let dynlink =
+      Dynlink_supported.get lib.dynlink ctx.supports_shared_libraries
+    in
     let js_of_ocaml = lib.buildable.js_of_ocaml in
     Module_compilation.build_modules cctx ~js_of_ocaml ~dynlink ~dep_graphs;
 
@@ -385,7 +388,7 @@ module Gen (P : Install_rules.Params) = struct
       let target = Path.extend_basename src ~suffix:".js" in
       Js_of_ocaml_rules.build_cm cctx ~js_of_ocaml ~src ~target);
 
-    if ctx.natdynlink_supported then
+    if Dynlink_supported.By_the_os.get ctx.natdynlink_supported then
       build_shared lib ~dir ~flags ~ctx;
 
     Odoc.setup_library_odoc_rules lib ~requires ~modules ~dep_graphs ~scope;

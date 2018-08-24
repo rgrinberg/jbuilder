@@ -1,6 +1,6 @@
 (** Scheduling *)
 
-open Stdune
+open! Stdune
 
 type status_line_config = string option * [`Show_jobs | `Don't_show_jobs]
 

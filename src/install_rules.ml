@@ -1,3 +1,4 @@
+open! Stdune
 open Import
 open Dune_file
 open Build.O
@@ -22,7 +23,7 @@ module Gen(P : Params) = struct
       (Build.arr (fun () ->
          let dune_version = Option.value_exn (Lib.dune_version lib) in
          Format.asprintf "%a@."
-           (Sexp.pp (Stanza.File_kind.of_syntax dune_version))
+           (Dsexp.pp (Stanza.File_kind.of_syntax dune_version))
            (Lib.Sub_system.dump_config lib
             |> Installed_dune_file.gen ~dune_version))
        >>> Build.write_file_dyn
@@ -168,7 +169,7 @@ module Gen(P : Params) = struct
                ; Library.archive ~dir lib ~ext:ctx.ext_lib
                ]
              in
-             if ctx.natdynlink_supported && lib.dynlink then
+             if Dynlink_supported.get lib.dynlink ctx.natdynlink_supported then
                files @ [ Library.archive ~dir lib ~ext:".cmxs" ]
              else
                files)
@@ -178,7 +179,8 @@ module Gen(P : Params) = struct
         ]
     in
     let dlls  =
-      if_ (byte && Library.has_stubs lib && lib.dynlink)
+      if_ (byte && Library.has_stubs lib &&
+           Dynlink_supported.get lib.dynlink ctx.supports_shared_libraries)
         [Library.dll ~dir lib ~ext_dll:ctx.ext_dll]
     in
     let execs =
