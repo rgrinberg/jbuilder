@@ -8,7 +8,7 @@ module SC = Super_context
 
 module Gen (P : Install_rules.Params) = struct
   module Odoc = Odoc.Gen(P)
-  module Virtual_rules = Virtual_rules.Gen(P)
+  module Vrules = Virtual_rules.Gen(P)
 
   let sctx = P.sctx
   let ctx = SC.context sctx
@@ -211,7 +211,7 @@ module Gen (P : Install_rules.Params) = struct
       ocamlmklib ~sandbox:true ~custom:false ~targets:[dynamic]
     end
 
-  let build_stubs lib ~dir ~scope ~requires ~dir_contents =
+  let build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl =
     let all_dirs = Dir_contents.dirs dir_contents in
     let h_files =
       List.fold_left all_dirs ~init:[] ~f:(fun acc dc ->
@@ -255,7 +255,15 @@ module Gen (P : Install_rules.Params) = struct
     | Some _, true (* XXX should this be an error? *)
     | None, true
     | Some _, false -> ()
-    | None, false -> build_self_stubs lib ~dir ~scope ~o_files
+    | None, false ->
+      let o_files =
+        match impl with
+        | Some i ->
+          Virtual_rules.Implementation.o_files_of_vlib i @ o_files
+        | None ->
+          o_files
+      in
+      build_self_stubs lib ~dir ~scope ~o_files
 
   let build_shared lib ~dir ~flags ~(ctx : Context.t) =
     Option.iter ctx.ocamlopt ~f:(fun ocamlopt ->
@@ -299,8 +307,9 @@ module Gen (P : Install_rules.Params) = struct
           ; virtual_modules = _ } =
       Dir_contents.modules_of_library dir_contents ~name:(Library.best_name lib)
     in
-    Option.iter lib.implements
-      ~f:(Virtual_rules.implements_rules ~lib ~scope ~modules);
+    let impl =
+      Option.map lib.implements
+        ~f:(Vrules.implements_rules ~lib ~scope ~modules) in
     let source_modules = modules in
     (* Preprocess before adding the alias module as it doesn't need
        preprocessing *)
@@ -357,8 +366,8 @@ module Gen (P : Install_rules.Params) = struct
       ~f:(build_alias_module ~main_module_name ~modules ~cctx ~dynlink
             ~js_of_ocaml);
 
-    if Library.has_stubs lib then
-      build_stubs lib ~dir ~scope ~requires ~dir_contents;
+    if Library.has_stubs lib then (* TODO virtual lib can also have stubs *)
+      build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl;
 
     List.iter Cm_kind.all ~f:(fun cm_kind ->
       let files =

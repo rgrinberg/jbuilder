@@ -1,6 +1,12 @@
 open! Stdune
 open Dune_file
 
+module Implementation = struct
+  type t = unit
+
+  let o_files_of_vlib _ = []
+end
+
 module Gen (S : sig val sctx : Super_context.t end) = struct
   open S
 
