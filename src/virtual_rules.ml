@@ -31,13 +31,13 @@ module Gen (S : sig val sctx : Super_context.t end) = struct
                 virtual_modules ; _ } =
             Dir_contents.modules_of_library dir_contents
               ~name:(Lib.name l) in
-          Module.Name.Map.keys virtual_modules
-        | Some Expanded virtual_modules ->
+          virtual_modules
+        | Some (Expanded virtual_modules) ->
           virtual_modules
       in
       let (missing_modules, impl_modules_with_intf) =
-        List.fold_left virtual_modules ~init:([], [])
-          ~f:(fun (mms, ims) m ->
+        Module.Name.Map.foldi virtual_modules ~init:([], [])
+          ~f:(fun m _ (mms, ims) ->
             match Module.Name.Map.find modules m with
             | None -> (m :: mms, ims)
             | Some m ->

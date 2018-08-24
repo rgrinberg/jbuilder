@@ -26,7 +26,7 @@ module Status = struct
 end
 
 type virtual_modules =
-  | Expanded of Module.Name.t list
+  | Expanded of Module.t Module.Name.Map.t
   | Unexpanded
 
 module Info = struct

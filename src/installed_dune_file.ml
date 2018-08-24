@@ -2,13 +2,14 @@ open! Stdune
 
 module Virtual_library = struct
   type t =
-    { virtual_modules: Module.Name.t list
+    { virtual_modules: Module.t Module.Name.Map.t
     }
 
   let dgen { virtual_modules } =
     let open Dsexp.To_sexp in
     record
-      [ "virtual_modules", ((list Module.Name.dgen) virtual_modules)
+      [ "virtual_modules",
+        (list Module.Name.dgen) (Module.Name.Map.keys virtual_modules)
       ]
 end
 

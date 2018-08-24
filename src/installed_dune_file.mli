@@ -4,7 +4,7 @@ open! Stdune
 
 module Virtual_library : sig
   type t =
-    { virtual_modules: Module.Name.t list
+    { virtual_modules: Module.t Module.Name.Map.t
     }
 end
 

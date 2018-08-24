@@ -32,7 +32,7 @@ module Gen(P : Params) = struct
                let { Dir_contents.Library_modules.virtual_modules ; _ } =
                  Dir_contents.modules_of_library dir_contents ~name in
                { Installed_dune_file.Virtual_library.
-                 virtual_modules = Module.Name.Map.keys virtual_modules
+                 virtual_modules
                }
            )
          in

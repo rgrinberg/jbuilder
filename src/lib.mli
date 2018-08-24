@@ -34,7 +34,7 @@ val dune_version : t -> Syntax.Version.t option
 val unique_id : t -> int
 
 type virtual_modules =
-  | Expanded of Module.Name.t list
+  | Expanded of Module.t Module.Name.Map.t
   | Unexpanded
 
 val virtual_modules : t -> virtual_modules option
