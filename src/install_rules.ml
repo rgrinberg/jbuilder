@@ -19,15 +19,29 @@ module Gen(P : Params) = struct
     Path.relative dir (name ^ ".dune")
 
   let gen_lib_dune_file lib =
+    let name = Lib.name lib in
+    let src_dir = Lib.src_dir lib in
     SC.add_rule sctx
       (Build.arr (fun () ->
          let dune_version = Option.value_exn (Lib.dune_version lib) in
+         let virtual_library =
+           Option.map (Lib.virtual_modules lib) ~f:(function
+             | Expanded _ -> assert false (* lib is internal *)
+             | Unexpanded ->
+               let dir_contents = Dir_contents.get sctx ~dir:src_dir in
+               let { Dir_contents.Library_modules.virtual_modules ; _ } =
+                 Dir_contents.modules_of_library dir_contents ~name in
+               { Installed_dune_file.Virtual_library.
+                 virtual_modules = Module.Name.Map.keys virtual_modules
+               }
+           )
+         in
          Format.asprintf "%a@."
            (Dsexp.pp (Stanza.File_kind.of_syntax dune_version))
            (Lib.Sub_system.dump_config lib
-            |> Installed_dune_file.gen ~dune_version ~virtual_library:None))
+            |> Installed_dune_file.gen ~dune_version ~virtual_library))
        >>> Build.write_file_dyn
-             (lib_dune_file ~dir:(Lib.src_dir lib) ~name:(Lib.name lib)))
+             (lib_dune_file ~dir:src_dir ~name))
 
   let version_from_dune_project (pkg : Package.t) =
     let dir = Path.append (SC.build_dir sctx) pkg.path in
