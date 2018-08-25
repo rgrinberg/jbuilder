@@ -11,6 +11,17 @@ module Virtual_library = struct
       [ "virtual_modules",
         (list Module.Name.dgen) (Module.Name.Map.keys virtual_modules)
       ]
+
+  let _dparse =
+    let open Dsexp.Of_sexp in
+    fields
+      (let%map virtual_modules =
+         field "virtual_modules" (list Module.Name.dparse)
+       in
+       { virtual_modules =
+           List.map virtual_modules ~f:(fun name -> (name, Module.make name))
+           |> Module.Name.Map.of_list_exn
+       })
 end
 
 let parse_sub_systems ~parsing_context sexps =
