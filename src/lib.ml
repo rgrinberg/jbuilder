@@ -657,16 +657,7 @@ let rec instantiate db name (info : Info.t) ~stack ~hidden =
   let allow_private_deps = Status.is_private info.status in
 
   let requires, pps, resolved_selects =
-    let full_requires =
-      match info.implements with
-      | None -> info.requires
-      | Some l ->
-        begin match info.requires with
-        | Simple reqs -> Simple (l :: reqs)
-        | Complex reqs -> Complex (Direct l :: reqs)
-        end
-    in
-    resolve_user_deps db full_requires ~allow_private_deps ~pps:info.pps ~stack
+    resolve_user_deps db info.requires ~allow_private_deps ~pps:info.pps ~stack
   in
   let ppx_runtime_deps =
     resolve_simple_deps db info.ppx_runtime_deps ~allow_private_deps ~stack
