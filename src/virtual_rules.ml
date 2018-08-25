@@ -7,6 +7,8 @@ module Implementation = struct
   let vlib_stubs_o_files _ = []
 
   let dep_graph _ = failwith "TODO"
+
+  let add_vlib_modules _ s = s
 end
 
 module Gen (S : sig val sctx : Super_context.t end) = struct

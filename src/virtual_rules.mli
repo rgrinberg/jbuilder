@@ -6,6 +6,11 @@ module Implementation : sig
   val vlib_stubs_o_files : t -> Path.t list
 
   val dep_graph : t -> Ocamldep.Dep_graphs.t
+
+  val add_vlib_modules
+    :  t
+    -> Module.t Module.Name.Map.t
+    -> Module.t Module.Name.Map.t
 end
 
 module Gen (S : sig val sctx : Super_context.t end) : sig
