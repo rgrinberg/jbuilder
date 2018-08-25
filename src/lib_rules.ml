@@ -395,6 +395,13 @@ module Gen (P : Install_rules.Params) = struct
 
     if not (Library.is_virtual lib) then begin
       (let modules =
+         let modules =
+           match impl with
+           | None ->
+             modules
+           | Some impl ->
+             Virtual_rules.Implementation.add_vlib_modules impl modules
+         in
          Module.Name.Map.fold modules ~init:[] ~f:(fun m acc ->
            if Module.has_impl m then
              m :: acc
