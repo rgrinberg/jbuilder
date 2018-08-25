@@ -254,7 +254,7 @@ module Gen (P : Install_rules.Params) = struct
     let vlib_stubs_o_files =
       match impl with
       | None -> []
-      | Some i -> Virtual_rules.Implementation.vlib_stubs_o_files i
+      | Some i -> Virtual_rules.Implementation.vlib_stubs_o_files ~dir i
     in
     let lib_o_files =
       if Library.has_stubs lib then
@@ -356,9 +356,10 @@ module Gen (P : Install_rules.Params) = struct
     in
 
     let dep_graphs =
+      let dep_graphs = Ocamldep.rules cctx in
       match impl with
-      | None -> Ocamldep.rules cctx
-      | Some impl -> Virtual_rules.Implementation.dep_graph impl
+      | None -> dep_graphs
+      | Some impl -> Virtual_rules.Implementation.dep_graph impl dep_graphs
     in
 
     let dynlink =
@@ -377,6 +378,8 @@ module Gen (P : Install_rules.Params) = struct
     | Some _, false -> ()
     | None, false -> build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl
     end;
+
+    Option.iter impl ~f:(Vrules.setup_copy_rules_for_impl ~dir);
 
     List.iter Cm_kind.all ~f:(fun cm_kind ->
       let files =

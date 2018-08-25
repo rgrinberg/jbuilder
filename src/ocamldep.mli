@@ -1,4 +1,5 @@
 (** ocamldep management *)
+open Stdune
 
 module Dep_graph : sig
   type t
@@ -30,3 +31,10 @@ val rules_for_auxiliary_module
   :  Compilation_context.t
   -> Module.t
   -> Dep_graphs.t
+
+(** Get the dep graph for an already defined library *)
+val rules_for_lib
+  :  obj_dir:Path.t
+  -> modules:Module.t Module.Name.Map.t
+  -> Dep_graph.t Ml_kind.Dict.t
+

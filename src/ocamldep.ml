@@ -118,6 +118,28 @@ let parse_deps cctx ~file ~unit lines =
       | None -> deps
       | Some m -> m :: deps
 
+let rules_for_lib ~obj_dir ~modules =
+  let deps_of unit ~ml_kind =
+    match Module.file unit ml_kind with
+    | None -> Build.return []
+    | Some file ->
+      let file_in_obj_dir ~suffix file =
+        let base = Path.basename file in
+        Path.relative obj_dir (base ^ suffix)
+      in
+      let all_deps_path file = file_in_obj_dir file ~suffix:".all-deps" in
+      let all_deps_file = all_deps_path file in
+      Build.memoize (Path.to_string all_deps_file)
+        (Build.lines_of all_deps_file >>^ parse_module_names ~unit ~modules)
+  in
+  Ml_kind.Dict.of_func (fun ~ml_kind ->
+    let per_module =
+      Module.Name.Map.map modules ~f:(deps_of ~ml_kind) in
+    { Dep_graph.
+      dir = obj_dir
+    ; per_module
+    })
+
 let deps_of cctx ~ml_kind unit =
   let sctx = CC.super_context cctx in
   if is_alias_module cctx unit then
