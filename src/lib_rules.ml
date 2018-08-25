@@ -211,7 +211,7 @@ module Gen (P : Install_rules.Params) = struct
       ocamlmklib ~sandbox:true ~custom:false ~targets:[dynamic]
     end
 
-  let build_stubs lib ~dir ~scope ~requires ~dir_contents ~vlib_stubs_o_files =
+  let build_o_files lib ~dir ~scope ~requires ~dir_contents =
     let all_dirs = Dir_contents.dirs dir_contents in
     let h_files =
       List.fold_left all_dirs ~init:[] ~f:(fun acc dc ->
@@ -235,29 +235,36 @@ module Gen (P : Install_rules.Params) = struct
       ;
       (p, Path.relative dir (fn ^ ctx.ext_obj))
     in
-    let o_files =
-      let includes =
-        Arg_spec.S
-          [ Hidden_deps h_files
-          ; Arg_spec.of_result_map requires ~f:(fun libs ->
-              S [ Lib.L.c_include_flags libs ~stdlib_dir:ctx.stdlib_dir
-                ; Hidden_deps (SC.Libs.file_deps sctx libs ~ext:".h")
-                ])
-          ]
-      in
-      List.map lib.c_names ~f:(fun name ->
-        build_c_file   lib ~scope ~dir ~includes (resolve_name name ~ext:".c")
-      ) @ List.map lib.cxx_names ~f:(fun name ->
-        build_cxx_file lib ~scope ~dir ~includes (resolve_name name ~ext:".cpp")
-      )
+    let includes =
+      Arg_spec.S
+        [ Hidden_deps h_files
+        ; Arg_spec.of_result_map requires ~f:(fun libs ->
+            S [ Lib.L.c_include_flags libs ~stdlib_dir:ctx.stdlib_dir
+              ; Hidden_deps (SC.Libs.file_deps sctx libs ~ext:".h")
+              ])
+        ]
     in
-    match lib.self_build_stubs_archive, Library.is_virtual lib with
-    | Some _, true (* XXX should this be an error? *)
-    | None, true
-    | Some _, false -> ()
-    | None, false ->
-      let o_files = vlib_stubs_o_files @ o_files in
-      build_self_stubs lib ~dir ~scope ~o_files
+    List.map lib.c_names ~f:(fun name ->
+      build_c_file   lib ~scope ~dir ~includes (resolve_name name ~ext:".c")
+    ) @ List.map lib.cxx_names ~f:(fun name ->
+      build_cxx_file lib ~scope ~dir ~includes (resolve_name name ~ext:".cpp")
+    )
+
+  let build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl =
+    let vlib_stubs_o_files =
+      match impl with
+      | None -> []
+      | Some i -> Virtual_rules.Implementation.vlib_stubs_o_files i
+    in
+    let lib_o_files =
+      if Library.has_stubs lib then
+        build_o_files lib ~dir ~scope ~requires ~dir_contents
+      else
+        []
+    in
+    match vlib_stubs_o_files @ lib_o_files with
+    | [] -> ()
+    | o_files -> build_self_stubs lib ~dir ~scope ~o_files
 
   let build_shared lib ~dir ~flags ~(ctx : Context.t) =
     Option.iter ctx.ocamlopt ~f:(fun ocamlopt ->
@@ -364,14 +371,11 @@ module Gen (P : Install_rules.Params) = struct
       ~f:(build_alias_module ~main_module_name ~modules ~cctx ~dynlink
             ~js_of_ocaml);
 
-    begin
-      let vlib_stubs_o_files =
-        match impl with
-        | None -> []
-        | Some i -> Virtual_rules.Implementation.vlib_stubs_o_files i
-      in
-      if Library.has_stubs lib || not (List.is_empty vlib_stubs_o_files) then
-        build_stubs lib ~dir ~scope ~requires ~dir_contents ~vlib_stubs_o_files
+    begin match lib.self_build_stubs_archive, Library.is_virtual lib with
+    | Some _, true (* XXX should this be an error? *)
+    | None, true
+    | Some _, false -> ()
+    | None, false -> build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl
     end;
 
     List.iter Cm_kind.all ~f:(fun cm_kind ->
