@@ -2,11 +2,6 @@ virtual library defined without an implementation
 
   $ dune build --root simple-virtual-lib
   Entering directory 'simple-virtual-lib'
-  No rule found for unwrapped/.one.objs/one_foo.cmi
-  No rule found for unwrapped/.one.objs/one_foo.cmti
-  No rule found for wrapped/.two.objs/two_virt.cmi
-  No rule found for wrapped/.two.objs/two_virt.cmti
-  [1]
 
 virtual libraries may not implement their virtual modules
 
@@ -22,22 +17,21 @@ virtual libraries may have multiple implementations
 
   $ dune build --root implementations
   Entering directory 'implementations'
-  No rule found for vlib/.foo.objs/foo__Vlib.cmi
-  No rule found for vlib/.foo.objs/foo__Vlib.cmti
+  No rule found for impl1/.impl1.objs/impl1.cmi
+  No rule found for impl1/.impl1.objs/impl1__Foo.cmi
+  No rule found for impl1/.impl1.objs/impl1__Vlib.cmi
+  No rule found for impl2/.impl2.objs/impl2.cmi
+  No rule found for impl2/.impl2.objs/impl2__Vlib.cmi
   [1]
 
 implementations may be private
 
   $ dune build --root private-implementations
   Entering directory 'private-implementations'
-        ocamlc .using_impl1.eobjs/using_impl1.{cmi,cmo,cmt} (exit 2)
-  (cd _build/default && /Users/rgrinberg/.opam/4.06.1/bin/ocamlc.opt -w @a-4-29-40-41-42-44-45-48-58-59-60-40 -strict-sequence -strict-formats -short-paths -keep-locs -g -bin-annot -I .using_impl1.eobjs -I impl1/.impl1.objs -no-alias-deps -opaque -o .using_impl1.eobjs/using_impl1.cmo -c -impl using_impl1.ml)
-  File "using_impl1.ml", line 1, characters 9-20:
-  Error: Unbound module Foo
-        ocamlc .using_impl2.eobjs/using_impl2.{cmi,cmo,cmt} (exit 2)
-  (cd _build/default && /Users/rgrinberg/.opam/4.06.1/bin/ocamlc.opt -w @a-4-29-40-41-42-44-45-48-58-59-60-40 -strict-sequence -strict-formats -short-paths -keep-locs -g -bin-annot -I .using_impl2.eobjs -I impl2/.impl2.objs -no-alias-deps -opaque -o .using_impl2.eobjs/using_impl2.cmo -c -impl using_impl2.ml)
-  File "using_impl2.ml", line 1, characters 9-20:
-  Error: Unbound module Foo
+  No rule found for impl1/.impl1.objs/impl1.cmi
+  No rule found for impl1/.impl1.objs/impl1__Foo.cmi
+  No rule found for impl2/.impl2.objs/impl2.cmi
+  No rule found for impl2/.impl2.objs/impl2__Foo.cmi
   [1]
 
 we cannot use more than implementation per lib in an executable

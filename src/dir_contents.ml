@@ -249,6 +249,13 @@ module Library_modules = struct
           else
             Module.with_wrapper m ~libname:lib.name)
     in
+    let virtual_intf = Option.is_some lib.implements in
+    let modules =
+      if virtual_intf then
+        Module.Name.Map.map modules ~f:Module.set_virtual_intf
+      else
+        modules
+    in
     let alias_module =
       if not lib.wrapped ||
          (Module.Name.Map.cardinal modules = 1 &&
@@ -261,12 +268,14 @@ module Library_modules = struct
            https://github.com/ocaml/dune/issues/567 *)
         Some
           (Module.make (Module.Name.add_suffix main_module_name "__")
+             ~virtual_intf
              ~impl:(Module.File.make OCaml
                       (Path.relative dir (sprintf "%s__.ml-gen" lib.name)))
              ~obj_name:(lib.name ^ "__"))
       else
         Some
           (Module.make main_module_name
+             ~virtual_intf
              ~impl:(Module.File.make OCaml
                       (Path.relative dir (lib.name ^ ".ml-gen")))
              ~obj_name:lib.name)
