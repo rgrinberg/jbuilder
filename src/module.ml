@@ -91,9 +91,10 @@ let has_intf t = Option.is_some t.intf
 
 let file t (kind : Ml_kind.t) =
   let file =
-    match kind with
-    | Impl -> t.impl
-    | Intf -> t.intf
+    match kind, t.virtual_intf with
+    | Impl, _ -> t.impl
+    | Intf, true -> None
+    | Intf, false -> t.intf
   in
   Option.map file ~f:(fun f -> f.path)
 

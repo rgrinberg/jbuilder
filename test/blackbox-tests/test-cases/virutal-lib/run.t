@@ -2,6 +2,11 @@ virtual library defined without an implementation
 
   $ dune build --root simple-virtual-lib
   Entering directory 'simple-virtual-lib'
+  No rule found for unwrapped/.one.objs/one_foo.cmi
+  No rule found for unwrapped/.one.objs/one_foo.cmti
+  No rule found for wrapped/.two.objs/two_virt.cmi
+  No rule found for wrapped/.two.objs/two_virt.cmti
+  [1]
 
 virtual libraries may not implement their virtual modules
 
@@ -23,6 +28,8 @@ virtual libraries may have multiple implementations
   Multiple rules generated for _build/default/impl2/.impl2.objs/foo__Vlib.cmi:
   - <internal location>
   - <internal location>
+  No rule found for vlib/.foo.objs/foo__Vlib.cmi
+  No rule found for vlib/.foo.objs/foo__Vlib.cmti
   [1]
 
 implementations may be private
