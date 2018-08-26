@@ -22,12 +22,6 @@ virtual libraries may have multiple implementations
 
   $ dune build --root implementations
   Entering directory 'implementations'
-  Multiple rules generated for _build/default/impl1/.impl1.objs/foo__Vlib.cmi:
-  - <internal location>
-  - <internal location>
-  Multiple rules generated for _build/default/impl2/.impl2.objs/foo__Vlib.cmi:
-  - <internal location>
-  - <internal location>
   No rule found for vlib/.foo.objs/foo__Vlib.cmi
   No rule found for vlib/.foo.objs/foo__Vlib.cmti
   [1]
@@ -36,12 +30,6 @@ implementations may be private
 
   $ dune build --root private-implementations
   Entering directory 'private-implementations'
-  Multiple rules generated for _build/default/impl1/.impl1.objs/foo.cmi:
-  - <internal location>
-  - <internal location>
-  Multiple rules generated for _build/default/impl2/.impl2.objs/foo.cmi:
-  - <internal location>
-  - <internal location>
         ocamlc .using_impl1.eobjs/using_impl1.{cmi,cmo,cmt} (exit 2)
   (cd _build/default && /Users/rgrinberg/.opam/4.06.1/bin/ocamlc.opt -w @a-4-29-40-41-42-44-45-48-58-59-60-40 -strict-sequence -strict-formats -short-paths -keep-locs -g -bin-annot -I .using_impl1.eobjs -I impl1/.impl1.objs -no-alias-deps -opaque -o .using_impl1.eobjs/using_impl1.cmo -c -impl using_impl1.ml)
   File "using_impl1.ml", line 1, characters 9-20:

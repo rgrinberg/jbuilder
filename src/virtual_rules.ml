@@ -93,6 +93,7 @@ module Gen (S : sig val sctx : Super_context.t end) = struct
               ~name:(Lib.name vlib) in
           (vlib_modules, virtual_modules)
         | Some (Expanded virtual_modules) ->
+          (* TODO make this work for external libraries *)
           (Module.Name.Map.empty, virtual_modules)
       in
       let (missing_modules, impl_modules_with_intf) =

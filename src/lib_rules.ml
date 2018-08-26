@@ -389,8 +389,6 @@ module Gen (P : Install_rules.Params) = struct
     | None, false -> build_stubs lib ~dir ~scope ~requires ~dir_contents ~impl
     end;
 
-    Option.iter impl ~f:(Vrules.setup_copy_rules_for_impl ~dir);
-
     List.iter Cm_kind.all ~f:(fun cm_kind ->
       let files =
         Module.Name.Map.fold modules ~init:Path.Set.empty ~f:(fun m acc ->
