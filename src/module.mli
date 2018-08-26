@@ -50,12 +50,14 @@ type t = private
   ; obj_name  : string (** Object name. It is different from [name]
                            for wrapped modules. *)
   ; pp        : (unit, string list) Build.t option (** Preprocessing flags *)
+  ; virtual_intf : bool (** a module whose cmi already exists *)
   }
 
 val make
   :  ?impl:File.t
   -> ?intf:File.t
   -> ?obj_name:string
+  -> ?virtual_intf:bool
   -> Name.t
   -> t
 
@@ -94,3 +96,5 @@ val with_wrapper : t -> libname:string -> t
 val map_files : t -> f:(Ml_kind.t -> File.t -> File.t) -> t
 
 val set_pp : t -> (unit, string list) Build.t option -> t
+
+val set_virtual_intf : t -> t

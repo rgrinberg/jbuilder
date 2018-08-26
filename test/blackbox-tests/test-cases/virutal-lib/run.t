@@ -17,11 +17,24 @@ virtual libraries may have multiple implementations
 
   $ dune build --root implementations
   Entering directory 'implementations'
+  Multiple rules generated for _build/default/impl1/.impl1.objs/foo__Vlib.cmi:
+  - <internal location>
+  - <internal location>
+  Multiple rules generated for _build/default/impl2/.impl2.objs/foo__Vlib.cmi:
+  - <internal location>
+  - <internal location>
+  [1]
 
 implementations may be private
 
   $ dune build --root private-implementations
   Entering directory 'private-implementations'
+  Multiple rules generated for _build/default/impl1/.impl1.objs/foo.cmi:
+  - <internal location>
+  - <internal location>
+  Multiple rules generated for _build/default/impl2/.impl2.objs/foo.cmi:
+  - <internal location>
+  - <internal location>
         ocamlc .using_impl1.eobjs/using_impl1.{cmi,cmo,cmt} (exit 2)
   (cd _build/default && /Users/rgrinberg/.opam/4.06.1/bin/ocamlc.opt -w @a-4-29-40-41-42-44-45-48-58-59-60-40 -strict-sequence -strict-formats -short-paths -keep-locs -g -bin-annot -I .using_impl1.eobjs -I impl1/.impl1.objs -no-alias-deps -opaque -o .using_impl1.eobjs/using_impl1.cmo -c -impl using_impl1.ml)
   File "using_impl1.ml", line 1, characters 9-20:
@@ -57,9 +70,9 @@ we cannot use more than implementation per lib in an executable
   Called from file "src/dsexp/dsexp.ml", line 689, characters 4-609
   Called from file "src/dsexp/dsexp.ml", line 462, characters 15-29
   Called from file "list.ml", line 82, characters 20-23
-  Called from file "src/stdune/list.ml", line 29, characters 29-39
-  Called from file "src/dune_file.ml", line 1900, characters 4-79
-  Called from file "src/dune_file.ml", line 1926, characters 8-77
+  Called from file "src/stdune/list.ml", line 37, characters 29-39
+  Called from file "src/dune_file.ml", line 1897, characters 4-79
+  Called from file "src/dune_file.ml", line 1923, characters 8-77
   Called from file "src/jbuild_load.ml", line 14, characters 18-57
   Called from file "src/jbuild_load.ml", line 231, characters 8-113
   Called from file "src/jbuild_load.ml", line 276, characters 12-74

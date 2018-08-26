@@ -41,17 +41,18 @@ let build_cm cctx ?sandbox ?(dynlink=true) ~dep_graphs ~cm_kind (m : Module.t) =
       let ml_kind = Cm_kind.source cm_kind in
       let dst = Module.cm_file_unsafe m ~obj_dir cm_kind in
       let extra_args, extra_deps, other_targets =
-        match cm_kind, m.intf with
+        match cm_kind, m.intf, m.virtual_intf with
         (* If there is no mli, [ocamlY -c file.ml] produces both the
            .cmY and .cmi. We choose to use ocamlc to produce the cmi
            and to produce the cmx we have to wait to avoid race
            conditions. *)
-        | Cmo, None -> [], [], [Target.cm m Cmi]
-        | (Cmo | Cmx), _ ->
+        | Cmo, None, false -> [], [], [Target.cm m Cmi]
+        | Cmo, None, true
+        | (Cmo | Cmx), _, _ ->
           force_read_cmi src,
           [Module.cm_file_unsafe m ~obj_dir Cmi],
           []
-        | Cmi, _ -> [], [], []
+        | Cmi, _, _ -> [], [], []
       in
       let other_targets =
         match cm_kind with

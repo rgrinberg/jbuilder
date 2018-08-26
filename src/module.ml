@@ -49,11 +49,12 @@ type t =
   ; intf     : File.t option
   ; obj_name : string
   ; pp       : (unit, string list) Build.t option
+  ; virtual_intf : bool
   }
 
 let name t = t.name
 
-let make ?impl ?intf ?obj_name name =
+let make ?impl ?intf ?obj_name ?(virtual_intf=false) name =
   let file : File.t =
     match impl, intf with
     | None, None ->
@@ -79,6 +80,7 @@ let make ?impl ?intf ?obj_name name =
   ; intf
   ; obj_name
   ; pp = None
+  ; virtual_intf
   }
 
 let real_unit_name t = Name.of_string (Filename.basename t.obj_name)
@@ -141,3 +143,5 @@ let dir t =
   Path.parent_exn file.path
 
 let set_pp t pp = { t with pp }
+
+let set_virtual_intf t = { t with virtual_intf = true }

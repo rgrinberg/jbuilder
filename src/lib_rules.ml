@@ -311,6 +311,9 @@ module Gen (P : Install_rules.Params) = struct
     let impl =
       Option.map lib.implements
         ~f:(Vrules.implements_rules ~lib ~scope ~modules) in
+
+    Option.iter impl ~f:(Vrules.setup_copy_rules_for_impl ~dir);
+
     let source_modules = modules in
     (* Preprocess before adding the alias module as it doesn't need
        preprocessing *)
@@ -338,6 +341,13 @@ module Gen (P : Install_rules.Params) = struct
       else
         None
     in
+
+    let modules =
+      match impl with
+      | None -> modules
+      | Some impl -> Virtual_rules.Implementation.add_vlib_modules impl modules
+    in
+
     let cctx =
       Compilation_context.create ()
         ~super_context:sctx
@@ -398,13 +408,6 @@ module Gen (P : Install_rules.Params) = struct
 
     if not (Library.is_virtual lib) then begin
       (let modules =
-         let modules =
-           match impl with
-           | None ->
-             modules
-           | Some impl ->
-             Virtual_rules.Implementation.add_vlib_modules impl modules
-         in
          Module.Name.Map.fold modules ~init:[] ~f:(fun m acc ->
            if Module.has_impl m then
              m :: acc
