@@ -72,6 +72,7 @@ module Info = struct
     ; implements       : (Loc.t * string) option
     ; dune_version : Syntax.Version.t option
     ; sub_systems      : Dune_file.Sub_system_info.t Sub_system_name.Map.t
+    ; wrapped          : bool option
     }
 
   let user_written_deps t =
@@ -140,6 +141,7 @@ module Info = struct
         Option.map conf.virtual_modules ~f:(fun _ -> Unexpanded)
     ; dune_version = Some conf.dune_version
     ; implements = conf.implements
+    ; wrapped = conf.wrapped
     }
 
   let of_findlib_package pkg =
@@ -178,6 +180,7 @@ module Info = struct
     ; sub_systems      = sub_systems
     ; dune_version = None
     ; implements = None
+    ; wrapped = None
     }
 end
 
@@ -378,6 +381,8 @@ let obj_dir t = t.info.obj_dir
 let is_local t = Path.is_managed t.info.obj_dir
 
 let status t = t.info.status
+
+let wrapped t = t.info.wrapped
 
 let package t =
   match t.info.status with

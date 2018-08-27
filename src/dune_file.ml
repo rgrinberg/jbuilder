@@ -934,7 +934,7 @@ module Library = struct
     ; c_library_flags          : Ordered_set_lang.Unexpanded.t
     ; self_build_stubs_archive : string option
     ; virtual_deps             : (Loc.t * string) list
-    ; wrapped                  : bool
+    ; wrapped                  : bool option
     ; optional                 : bool
     ; buildable                : Buildable.t
     ; dynlink                  : Dynlink_supported.t
@@ -980,7 +980,7 @@ module Library = struct
          field "virtual_deps" (list (located string)) ~default:[]
        and modes = field "modes" Mode_conf.Set.dparse ~default:Mode_conf.Set.default
        and kind = field "kind" Kind.dparse ~default:Kind.Normal
-       and wrapped = field "wrapped" bool ~default:true
+       and wrapped = field_o "wrapped" (located bool)
        and optional = field_b "optional"
        and self_build_stubs_archive =
          field "self_build_stubs_archive" (option string) ~default:None
@@ -1000,6 +1000,18 @@ module Library = struct
            Syntax.since Variants.syntax (1, 0)
            >>= fun () -> (located string))
        in
+       begin match virtual_modules, implements, wrapped with
+       | _, Some _, Some (loc, _) ->
+         of_sexp_errorf loc
+           "An implementation library cannot set wrapped"
+       | Some virtual_modules, Some (_, impl), _ ->
+         of_sexp_errorf
+           (Ordered_set_lang.loc virtual_modules
+           |> Option.value_exn)
+           "A library cannot be both virtual and implement %s" impl
+       | _, _, _ -> ()
+       end;
+       let wrapped = Option.map ~f:snd wrapped in
        let name =
          let open Syntax.Version.Infix in
          match name, public with
@@ -1028,12 +1040,6 @@ module Library = struct
                "name field is missing"
            )
        in
-       Option.both virtual_modules implements
-       |> Option.iter ~f:(fun (virtual_modules, (_, impl)) ->
-         of_sexp_errorf
-           (Ordered_set_lang.loc virtual_modules
-           |> Option.value_exn)
-           "A library cannot be both virtual and implement %s" impl);
        { name
        ; public
        ; synopsis

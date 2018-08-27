@@ -335,8 +335,16 @@ module Gen (P : Install_rules.Params) = struct
       | Some m -> Module.Name.Map.add modules m.name m
     in
 
+    let wrapped =
+      match impl, lib.wrapped with
+      | Some impl, None -> Virtual_rules.Implementation.wrapped impl
+      | None, Some w -> w
+      | Some _, Some _
+      | None, None -> assert false
+    in
+
     let lib_interface_module =
-      if lib.wrapped then
+      if wrapped then
         Module.Name.Map.find modules main_module_name
       else
         None

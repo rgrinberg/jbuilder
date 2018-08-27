@@ -32,6 +32,8 @@ module Implementation = struct
 
   let add_vlib_modules t s =
     Module.Name.Map.superpose t.virtual_modules s
+
+  let wrapped t = Option.value_exn (Lib.wrapped t.vlib)
 end
 
 module Gen (S : sig val sctx : Super_context.t end) = struct

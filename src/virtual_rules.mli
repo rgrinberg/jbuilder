@@ -11,6 +11,8 @@ module Implementation : sig
     :  t
     -> Module.t Module.Name.Map.t
     -> Module.t Module.Name.Map.t
+
+  val wrapped : t -> bool
 end
 
 module Gen (S : sig val sctx : Super_context.t end) : sig
