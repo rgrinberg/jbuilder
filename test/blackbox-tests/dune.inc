@@ -56,6 +56,14 @@
  (enabled_if (<> %{ocaml-config:system} win)))
 
 (alias
+ (name configurator-gh1166)
+ (deps (package dune) (source_tree test-cases/configurator-gh1166))
+ (action
+  (chdir
+   test-cases/configurator-gh1166
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name copy_files)
  (deps (package dune) (source_tree test-cases/copy_files))
  (action
@@ -197,6 +205,14 @@
  (action
   (chdir
    test-cases/findlib
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
+ (name findlib-dynload)
+ (deps (package dune) (source_tree test-cases/findlib-dynload))
+ (action
+  (chdir
+   test-cases/findlib-dynload
    (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
 
 (alias
@@ -797,6 +813,14 @@
    (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
 
 (alias
+ (name variants)
+ (deps (package dune) (source_tree test-cases/variants))
+ (action
+  (chdir
+   test-cases/variants
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name windows-diff)
  (deps (package dune) (source_tree test-cases/windows-diff))
  (action
@@ -822,6 +846,7 @@
   (alias byte-code-only)
   (alias c-stubs)
   (alias configurator)
+  (alias configurator-gh1166)
   (alias copy_files)
   (alias cross-compilation)
   (alias custom-build-dir)
@@ -839,6 +864,7 @@
   (alias exec-missing)
   (alias fallback-dune)
   (alias findlib)
+  (alias findlib-dynload)
   (alias findlib-error)
   (alias fmt)
   (alias force-test)
@@ -910,6 +936,7 @@
   (alias use-meta)
   (alias utop)
   (alias utop-default)
+  (alias variants)
   (alias windows-diff)
   (alias workspaces)))
 
@@ -923,6 +950,7 @@
   (alias byte-code-only)
   (alias c-stubs)
   (alias configurator)
+  (alias configurator-gh1166)
   (alias copy_files)
   (alias cross-compilation)
   (alias custom-build-dir)
@@ -999,6 +1027,7 @@
   (alias too-many-parens)
   (alias use-meta)
   (alias utop-default)
+  (alias variants)
   (alias windows-diff)
   (alias workspaces)))
 
