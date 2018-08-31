@@ -176,6 +176,12 @@ let deprecate t =
           | Some intf, _ -> intf.path
           | None, None -> assert false
         in
+        let path =
+          Path.L.relative (Path.parent_exn path)
+            [ ".deprecated"
+            ; Path.basename path
+            ]
+        in
         let (base, _) = Path.split_extension path in
         { syntax = OCaml
         ; path = Path.extend_basename base ~suffix:".ml-gen"
