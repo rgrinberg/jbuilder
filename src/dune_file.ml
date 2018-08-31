@@ -871,7 +871,7 @@ module Library = struct
         ; "transition", string >>| fun x -> Yes_with_transition x
         ]
 
-    let field = field "wrapped" ~default:(Simple true) dparse
+    let field = field_o "wrapped" (located dparse)
 
     let to_bool = function
       | Simple b -> b
@@ -894,7 +894,7 @@ module Library = struct
     ; c_library_flags          : Ordered_set_lang.Unexpanded.t
     ; self_build_stubs_archive : string option
     ; virtual_deps             : (Loc.t * Lib_name.t) list
-    ; wrapped                  : Wrapped.t
+    ; wrapped                  : Wrapped.t option
     ; optional                 : bool
     ; buildable                : Buildable.t
     ; dynlink                  : Dynlink_supported.t
@@ -946,6 +946,16 @@ module Library = struct
          field_o "implements" (
            Syntax.since Variants.syntax (0, 1)
            >>= fun () -> (located string))
+       in
+       let wrapped =
+         match wrapped, implements with
+         | Some (loc, _), Some _ ->
+           of_sexp_errorf loc
+             "wrapped shouldn't be set on library implementations. \
+              It is inherited from the virtual library."
+         | Some (_, wrapped), None -> Some wrapped
+         | None, Some _ -> None
+         | None, None -> Some (Simple true)
        in
        let name =
          let open Syntax.Version.Infix in
