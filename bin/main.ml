@@ -161,10 +161,8 @@ let watch_command root_path =
        fswatch, ["-r"; path; "-1"] @ excludes
      | None ->
       (* Exit immediately to prevent a loop of these errors. *)
-      Format.eprintf "Error: fswatch not found. \
-                      It needs to be installed for polling mode to work.\n";
-      exit 1
-    )
+      die "@{<error>Error@}: fswatch (or inotifywait) was not found. \
+                      One of them needs to be installed for watch mode to work.\n")
 
 let watch_changes () =
   let watch, args = watch_command Path.root in

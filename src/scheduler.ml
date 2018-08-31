@@ -2,7 +2,10 @@ open! Stdune
 open Import
 open Fiber.O
 
-type status_line_config = string option * [`Show_jobs | `Don't_show_jobs]
+type status_line_config =
+  { message   : string option
+  ; show_jobs : bool
+  }
 
 type running_job =
   { pid  : int
@@ -138,15 +141,17 @@ let rec go_rec t =
   end else begin
     if t.display = Progress then begin
       match t.gen_status_line () with
-      | None, _ ->
+      | { message = None; _ } ->
         if t.status_line <> "" then begin
           hide_status_line t.status_line;
           flush stderr
         end
-      | Some status_line, should_show ->
-        let status_line = match should_show with
-          | `Show_jobs -> sprintf "%s (jobs: %u)" status_line count
-          | `Don't_show_jobs -> status_line
+      | { message = Some status_line; show_jobs } ->
+        let status_line =
+          if show_jobs then
+            sprintf "%s (jobs: %u)" status_line count
+          else
+            status_line
         in
         hide_status_line t.status_line;
         show_status_line   status_line;
@@ -162,7 +167,7 @@ let rec go_rec t =
   end
 
 let prepare ?(log=Log.no_log) ?(config=Config.default)
-      ?(gen_status_line=fun () -> None, `Don't_show_jobs) () =
+      ?(gen_status_line=fun () -> { message = None; show_jobs = false }) () =
   Log.infof log "Workspace root: %s"
     (Path.to_absolute_filename Path.root |> String.maybe_quoted);
   let cwd = Sys.getcwd () in
@@ -239,7 +244,7 @@ let poll ?log ?config ?(cache_init=true) ~init ~once ~finally ~watch () =
       Format.eprintf "Internal error: setup failed.\n";
       exit 1
   in
-  let init =
+  let init () =
     init ()
     >>| fun setup ->
     saved_setup := Some setup
@@ -247,7 +252,10 @@ let poll ?log ?config ?(cache_init=true) ~init ~once ~finally ~watch () =
   let wait_success () =
     let old_generator = t.gen_status_line in
     set_status_line_generator
-      (fun () -> Some "Success, polling filesystem for changes...", `Don't_show_jobs)
+      (fun () ->
+         { message = Some "Success, polling filesystem for changes..."
+         ; show_jobs = false
+         })
     >>= fun () ->
     watch ()
     >>= fun _ ->
@@ -256,7 +264,10 @@ let poll ?log ?config ?(cache_init=true) ~init ~once ~finally ~watch () =
   let wait_failure () =
     let old_generator = t.gen_status_line in
     set_status_line_generator
-      (fun () -> Some "Had errors, polling filesystem for changes...", `Don't_show_jobs)
+      (fun () ->
+         { message = Some "Had errors, polling filesystem for changes..."
+         ; show_jobs = false
+         })
     >>= fun () ->
     (if Promotion.were_files_promoted () then
        Fiber.return ()
@@ -269,7 +280,7 @@ let poll ?log ?config ?(cache_init=true) ~init ~once ~finally ~watch () =
     (if cache_init then
        Fiber.return ()
      else
-       init)
+       init ())
     >>= fun _ ->
     once (setup ())
     >>= fun _ ->
@@ -288,7 +299,7 @@ let poll ?log ?config ?(cache_init=true) ~init ~once ~finally ~watch () =
   in
   let main () =
     (if cache_init then
-       init
+       init ()
      else
        Fiber.return ())
     >>= fun _ ->

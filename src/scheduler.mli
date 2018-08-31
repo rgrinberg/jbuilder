@@ -2,7 +2,10 @@
 
 open! Stdune
 
-type status_line_config = string option * [`Show_jobs | `Don't_show_jobs]
+type status_line_config =
+  { message   : string option
+  ; show_jobs : bool
+  }
 
 (** [go ?log ?config ?gen_status_line fiber] runs the following fiber until it
     terminates. [gen_status_line] is used to print a status line when [config.display =
