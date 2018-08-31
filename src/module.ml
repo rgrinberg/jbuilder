@@ -164,7 +164,7 @@ let to_sexp { name; impl; intf; obj_name ; pp } =
     ; "pp", (option string) (Option.map ~f:(fun _ -> "has pp") pp)
     ]
 
-let deprecate t =
+let wrapped_compat t =
   { t with
     intf = None
   ; impl =
@@ -178,7 +178,7 @@ let deprecate t =
         in
         let path =
           Path.L.relative (Path.parent_exn path)
-            [ ".deprecated"
+            [ ".wrapped_compat"
             ; Path.basename path
             ]
         in
