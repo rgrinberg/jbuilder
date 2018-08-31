@@ -36,6 +36,10 @@ next
 - Add an emacs mode providing helpers to promote correction files
   (#1192, @diml)
 
+- Add `(wrapped (transition "..message.."))` as an option that will generate
+  wrapped modules but keep unwrapped modules with a deprecation message to
+  preserve compatibility. (#1188, fix #985, @rgrinberg)
+
 1.1.1 (08/08/2018)
 ------------------
 
