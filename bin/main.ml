@@ -824,35 +824,22 @@ let run_build_command ~log ~common ~targets =
   let once setup =
     do_build setup (targets setup)
   in
-  let finally (setup : Main.setup) =
-    Build_system.finalize setup.build_system;
+  let finally _ =
+    Hooks.End_of_build.run ();
     Fiber.return (clear_all_caches ())
   in
   if common.watch then
     Scheduler.poll ~cache_init:false ~log ~common ~init ~once ~finally ()
-  else
-    (* The code below is a bit awkward and duplicates some logic from Scheduler.poll
-       to keep the logs consistent with the old format (when finalize was called
-       via at_exit).
-    *)
-    let saved_setup = ref None in
-    try
+  else begin
+    (try
     Scheduler.go ~log ~common (
       init ()
-      >>= fun setup ->
-      saved_setup := Some setup;
-      once setup
-      >>| fun _ ->
-      Build_system.finalize setup.build_system
-    )
+      >>= once)
     with Fiber.Never as exn ->
-      (match !saved_setup with
-       | Some setup ->
-         Build_system.finalize setup.build_system;
-         reraise exn
-       | None ->
-         Format.eprintf "Internal error: setup failed.\n";
-         exit 1)
+      Hooks.End_of_build.run ();
+      reraise exn);
+    Hooks.End_of_build.run ()
+  end
 
 let build_targets =
   let doc = "Build the given targets, or all installable targets if none are given." in

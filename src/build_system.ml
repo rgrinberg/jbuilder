@@ -612,7 +612,7 @@ let create_file_specs t targets rule ~copy_source =
 let pending_targets = ref Path.Set.empty
 
 let () =
-  at_exit (fun () ->
+  Hooks.End_of_build.always (fun () ->
     let fns = !pending_targets in
     pending_targets := Path.Set.empty;
     Path.Set.iter fns ~f:Path.unlink_no_err)
@@ -1227,21 +1227,25 @@ let create ~contexts ~file_tree ~hook =
     List.map contexts ~f:(fun c -> (c.Context.name, c))
     |> String.Map.of_list_exn
   in
-  { contexts
-  ; files      = Path.Table.create 1024
-  ; packages   = Path.Table.create 1024
-  ; trace      = Trace.load ()
-  ; local_mkdirs = Path.Set.empty
-  ; dirs       = Path.Table.create 1024
-  ; load_dir_stack = []
-  ; file_tree
-  ; gen_rules = String.Map.map contexts ~f:(fun _ ~dir:_ ->
-      die "gen_rules called too early")
-  ; build_dirs_to_keep = Path.Set.empty
-  ; files_of = Path.Table.create 1024
-  ; prefix = None
-  ; hook
-  }
+  let t =
+    { contexts
+    ; files      = Path.Table.create 1024
+    ; packages   = Path.Table.create 1024
+    ; trace      = Trace.load ()
+    ; local_mkdirs = Path.Set.empty
+    ; dirs       = Path.Table.create 1024
+    ; load_dir_stack = []
+    ; file_tree
+    ; gen_rules = String.Map.map contexts ~f:(fun _ ~dir:_ ->
+        die "gen_rules called too early")
+    ; build_dirs_to_keep = Path.Set.empty
+    ; files_of = Path.Table.create 1024
+    ; prefix = None
+    ; hook
+    }
+  in
+  Hooks.End_of_build.once (fun () -> finalize t);
+  t
 
 let eval_request t ~request ~process_target =
   let { Build_interpret.Static_deps.
