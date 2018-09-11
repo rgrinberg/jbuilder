@@ -27,7 +27,8 @@ end
 
 (** Generate ocamldep rules for all the modules in the context. *)
 val rules
-  :  Compilation_context.t
+  :  ?stdlib:Dune_file.Library.Stdlib.t
+  -> Compilation_context.t
   -> Dep_graphs.t
 
 (** Compute the dependencies of an auxiliary module. *)

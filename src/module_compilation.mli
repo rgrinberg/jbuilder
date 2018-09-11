@@ -7,6 +7,7 @@ val build_module
   :  ?sandbox:bool
   -> ?js_of_ocaml:Dune_file.Js_of_ocaml.t
   -> ?dynlink:bool
+  -> ?stdlib:Dune_file.Library.Stdlib.t
   -> dep_graphs:Ocamldep.Dep_graphs.t
   -> Compilation_context.t
   -> Module.t
@@ -17,6 +18,7 @@ val build_modules
   :  ?sandbox:bool
   -> ?js_of_ocaml:Dune_file.Js_of_ocaml.t
   -> ?dynlink:bool
+  -> ?stdlib:Dune_file.Library.Stdlib.t
   -> dep_graphs:Ocamldep.Dep_graphs.t
   -> Compilation_context.t
   -> unit

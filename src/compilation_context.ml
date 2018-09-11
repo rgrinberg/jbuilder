@@ -105,7 +105,9 @@ let create ~super_context ~scope ~dir ?(dir_kind=File_tree.Dune_file.Kind.Dune)
 let for_alias_module t =
   let flags = Ocaml_flags.default ~profile:(SC.profile t.super_context) in
   { t with
-    flags        = Ocaml_flags.append_common flags ["-w"; "-49"]
+    flags =
+      Ocaml_flags.append_common flags
+        ["-w"; "-49"; "-nopervasives"; "-nostdlib"]
   ; includes     = Includes.empty
   ; alias_module = None
   }
