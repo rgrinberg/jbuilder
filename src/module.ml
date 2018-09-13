@@ -31,6 +31,12 @@ module Name = struct
 
   let of_local_lib_name s =
     of_string (Lib_name.Local.to_string s)
+
+  module Main = struct
+    type nonrec t =
+      | Named of t
+      | Inherited_from of Loc.t * Lib_name.t
+  end
 end
 
 module Syntax = struct

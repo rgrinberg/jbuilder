@@ -139,9 +139,14 @@ module Gen (P : Install_rules.Params) = struct
     in
     Module.Name.Map.iteri wrapped_compat ~f:(fun name m ->
       let main_module_name =
-        Library.main_module_name lib
-        |> Option.value_exn
-        |> Module.Name.to_string
+        match Library.main_module_name lib with
+        | None ->
+          Exn.code_error "compatibility modules are for wrapped only" []
+        | Some (Module.Name.Main.Inherited_from (_, _)) ->
+          Exn.code_error
+            "compatibility modules are not possible for implementations" []
+        | Some (Module.Name.Main.Named n) ->
+          Module.Name.to_string n
       in
       let contents =
         let name = Module.Name.to_string name in

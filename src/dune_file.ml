@@ -1067,10 +1067,13 @@ module Library = struct
 
   let main_module_name t =
     match t.implements, Wrapped.to_bool t.wrapped with
-    | Some _, true -> None
+    | Some (loc, lib), true -> Some (Module.Name.Main.Inherited_from (loc, lib))
     | Some _, false -> assert false
     | None, false -> None
-    | None, true -> Some (Module.Name.of_local_lib_name (snd t.name))
+    | None, true ->
+      Some (
+        Module.Name.Main.Named (Module.Name.of_local_lib_name (snd t.name)))
+
 end
 
 module Install_conf = struct

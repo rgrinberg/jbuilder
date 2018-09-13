@@ -134,3 +134,30 @@ let entry_modules t =
   | Some { module_name ; alias_module } ->
     [Option.value ~default:alias_module
        (Module.Name.Map.find t.modules module_name)]
+
+module Unevaluated : sig
+  type nonrec t =
+    | Evaluated of t
+    | Unevaluated of Loc.t * Lib_name.t * (Module.Name.t -> t)
+
+  let make (lib : Dune_file.Library.t) ~dir (modules : Module.Name_map.t)
+        ~virtual_modules ~(main_module_name : Module.Name.Main.t option) =
+    let make = make lib ~dir ~modules ~virtual_modules ~virtual_modules in
+    match main_module_name with
+    | None -> make None
+    | Some (Named mmn) -> make mmn
+    | Some (Inherited_from (loc, lib)) ->
+      Unevaluated ( loc
+                  , lib
+                  , (make lib ~dir ~modules ~virtual_modules ~virtual_modules)
+                  )
+
+  let eval t ~scope =
+    match t with
+    | Evaluated t -> t
+    | Unevaluated (loc, lib, f) ->
+      Lib.DB.resolve (Scope.libs (Lazy.force scope)) (loc, lib)
+      |> Result.bind ~f:Lib.main_module_name
+      |> Result.ok_exn
+      |> f
+end

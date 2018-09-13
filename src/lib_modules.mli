@@ -23,10 +23,17 @@ val installable_modules : t -> Module.t list
 
 val entry_modules : t -> Module.t list
 
-val make
-  :  Dune_file.Library.t
-  -> dir:Path.t
-  -> Module.Name_map.t
-  -> virtual_modules:Module.Name_map.t
-  -> main_module_name:Module.Name.t option
-  -> t
+module Unevaluated : sig
+  type evaluated
+  type t
+
+  val eval : t -> scope:Scope.t Lazy.t -> evaluated
+
+  val make
+    :  Dune_file.Library.t
+    -> dir:Path.t
+    -> Module.Name_map.t
+    -> virtual_modules:Module.Name_map.t
+    -> main_module_name:Module.Name.Main.t option
+    -> t
+end with type evaluated := t

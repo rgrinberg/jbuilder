@@ -207,10 +207,16 @@ let foreign_objects t ~ext =
 
 let main_module_name t =
   match t.info.main_module_name, t.implements with
-  | Some _ as mmn, (None | Some _) -> Ok mmn
-  | None, Some vlib ->
-    vlib >>| fun vlib -> vlib.info.main_module_name
   | None, None -> Ok None
+  | Some (Module.Name.Main.Named mmn), (None | Some _) -> Ok (Some mmn)
+  | Some (Inherited_from (_, _)), Some vlib ->
+    vlib >>| fun vlib ->
+    begin match vlib.info.main_module_name with
+    | None -> Exn.code_error "Virtual library can't be unwrapped" []
+    | Some (Module.Name.Main.Inherited_from (_, _)) ->
+      Exn.code_error "Virtual library can't inheirt a name"
+    | Some (Named n) -> n
+    end
 
 let package t =
   match t.info.status with

@@ -26,6 +26,14 @@ module Name : sig
   module Infix : Comparable.OPS with type t = t
 
   val of_local_lib_name : Lib_name.Local.t -> t
+
+  module Main : sig
+    type name
+
+    type t =
+      | Named of name
+      | Inherited_from of Loc.t * Lib_name.t
+  end with type name := t
 end
 
 module Syntax : sig

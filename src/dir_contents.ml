@@ -385,7 +385,7 @@ let modules_of_files ~dir ~files =
   Module.Name.Map.merge impls intfs ~f:(fun name impl intf ->
     Some (Module.make name ~visibility:Public ?impl ?intf))
 
-let build_modules_map (d : Super_context.Dir_with_jbuild.t) ~scope ~modules =
+let build_modules_map (d : Super_context.Dir_with_jbuild.t) ~modules =
   let libs, exes =
     List.filter_partition_map d.stanzas ~f:(fun stanza ->
       match (stanza : Stanza.t) with
@@ -399,19 +399,10 @@ let build_modules_map (d : Super_context.Dir_with_jbuild.t) ~scope ~modules =
             ~virtual_modules:lib.virtual_modules
             ~private_modules:lib.private_modules
         in
-        let main_module_name =
-          match Library.main_module_name lib with
-          | Some _ as mmn -> mmn
-          | None ->
-            let name = Library.best_name lib in
-            let loc = fst lib.name in
-            Lib.DB.resolve (Scope.libs scope) (loc, name)
-            |> Result.bind ~f:Lib.main_module_name
-            |> Result.ok_exn
-        in
+        let main_module_name = Library.main_module_name lib in
         Left ( lib
-             , Lib_modules.make lib ~dir:d.ctx_dir modules ~virtual_modules
-                 ~main_module_name
+             , Lib_modules.Unevaluated.make lib ~dir:d.ctx_dir modules
+                 ~virtual_modules ~main_module_name
              )
       | Executables exes
       | Tests { exes; _} ->
@@ -662,7 +653,7 @@ let clear_cache () =
 
 let () = Hooks.End_of_build.always clear_cache
 
-let rec get sctx ~dir ~scope =
+let rec get sctx ~dir =
   match Hashtbl.find cache dir with
   | Some t -> t
   | None ->
@@ -675,7 +666,7 @@ let rec get sctx ~dir ~scope =
           { kind = Standalone
           ; dir
           ; text_files = files
-          ; modules = lazy (build_modules_map d ~scope
+          ; modules = lazy (build_modules_map d
                               ~modules:(modules_of_files ~dir:d.ctx_dir ~files))
           ; mlds = lazy (build_mlds_map d ~files)
           }
@@ -694,7 +685,7 @@ let rec get sctx ~dir ~scope =
         match Hashtbl.find cache dir with
         | Some t -> t
         | None ->
-          ignore (get sctx ~scope ~dir:(Path.parent_exn dir) : t);
+          ignore (get sctx ~dir:(Path.parent_exn dir) : t);
           (* Filled while scanning the group root *)
           Option.value_exn (Hashtbl.find cache dir)
       end
@@ -739,12 +730,11 @@ let rec get sctx ~dir ~scope =
                   Path.pp (Module.dir x)
                   Path.pp (Module.dir y)))
         in
-        build_modules_map d ~scope ~modules)
+        build_modules_map d ~modules)
       in
       let t =
         { kind = Group_root
-                   (lazy (List.map subdirs
-                            ~f:(fun (dir, _) -> get sctx ~scope ~dir)))
+                   (lazy (List.map subdirs ~f:(fun (dir, _) -> get sctx ~dir)))
         ; dir
         ; text_files = files
         ; modules
