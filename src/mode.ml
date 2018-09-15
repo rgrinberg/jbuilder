@@ -1,7 +1,9 @@
 open! Stdune
 open! Import
 
-type t = Byte | Native
+module Variant = Dfindlib.Variant
+
+type t = Dfindlib.Mode.t = Byte | Native
 
 let all = [Byte; Native]
 
@@ -35,7 +37,7 @@ let of_cm_kind : Cm_kind.t -> t = function
   | Cmx -> Native
 
 module Dict = struct
-  type 'a t =
+  type 'a t = 'a Dfindlib.Mode.Dict.t =
     { byte   : 'a
     ; native : 'a
     }

@@ -1,6 +1,6 @@
 open! Import
 
-type t = Byte | Native
+type t = Dfindlib.Mode.t = Byte | Native
 
 val dparse : t Dsexp.Of_sexp.t
 
@@ -14,14 +14,14 @@ val plugin_ext : t -> string
 val cm_kind : t -> Cm_kind.t
 val of_cm_kind : Cm_kind.t -> t
 
-val variant : t -> Variant.t
+val variant : t -> Dfindlib.Variant.t
 
 val pp : t Fmt.t
 
 module Dict : sig
   type mode = t
 
-  type 'a t =
+  type 'a t = 'a Dfindlib.Mode.Dict.t =
     { byte   : 'a
     ; native : 'a
     }

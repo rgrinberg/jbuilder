@@ -1,5 +1,7 @@
 open Import
 
+module Variant = Dfindlib.Variant
+
 module CC = Compilation_context
 module SC = Super_context
 

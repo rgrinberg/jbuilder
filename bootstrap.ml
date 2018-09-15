@@ -32,6 +32,7 @@ let dirs =
   [ "src/which_program"      , Some "Which_program"
   ; "src/stdune/caml"        , Some "Caml"
   ; "src/stdune"             , Some "Stdune"
+  ; "src/dfindlib"           , Some "Dfindlib"
   ; "src/fiber"              , Some "Fiber"
   ; "src/xdg"                , Some "Xdg"
   ; "src/ocaml-config"       , Some "Ocaml_config"

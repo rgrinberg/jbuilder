@@ -1,5 +1,4 @@
 open! Stdune
-open Import
 
 type t =
   { name    : Lib_name.t option
@@ -25,7 +24,7 @@ and predicate =
   | Neg of string
 
 module Parse = struct
-  let error = Errors.fail_lex
+  let error = Exn.fail_lex
 
   let next = Meta_lexer.token
 

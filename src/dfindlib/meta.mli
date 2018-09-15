@@ -1,7 +1,6 @@
 (** META file parsing/printing *)
 
 open! Stdune
-open! Import
 
 type t =
   { name    : Lib_name.t option

@@ -2,9 +2,6 @@ open Stdune
 
 exception Invalid_lib_name of string
 
-let dgen = Dsexp.To_sexp.string
-let dparse = Dsexp.Of_sexp.string
-
 module Local = struct
   type t = string
 
@@ -78,48 +75,42 @@ module Local = struct
   let to_string s = s
 end
 
+let pp = Dfindlib.Lib_name.pp
+let pp_quoted = Dfindlib.Lib_name.pp_quoted
+let compare = Dfindlib.Lib_name.compare
+let to_string = Dfindlib.Lib_name.to_string
+let of_string_exn = Dfindlib.Lib_name.of_string_exn
+let nest  = Dfindlib.Lib_name.nest
+
+let to_sexp t = Sexp.Atom (to_string t)
+
+let to_local s = Local.of_string (to_string s)
+
+let dgen s = Dsexp.To_sexp.string (to_string s)
+let dparse =
+  let open Dsexp.Of_sexp in
+  string >>| of_string_exn ~loc:None
+
+let of_local (loc, t) = of_string_exn ~loc:(Some loc) t
+
+type t = Dfindlib.Lib_name.t
+
+module Map = Dfindlib.Lib_name.Map
+module Set = Dfindlib.Lib_name.Set
+
+let root_lib = Dfindlib.Lib_name.root_lib
+
 let split t =
-  match String.split t ~on:'.' with
+  match String.split (to_string t) ~on:'.' with
   | [] -> assert false
   | pkg :: rest -> (Package.Name.of_string pkg, rest)
 
-let pp = Format.pp_print_string
-
-let pp_quoted fmt t = Format.fprintf fmt "%S" t
-
-let compare = String.compare
-
-let to_local = Local.of_string
-
-let to_sexp t = Sexp.Atom t
-
-let to_string t = t
-
-let of_string_exn ~loc:_ s = s
-
-let of_local (_loc, t) = t
-
-type t = string
-
-module Map = Map.Make(String)
-module Set = struct
-  include Set.Make(String)
-
-  let to_string_list = to_list
-end
-
-let root_lib t =
-  match String.lsplit2 t ~on:'.' with
-  | None -> t
-  | Some (p, _) -> p
-
 let package_name t =
-  Package.Name.of_string (root_lib t)
-
-let nest x y = sprintf "%s.%s" x y
+  Package.Name.of_string (to_string (root_lib t))
 
 module L = struct
-  let to_key = function
+  let to_key (xs : t list) =
+    match (xs :> string list) with
     | [] -> "+none+"
     | names  -> String.concat ~sep:"+" names
 end

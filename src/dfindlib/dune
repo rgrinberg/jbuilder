@@ -1,0 +1,7 @@
+(library
+ (name dfindlib)
+ (synopsis "[Internal] findlib library")
+ (libraries stdune)
+ (public_name dune.dfindlib))
+
+(ocamllex meta_lexer)

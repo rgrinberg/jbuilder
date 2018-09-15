@@ -18,8 +18,10 @@ exception Loc_error of Loc.t * string
 
 val fatalf
   :  ?loc:Loc.t
-  -> ('a, unit, string, string, string, 'b) format6
+  -> ('a, Format.formatter, unit, 'b) format4
   -> 'a
+
+val fail_lex : Lexing.lexbuf -> ('a, Format.formatter, unit, 'b) format4 -> 'a
 
 val code_error : string -> (string * Sexp.t) list -> _
 

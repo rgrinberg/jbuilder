@@ -19,6 +19,7 @@
 (alias
  (name runtest)
  (deps (:t tests.mlt)
+  (glob_files %{project_root}/src/dfindlib/.dfindlib.objs/*.cmi)
   (glob_files %{project_root}/src/.dune.objs/*.cmi)
   (glob_files %{project_root}/src/stdune/.stdune.objs/*.cmi)
   (source_tree toolchain.d)

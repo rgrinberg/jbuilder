@@ -1,6 +1,6 @@
 open! Stdune
 open Import
-open Meta
+open Dfindlib.Meta
 
 module Pub_name = struct
   type t =

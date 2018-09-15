@@ -1,6 +1,6 @@
 open Stdune
 
-type t
+type t = Dfindlib.Lib_name.t
 
 val of_string_exn : loc:Loc.t option -> string -> t
 val to_string : t -> string

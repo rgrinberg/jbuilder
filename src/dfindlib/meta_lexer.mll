@@ -1,4 +1,5 @@
 {
+open Stdune
 type token =
   | Name   of string
   | String of string
@@ -29,7 +30,7 @@ rule token = parse
   | '=' { Equal }
   | "+=" { Plus_equal }
   | eof { Eof }
-  | _ { Errors.fail_lex lexbuf "invalid character" }
+  | _ { Exn.fail_lex lexbuf "invalid character" }
 
 and string buf = parse
   | '"'
@@ -44,4 +45,4 @@ and string buf = parse
       { Buffer.add_char buf c;
         string buf lexbuf }
   | eof
-      { Errors.fail_lex lexbuf "unterminated string" }
+      { Exn.fail_lex lexbuf "unterminated string" }

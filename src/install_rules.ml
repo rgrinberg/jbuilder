@@ -4,6 +4,8 @@ open Dune_file
 open Build.O
 open! No_io
 
+module Meta = Dfindlib.Meta
+
 module type Params = sig
   val sctx : Super_context.t
 end
