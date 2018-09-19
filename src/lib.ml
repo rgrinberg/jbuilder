@@ -737,73 +737,112 @@ let find_even_when_hidden db name =
   | St_not_found          -> None
   | St_hidden (t, _)      -> Some t
 
-let closure_with_overlap_checks db ~deps ~pps ~allow_private_deps ~stack =
-  let visited_deps = ref Lib_name.Map.empty in
-  let visited_pps = ref Lib_name.Map.empty in
-  let res = ref [] in
-  let orig_stack = stack in
-  let check t ~visited ~stack =
-    match Lib_name.Map.find !visited t.name with
-    | Some (t', stack') ->
-      if t.unique_id = t'.unique_id then
-        Ok `Visited
-      else
-        let req_by = Dep_stack.to_required_by ~stop_at:orig_stack in
-        Error
-          (Error (Conflict { lib1 = (t', req_by stack')
-                           ; lib2 = (t , req_by stack )
-                           }))
-    | None ->
-      visited := Lib_name.Map.add !visited t.name (t, stack);
-      (match db with
-       | None -> Ok `New
-       | Some db ->
-         match Resolve.find_internal db t.name ~stack with
-         | St_found t' ->
-           if t.unique_id = t'.unique_id then
-             Ok `New
-           else begin
-             let req_by = Dep_stack.to_required_by stack ~stop_at:orig_stack in
-             Error
-               (Error (Overlap
-                         { in_workspace = t'
-                         ; installed    = (t, req_by)
-                         }))
-           end
-         | _ -> assert false)
-  in
-  let rec loop_pp (_loc, t) ~stack =
-    check t ~visited:visited_pps ~stack >>= function
-    | `Visited -> Ok ()
-    | `New ->
-      Dep_stack.push stack (to_id t) >>= fun stack ->
-      t.requires >>= fun deps ->
-      Result.List.iter deps ~f:(loop_pp ~stack) >>= fun () ->
-      t.ppx_runtime_deps >>= fun ppx_rds ->
-      Result.List.iter ppx_rds ~f:(loop_dep ~stack)
-  and loop_dep (pd_loc, t) ~stack =
-    check t ~visited:visited_deps ~stack >>= function
-    | `Visited -> Ok ()
-    | `New ->
-      Dep_stack.push stack (to_id t) >>= fun stack ->
-      if not allow_private_deps && Lib_info.Status.is_private (status t) then
-        Result.Error (Error (
-          Private_deps_not_allowed { private_dep = t ; pd_loc }))
-      else
-        Ok ()
-      >>= fun () ->
-      t.requires >>= fun deps ->
-      Result.List.iter deps ~f:(loop_dep ~stack) >>= fun () ->
-      t.pps >>= fun pps ->
-      Result.List.iter pps ~f:(loop_pp ~stack) >>| fun () ->
-      res := t :: !res
-  in
-  Result.List.iter pps ~f:(loop_pp ~stack) >>= fun () ->
-  Result.List.iter deps ~f:(loop_dep ~stack) >>| fun () ->
-  List.rev !res
+module Visitor = struct
+  type follow =
+    { pps: (Loc.t * lib) list
+    ; deps: (Loc.t * lib) list
+    }
 
-let closure_with_overlap_checks db =
-  closure_with_overlap_checks db ~stack:Dep_stack.empty
+  type kind = Pp | Dep
+
+  type 'acc t =
+    { modify : kind -> (Loc.t * lib) -> 'acc -> 'acc
+    ; follow : kind -> (Loc.t * lib) -> follow Or_exn.t
+    }
+
+  let fold visitor ~db ~(follow : follow) ~init =
+    let visited_deps = ref Lib_name.Map.empty in
+    let visited_pps = ref Lib_name.Map.empty in
+    let acc = ref init in
+    let check_visited t ~set ~stack =
+      match Lib_name.Map.find set t.name with
+      | Some (t', stack') ->
+        if t.unique_id = t'.unique_id then
+          Ok `Visited
+        else
+          let req_by = Dep_stack.to_required_by ~stop_at:Dep_stack.empty in
+          Error
+            (Error (Conflict { lib1 = (t', req_by stack')
+                             ; lib2 = (t , req_by stack )
+                             }))
+      | None ->
+        (match db with
+         | None -> Ok `New
+         | Some db ->
+           match Resolve.find_internal db t.name ~stack with
+           | St_found t' ->
+             if t.unique_id = t'.unique_id then
+               Ok `New
+             else begin
+               let req_by =
+                 Dep_stack.to_required_by stack ~stop_at:Dep_stack.empty in
+               Error
+                 (Error (Overlap
+                           { in_workspace = t'
+                           ; installed    = (t, req_by)
+                           }))
+             end
+           | _ -> assert false)
+    in
+    let rec step ~stack ~kind (loc, t) =
+      let visited =
+        match kind with
+        | Pp -> visited_pps
+        | Dep -> visited_deps
+      in
+      check_visited t ~set:!visited ~stack >>= function
+      | `Visited -> Ok ()
+      | `New ->
+        visited := Lib_name.Map.add !visited t.name (t, stack);
+        Dep_stack.push stack (to_id t) >>= fun stack ->
+        visitor.follow kind (loc, t) >>= fun follow ->
+        iter ~stack ~follow >>| fun () ->
+        acc := visitor.modify kind (loc, t) !acc
+    and iter ~stack ~follow =
+      Result.List.iter follow.deps ~f:(step ~kind:Dep ~stack)
+      >>= fun () ->
+      Result.List.iter follow.pps ~f:(step ~kind:Pp ~stack)
+    in
+    iter ~follow ~stack:Dep_stack.empty >>| fun () ->
+    !acc
+  ;;
+end
+
+let closure_with_overlap_checks =
+  let modify (kind : Visitor.kind) (_loc, lib) acc =
+    match kind with
+    | Pp -> acc
+    | Dep -> lib :: acc
+  in
+  fun db ~deps ~pps ~allow_private_deps ->
+    let check_private_deps =
+      if allow_private_deps then
+        fun _ -> Ok ()
+      else
+        fun (pd_loc, lib) ->
+          if Lib_info.Status.is_private (status lib) then
+            Result.Error (Error (
+              Private_deps_not_allowed { private_dep = lib ; pd_loc }))
+          else
+            Ok ()
+    in
+    let follow (kind : Visitor.kind) (loc, lib) =
+      match kind with
+      | Dep ->
+        check_private_deps (loc, lib) >>= fun () ->
+        lib.requires >>= fun deps ->
+        lib.pps >>| fun pps ->
+        { Visitor.pps; deps }
+      | Pp ->
+        lib.requires >>= fun pps ->
+        lib.ppx_runtime_deps >>| fun deps ->
+        { Visitor.pps ; deps }
+    in
+    Visitor.fold { Visitor. modify; follow }
+      ~db
+      ~follow: { Visitor. pps ; deps}
+      ~init:[]
+    >>| List.rev
 
 let closure l =
   closure_with_overlap_checks ~pps:[] None
@@ -1023,6 +1062,36 @@ module Meta = struct
     List.fold_left ts ~init:Lib_name.Set.empty ~f:(fun acc t ->
       Lib_name.Set.add acc t.name)
 
+  let requires =
+    let follow (kind : Visitor.kind) (_, lib) =
+      match kind with
+      | Pp ->
+        lib.ppx_runtime_deps >>= fun deps ->
+        lib.requires >>| fun pps ->
+        { Visitor. pps ; deps }
+      | Dep -> Ok { Visitor. pps = [] ; deps = [] }
+    in
+    let modify (kind : Visitor.kind) (_, lib) acc =
+      match kind with
+      | Pp -> acc
+      | Dep -> lib :: acc
+    in
+    let visitor = { Visitor. follow ; modify } in
+    fun t ->
+      (t.pps >>= fun pps ->
+       t.requires >>= fun init_libs ->
+       Visitor.fold visitor
+         ~db:None
+         ~init:(List.map ~f:snd init_libs)
+         ~follow:{ Visitor. pps ; deps = [] })
+      |> to_exn
+      |> to_names_no_loc
+
+  let ppx_runtime_deps t =
+    t.ppx_runtime_deps
+    |> to_exn
+    |> to_names
+
   (* For the deprecated method, we need to put all the runtime
      dependencies of the transitive closure.
 
@@ -1032,15 +1101,29 @@ module Meta = struct
      rather than [foo] itself.
 
      Sigh... *)
-  let ppx_runtime_deps_for_deprecated_method t =
-    closure_with_overlap_checks None ~deps:[] ~pps:[t.info.loc, t]
-      ~allow_private_deps:false
-    |> to_exn
-    |> to_names_no_loc
-
-  let requires         t = to_names (to_exn t.requires)
-  (* TODO need proper calculation of ppx_rd *)
-  let ppx_runtime_deps t = ppx_runtime_deps_for_deprecated_method t
+  let ppx_runtime_deps_for_deprecated_method =
+    let follow (kind : Visitor.kind) (_, lib) =
+      match kind with
+      | Pp ->
+        lib.ppx_runtime_deps >>| fun deps ->
+        { Visitor. pps = [] ; deps }
+      | Dep -> Ok { Visitor. pps = [] ; deps = [] }
+    in
+    let modify (kind : Visitor.kind) (_, lib) acc =
+      match kind with
+      | Pp -> acc
+      | Dep -> lib :: acc
+    in
+    let visitor = { Visitor. follow ; modify } in
+    fun t ->
+      (t.ppx_runtime_deps >>= fun init_libs ->
+       t.requires >>= fun pps ->
+       Visitor.fold visitor
+         ~db:None
+         ~init:(List.map ~f:snd init_libs)
+         ~follow:{ Visitor. pps ; deps = [] })
+      |> to_exn
+      |> to_names_no_loc
 end
 
 (* +-----------------------------------------------------------------+
