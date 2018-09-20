@@ -12,6 +12,8 @@ let decode =
     ; "native" , Native
     ]
 
+let mode_decode = decode
+
 let pp fmt = function
   | Byte -> Format.pp_print_string fmt "byte"
   | Native -> Format.pp_print_string fmt "native"
@@ -40,6 +42,12 @@ module Dict = struct
     ; native : 'a
     }
 
+  let pp pp fmt { byte; native } =
+    Fmt.record fmt
+      [ "byte", Fmt.const pp byte
+      ; "native", Fmt.const pp native
+      ]
+
   let get t = function
     | Byte   -> t.byte
     | Native -> t.native
@@ -54,10 +62,33 @@ module Dict = struct
     ; native = f a.native b.native
     }
 
+  let map t ~f =
+    { byte = f t.byte
+    ; native = f t.native
+    }
+
   let make_both x =
     { byte   = x
     ; native = x
     }
+
+  let encode f { byte ; native } =
+    let open Dune_lang.Encoder in
+    record
+      [ "byte", f byte
+      ; "native", f native
+      ]
+
+  let decode f =
+    let open Dune_lang.Decoder in
+    record (
+      let%map byte = field "byte" f
+      and native = field "native" f
+      in
+      { byte
+      ; native
+      }
+    )
 
   module Set = struct
     type nonrec t = bool t
@@ -78,7 +109,7 @@ module Dict = struct
       ; native = List.mem Native ~set:l
       }
 
-    let decode = Dune_lang.Decoder.(map (list decode) ~f:of_list)
+    let decode = Dune_lang.Decoder.(map (list mode_decode) ~f:of_list)
 
     let is_empty t = not (t.byte || t.native)
 

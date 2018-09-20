@@ -26,11 +26,18 @@ module Dict : sig
     ; native : 'a
     }
 
+  val pp : 'a Fmt.t -> 'a t Fmt.t
+
+  val encode : 'a Dune_lang.Encoder.t -> 'a t Dune_lang.Encoder.t
+  val decode : 'a Dune_lang.Decoder.t -> 'a t Dune_lang.Decoder.t
+
   val get : 'a t -> mode -> 'a
 
   val of_func : (mode:mode -> 'a) -> 'a t
 
   val map2 : 'a t -> 'b t -> f:('a -> 'b -> 'c) -> 'c t
+
+  val map : 'a t -> f:('a -> 'b) -> 'b t
 
   val make_both : 'a -> 'a t
 
