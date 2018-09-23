@@ -151,6 +151,7 @@ let modules_of_files ~dir ~files =
   let impls = parse_one_set impl_files in
   let intfs = parse_one_set intf_files in
   Module.Name.Map.merge impls intfs ~f:(fun name impl intf ->
+    let impl = Option.map impl ~f:(fun f -> Module.Impl.Concrete f) in
     Some (Module.make name ~visibility:Public ?impl ?intf))
 
 let build_modules_map (d : Super_context.Dir_with_jbuild.t) ~scope ~modules =

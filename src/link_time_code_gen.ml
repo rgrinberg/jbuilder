@@ -38,7 +38,7 @@ let libraries_link ~name ~loc ~mode cctx libs =
     let basename = Format.asprintf "%s_findlib_initl_%a" name Mode.pp mode in
     let ml  = Path.relative obj_dir (basename ^ ".ml") in
     SC.add_rule sctx (Build.write_file ml s);
-    let impl = Module.File.make OCaml ml in
+    let impl = Module.Impl.Concrete (Module.File.make OCaml ml) in
     let name = Module.Name.of_string basename in
     let module_ = Module.make ~impl name ~visibility:Public in
     let cctx = Compilation_context.(

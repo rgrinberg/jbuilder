@@ -58,9 +58,10 @@ let setup sctx ~dir ~(libs : Library.t list) ~scope =
         main_module_name
         (Module.make main_module_name
            ~visibility:Public
-           ~impl:{ path   = Path.relative utop_exe_dir main_module_filename
-                 ; syntax = Module.Syntax.OCaml
-                 }
+           ~impl:(Concrete
+                    { path   = Path.relative utop_exe_dir main_module_filename
+                    ; syntax = Module.Syntax.OCaml
+                    })
            ~obj_name:exe_name)
     in
     let loc = Loc.in_dir (Path.to_string dir) in

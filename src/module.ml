@@ -71,9 +71,35 @@ module Visibility = struct
     | Private -> false
 end
 
+module Impl = struct
+  type t =
+    | Virtual
+    | Concrete of File.t
+
+  let to_sexp =
+    let open Sexp.To_sexp in
+    function
+    | Virtual -> string "Virtual"
+    | Concrete f -> pair string File.to_sexp ("Concrete", f)
+
+  let file = function
+    | Virtual -> None
+    | Concrete f -> Some f
+
+  let iter_file t ~f =
+    match t with
+    | Virtual -> ()
+    | Concrete file -> f file
+
+  let map_file t ~f =
+    match t with
+    | Virtual -> Virtual
+    | Concrete file -> Concrete (f file)
+end
+
 type t =
   { name       : Name.t
-  ; impl       : File.t option
+  ; impl       : Impl.t option
   ; intf       : File.t option
   ; obj_name   : string
   ; pp         : (unit, string list) Build.t option
@@ -88,13 +114,13 @@ let impl t = t.impl
 let make ?impl ?intf ?obj_name ~visibility name =
   let file : File.t =
     match impl, intf with
-    | None, None ->
+    | (None | Some Impl.Virtual), None ->
       Exn.code_error "Module.make called with no files"
         [ "name", Sexp.To_sexp.string name
-        ; "impl", Sexp.To_sexp.(option unknown) impl
-        ; "intf", Sexp.To_sexp.(option unknown) intf
+        ; "impl", Sexp.To_sexp.(option Impl.to_sexp) impl
+        ; "intf", Sexp.To_sexp.(option File.to_sexp) intf
         ]
-    | Some file, _
+    | Some (Concrete file), _
     | _, Some file -> file
   in
   let obj_name =
@@ -122,7 +148,7 @@ let has_intf t = Option.is_some t.intf
 let file t (kind : Ml_kind.t) =
   let file =
     match kind with
-    | Impl -> t.impl
+    | Impl -> Option.bind ~f:Impl.file t.impl
     | Intf -> t.intf
   in
   Option.map file ~f:(fun f -> f.path)
@@ -158,7 +184,7 @@ let cmti_file t ~obj_dir =
   | Some _ -> obj_file t ~obj_dir ~ext:".cmti"
 
 let iter t ~f =
-  Option.iter t.impl ~f:(f Ml_kind.Impl);
+  Option.iter t.impl ~f:(Impl.iter_file ~f:(f Ml_kind.Impl));
   Option.iter t.intf ~f:(f Ml_kind.Intf)
 
 let with_wrapper t ~main_module_name =
@@ -169,12 +195,12 @@ let with_wrapper t ~main_module_name =
 
 let map_files t ~f =
   { t with
-    impl = Option.map t.impl ~f:(f Ml_kind.Impl)
+    impl = Option.map t.impl ~f:(Impl.map_file ~f:(f Ml_kind.Impl))
   ; intf = Option.map t.intf ~f:(f Ml_kind.Intf)
   }
 
 let src_dir t =
-  match t.intf, t.impl with
+  match t.intf, Option.bind ~f:Impl.file t.impl with
   | None, None -> None
   | Some x, Some _
   | Some x, None
@@ -187,7 +213,7 @@ let to_sexp { name; impl; intf; obj_name ; pp ; visibility } =
   record
     [ "name", Name.to_sexp name
     ; "obj_name", string obj_name
-    ; "impl", (option File.to_sexp) impl
+    ; "impl", (option Impl.to_sexp) impl
     ; "intf", (option File.to_sexp) intf
     ; "pp", (option string) (Option.map ~f:(fun _ -> "has pp") pp)
     ; "visibility", Visibility.to_sexp visibility
@@ -198,17 +224,18 @@ let wrapped_compat t =
     intf = None
   ; impl =
       Some (
-        { syntax = OCaml
-        ; path =
-            (* Option.value_exn cannot fail because we disallow wrapped
-               compatibility mode for virtual libraries. That means none of the
-               modules are implementing a virtual module, and therefore all have
-               a source dir *)
-            Path.L.relative (Option.value_exn (src_dir t))
-              [ ".wrapped_compat"
-              ; Name.to_string t.name ^ ".ml-gen"
-              ]
-        }
+        Concrete
+          { syntax = OCaml
+          ; path =
+              (* Option.value_exn cannot fail because we disallow wrapped
+                 compatibility mode for virtual libraries. That means none of
+                 the modules are implementing a virtual module, and therefore
+                 all have a source dir *)
+              Path.L.relative (Option.value_exn (src_dir t))
+                [ ".wrapped_compat"
+                ; Name.to_string t.name ^ ".ml-gen"
+                ]
+          }
       )
   }
 
@@ -239,5 +266,5 @@ let remove_files t =
   }
 
 let sources t =
-  List.filter_map [t.intf; t.impl]
+  List.filter_map [t.intf; Option.bind ~f:Impl.file t.impl]
     ~f:(Option.map ~f:(fun (x : File.t) -> x.path))

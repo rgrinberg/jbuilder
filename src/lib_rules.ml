@@ -102,7 +102,8 @@ module Gen (P : Install_rules.Params) = struct
         ~modules ~cctx ~dynlink ~js_of_ocaml =
     let file =
       match Module.impl alias_module with
-      | Some f -> f
+      | Some Virtual -> assert false
+      | Some (Concrete f) -> f
       | None -> Option.value_exn (Module.intf alias_module)
     in
     SC.add_rule sctx

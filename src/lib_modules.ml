@@ -57,15 +57,17 @@ let make_wrapped ~(lib : Dune_file.Library.t) ~dir ~transition ~modules
       Some
         (Module.make (Module.Name.add_suffix main_module_name "__")
            ~visibility:Public
-           ~impl:(Module.File.make OCaml
-                    (Path.relative dir (sprintf "%s__.ml-gen" alias_prefix)))
+           ~impl:(Concrete (
+             Module.File.make OCaml (
+               Path.relative dir (sprintf "%s__.ml-gen" alias_prefix))))
            ~obj_name:(alias_prefix ^ "__"))
     else
       Some
         (Module.make main_module_name
            ~visibility:Public
-           ~impl:(Module.File.make OCaml
-                    (Path.relative dir (alias_prefix ^ ".ml-gen")))
+           ~impl:(Concrete (
+             Module.File.make OCaml
+               (Path.relative dir (alias_prefix ^ ".ml-gen"))))
            ~obj_name:alias_prefix)
   in
   { modules

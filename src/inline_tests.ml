@@ -172,9 +172,11 @@ include Sub_system.Register_end_point(
       let modules =
         Module.Name.Map.singleton main_module_name
           (Module.make main_module_name
-             ~impl:{ path   = Path.relative inline_test_dir main_module_filename
-                   ; syntax = OCaml
-                   }
+             ~impl:(
+               Concrete
+                 { path   = Path.relative inline_test_dir main_module_filename
+                 ; syntax = OCaml
+                 })
              ~visibility:Public
              ~obj_name:name)
       in
