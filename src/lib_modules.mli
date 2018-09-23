@@ -11,7 +11,7 @@ end
 
 val alias : t -> Alias_module.t option
 
-val modules : t -> Module.Name_map.t
+val source_modules : t -> Module.Name_map.t
 
 val wrapped_compat : t -> Module.Name_map.t
 

@@ -222,7 +222,7 @@ let build_modules_map (d : Super_context.Dir_with_jbuild.t) ~scope ~modules =
     let rev_modules =
       List.rev_append
         (List.concat_map libs ~f:(fun (l, m) ->
-           let modules = Lib_modules.modules m in
+           let modules = Lib_modules.source_modules m in
            List.map (Module.Name.Map.values modules) ~f:(fun m ->
              (Module.name m, l.buildable))))
         (List.concat_map exes ~f:(fun (e, m) ->

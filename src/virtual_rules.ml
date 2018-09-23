@@ -8,7 +8,7 @@ module Implementation = struct
     ; vlib_modules    : Lib_modules.t
     }
 
-  let modules_of_vlib t = Lib_modules.modules t.vlib_modules
+  let modules_of_vlib t = Lib_modules.source_modules t.vlib_modules
 
   let dep_graph ({ vlib ; vlib_modules = _ ; impl = _ } as t)
         (impl_graph : Ocamldep.Dep_graphs.t) =
@@ -70,9 +70,9 @@ module Gen (P : sig val sctx : Super_context.t end) = struct
     |> String.concat ~sep:"\n"
 
   let check_module_fields ~(lib : Dune_file.Library.t) ~virtual_modules
-        ~modules ~implements =
+        ~source_modules ~implements =
     let new_public_modules =
-      Module.Name.Map.foldi modules ~init:[] ~f:(fun name m acc ->
+      Module.Name.Map.foldi source_modules ~init:[] ~f:(fun name m acc ->
         if Module.is_public m
         && not (Module.Name.Map.mem virtual_modules name) then
           name :: acc
@@ -89,7 +89,7 @@ module Gen (P : sig val sctx : Super_context.t end) = struct
     let (missing_modules, impl_modules_with_intf, private_virtual_modules) =
       Module.Name.Map.foldi virtual_modules ~init:([], [], [])
         ~f:(fun m _ (mms, ims, pvms) ->
-          match Module.Name.Map.find modules m with
+          match Module.Name.Map.find source_modules m with
           | None -> (m :: mms, ims, pvms)
           | Some m ->
             let ims =
@@ -127,7 +127,7 @@ module Gen (P : sig val sctx : Super_context.t end) = struct
         (module_list impl_modules_with_intf)
     end
 
-  let impl ~(lib : Dune_file.Library.t) ~scope ~modules =
+  let impl ~(lib : Dune_file.Library.t) ~scope ~source_modules =
     Option.map lib.implements ~f:begin fun (loc, implements) ->
       match Lib.DB.find (Scope.libs scope) implements with
       | Error _ ->
@@ -152,7 +152,7 @@ module Gen (P : sig val sctx : Super_context.t end) = struct
               ~name:(Lib.name vlib)
         in
         let virtual_modules = Lib_modules.virtual_modules vlib_modules in
-        check_module_fields ~lib ~virtual_modules ~modules ~implements;
+        check_module_fields ~lib ~virtual_modules ~source_modules ~implements;
         { Implementation.
           impl = lib
         ; vlib

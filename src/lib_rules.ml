@@ -363,10 +363,9 @@ module Gen (P : Install_rules.Params) = struct
     let lib_modules =
       Dir_contents.modules_of_library dir_contents ~name:(Library.best_name lib)
     in
-    let modules = Lib_modules.modules lib_modules in
-    let impl = Virtual.impl ~lib ~scope ~modules in
+    let source_modules = Lib_modules.source_modules lib_modules in
+    let impl = Virtual.impl ~lib ~scope ~source_modules in
     Option.iter impl ~f:(Virtual.setup_copy_rules_for_impl ~dir);
-    let source_modules = modules in
     (* Preprocess before adding the alias module as it doesn't need
        preprocessing *)
     let pp =
@@ -379,7 +378,7 @@ module Gen (P : Install_rules.Params) = struct
         ~lib_name:(Some (snd lib.name))
         ~dir_kind
     in
-    let modules = Preprocessing.pp_modules pp modules in
+    let modules = Preprocessing.pp_modules pp source_modules in
 
     let (modules, alias_module) =
       match Lib_modules.alias lib_modules with
@@ -509,7 +508,7 @@ module Gen (P : Install_rules.Params) = struct
       ; dir
       ; stanza = lib
       ; scope
-      ; source_modules
+      ; source_modules = Lib_modules.source_modules lib_modules
       ; compile_info
       };
 

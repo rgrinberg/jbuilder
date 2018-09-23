@@ -22,6 +22,6 @@ module Gen (S : sig val sctx : Super_context.t end) : sig
   val impl
     :  lib:Dune_file.Library.t
     -> scope:Scope.t
-    -> modules:Module.Name_map.t
+    -> source_modules:Module.Name_map.t
     -> Implementation.t option
 end
