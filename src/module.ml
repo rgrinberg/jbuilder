@@ -71,16 +71,64 @@ module Visibility = struct
     | Private -> false
 end
 
-type t =
-  { name       : Name.t
-  ; impl       : File.t option
-  ; intf       : File.t option
-  ; obj_name   : string
-  ; pp         : (unit, string list) Build.t option
-  ; visibility : Visibility.t
-  }
+module Alias = struct
+  type t =
+    { name : Name.t
+    ; impl : File.t
+    }
+end
+
+module Virtual = struct
+  type t =
+    { name       : Name.t
+    ; intf       : File.t
+    ; obj_name   : string
+    ; pp         : (unit, string list) Build.t option
+    }
+end
+
+module Virtual_impl = struct
+  type t =
+    { name       : Name.t
+    ; impl       : File.t
+    ; obj_name   : string
+    ; pp         : (unit, string list) Build.t option
+    }
+end
+
+module Regular = struct
+  type t =
+    { name       : Name.t
+    ; impl       : File.t option
+    ; intf       : File.t option
+    ; obj_name   : string
+    ; pp         : (unit, string list) Build.t option
+    ; visibility : Visibility.t
+    }
+end
+
+module Lib_interface = struct
+  type t =
+    { name       : Name.t
+    ; intf       : File.t
+    ; impl       : File.t
+    ; obj_name   : string
+    ; pp         : (unit, string list) Build.t option
+    }
+end
+
+module Wrapped_compat = struct
+  type t =
+    { name       : Name.t
+    ; impl       : File.t
+    ; obj_name   : string
+    }
+end
 
 let name t = t.name
+let pp_flags t = t.pp
+let intf t = t.intf
+let impl t = t.impl
 
 let make ?impl ?intf ?obj_name ~visibility name =
   let file : File.t =
@@ -234,3 +282,7 @@ let remove_files t =
     intf = None
   ; impl = None
   }
+
+let sources t =
+  List.filter_map [t.intf; t.impl]
+    ~f:(Option.map ~f:(fun (x : File.t) -> x.path))
