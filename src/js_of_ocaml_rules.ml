@@ -122,7 +122,10 @@ let build_cm cctx ~(js_of_ocaml:Dune_file.Js_of_ocaml.t) ~src ~target =
     let spec = Arg_spec.Dep src in
     let flags =
       let scope = Compilation_context.scope cctx in
-      SC.expand_and_eval_set sctx ~scope ~dir js_of_ocaml.flags
+      Expander.expand_and_eval_set (Super_context.expander sctx)
+        ~scope
+        ~dir
+        js_of_ocaml.flags
         ~standard:(Build.return (standard sctx))
     in
     [ flags

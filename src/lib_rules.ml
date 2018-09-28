@@ -70,7 +70,7 @@ module Gen (P : Install_rules.Params) = struct
          >>>
          Build.fanout4
            (top_sorted_modules >>^artifacts ~ext:(Cm_kind.ext (Mode.cm_kind mode)))
-           (SC.expand_and_eval_set sctx ~scope ~dir lib.c_library_flags
+           (Expander.expand_and_eval_set sctx ~scope ~dir lib.c_library_flags
               ~standard:(Build.return []))
            (Ocaml_flags.get flags mode)
            (SC.expand_and_eval_set sctx ~scope ~dir lib.library_flags

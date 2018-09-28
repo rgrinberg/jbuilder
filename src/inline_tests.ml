@@ -251,7 +251,7 @@ include Sub_system.Register_end_point(
         in
         Build.all (
           List.map flags ~f:(fun flags ->
-            Super_context.expand_and_eval_set sctx flags
+            Expander.expand_and_eval_set sctx flags
               ~scope
               ~dir
               ~bindings

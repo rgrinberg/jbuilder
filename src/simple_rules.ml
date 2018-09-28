@@ -7,7 +7,7 @@ open! No_io
 module SC = Super_context
 
 let interpret_locks sctx ~dir ~scope locks =
-  List.map locks ~f:(SC.expand_vars_path sctx ~dir ~scope)
+  List.map locks ~f:(Expander.Static.expand_vars_path sctx ~dir ~scope)
 
 let dep_bindings ~extra_bindings deps =
   let base = Pform.Map.of_bindings deps in

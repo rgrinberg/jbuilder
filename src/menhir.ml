@@ -62,8 +62,9 @@ module Run (P : PARAMS) = struct
      flags. *)
 
   let flags =
-    SC.expand_and_eval_set
-      sctx ~scope ~dir stanza.flags ~standard:(Build.return [])
+    Expander.expand_and_eval_set
+      (Super_context.expander sctx)
+      ~scope ~dir stanza.flags ~standard:(Build.return [])
 
   (* Find the menhir binary. *)
 
