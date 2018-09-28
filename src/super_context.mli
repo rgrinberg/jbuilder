@@ -56,6 +56,7 @@ val profile   : t -> string
 val host : t -> t
 val build_system : t -> Build_system.t
 val pkg_version : t -> Pkg_version.t
+val expander : t -> Expander.t
 
 (** All public libraries of the workspace *)
 val public_libs : t -> Lib.DB.t
@@ -80,39 +81,6 @@ val dump_env : t -> dir:Path.t -> (unit, Dune_lang.t list) Build.t
 
 val find_scope_by_dir  : t -> Path.t              -> Scope.t
 val find_scope_by_name : t -> Dune_project.Name.t -> Scope.t
-
-val expand_vars
-  :  t
-  -> mode:'a String_with_vars.Mode.t
-  -> scope:Scope.t
-  -> dir:Path.t -> ?bindings:Pform.Map.t
-  -> String_with_vars.t
-  -> 'a
-
-val expand_vars_string
-  :  t
-  -> scope:Scope.t
-  -> dir:Path.t
-  -> ?bindings:Pform.Map.t
-  -> String_with_vars.t
-  -> string
-
-val expand_vars_path
-  :  t
-  -> scope:Scope.t
-  -> dir:Path.t
-  -> ?bindings:Pform.Map.t
-  -> String_with_vars.t
-  -> Path.t
-
-val expand_and_eval_set
-  :  t
-  -> scope:Scope.t
-  -> dir:Path.t
-  -> ?bindings:Pform.Map.t
-  -> Ordered_set_lang.Unexpanded.t
-  -> standard:(unit, string list) Build.t
-  -> (unit, string list) Build.t
 
 val prefix_rules
   :  t
@@ -218,11 +186,6 @@ end
 
 (** Interpret action written in jbuild files *)
 module Action : sig
-  type targets =
-    | Static of Path.t list
-    | Infer
-    | Alias (** This action is for an alias *)
-
   (** The arrow takes as input the list of actual dependencies *)
   val run
     :  t
@@ -230,7 +193,7 @@ module Action : sig
     -> bindings:Pform.Map.t
     -> dir:Path.t
     -> dep_kind:Lib_deps_info.Kind.t
-    -> targets:targets
+    -> targets:Expander.Dynamic.targets
     -> targets_dir:Path.t
     -> scope:Scope.t
     -> Action.Unexpanded.t

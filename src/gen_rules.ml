@@ -97,7 +97,7 @@ module Gen(P : Install_rules.Params) = struct
     in
     let link_flags =
       link_deps >>^ ignore >>>
-      SC.expand_and_eval_set sctx exes.link_flags
+      Expander.expand_and_eval_set (Super_context.expander sctx) exes.link_flags
         ~scope
         ~dir
         ~standard:(Build.return [])
@@ -249,7 +249,9 @@ module Gen(P : Install_rules.Params) = struct
           | Copy_files { glob; _ } ->
             let src_dir =
               let loc = String_with_vars.loc glob in
-              let src_glob = SC.expand_vars_string sctx ~dir glob ~scope in
+              let src_glob =
+                Expander.Static.expand_vars_string (Super_context.expander sctx)
+                  ~dir glob ~scope in
               Path.parent_exn (Path.relative src_dir src_glob ~error_loc:loc)
             in
             let merlin =

@@ -65,15 +65,22 @@ module Gen (P : Install_rules.Params) = struct
           obj_deps >>>
           Build.paths (artifacts modules ~ext:ctx.ext_obj)
       in
+      let expander = Super_context.expander sctx in
       SC.add_rule sctx ~loc:lib.buildable.loc
         (obj_deps
          >>>
          Build.fanout4
            (top_sorted_modules >>^artifacts ~ext:(Cm_kind.ext (Mode.cm_kind mode)))
-           (SC.expand_and_eval_set sctx ~scope ~dir lib.c_library_flags
+           (Expander.expand_and_eval_set
+              expander
+              ~scope
+              ~dir lib.c_library_flags
               ~standard:(Build.return []))
            (Ocaml_flags.get flags mode)
-           (SC.expand_and_eval_set sctx ~scope ~dir lib.library_flags
+           (Expander.expand_and_eval_set expander
+              ~scope
+              ~dir
+              lib.library_flags
               ~standard:(Build.return []))
          >>>
          Build.run (Ok compiler) ~dir:ctx.build_dir
@@ -163,7 +170,11 @@ module Gen (P : Install_rules.Params) = struct
 
   let build_c_file (lib : Library.t) ~scope ~dir ~includes (loc, src, dst) =
     SC.add_rule sctx ~loc
-      (SC.expand_and_eval_set sctx ~scope ~dir lib.c_flags
+      (Expander.expand_and_eval_set
+         (Super_context.expander sctx)
+         ~scope
+         ~dir
+         lib.c_flags
          ~standard:(Build.return (Context.cc_g ctx))
        >>>
        Build.run
@@ -188,7 +199,10 @@ module Gen (P : Install_rules.Params) = struct
         [A "-o"; Target dst]
     in
     SC.add_rule sctx ~loc
-      (SC.expand_and_eval_set sctx ~scope ~dir lib.cxx_flags
+      (Expander.expand_and_eval_set (Super_context.expander sctx)
+         ~scope
+         ~dir
+         lib.cxx_flags
          ~standard:(Build.return (Context.cc_g ctx))
        >>>
        Build.run
@@ -209,7 +223,7 @@ module Gen (P : Install_rules.Params) = struct
         ~targets =
     SC.add_rule sctx ~sandbox
       ~loc:lib.buildable.loc
-      (SC.expand_and_eval_set sctx ~scope ~dir
+      (Expander.expand_and_eval_set (Super_context.expander sctx) ~scope ~dir
          lib.c_library_flags ~standard:(Build.return [])
        >>>
        Build.run ~dir:ctx.build_dir

@@ -7,7 +7,8 @@ open! No_io
 module SC = Super_context
 
 let interpret_locks sctx ~dir ~scope locks =
-  List.map locks ~f:(SC.expand_vars_path sctx ~dir ~scope)
+  List.map locks ~f:(Expander.Static.expand_vars_path
+                       (Super_context.expander sctx) ~dir ~scope)
 
 let dep_bindings ~extra_bindings deps =
   let base = Pform.Map.of_bindings deps in
@@ -16,7 +17,7 @@ let dep_bindings ~extra_bindings deps =
   | None -> base
 
 let user_rule sctx ?extra_bindings ~dir ~scope (rule : Rule.t) =
-  let targets : SC.Action.targets =
+  let targets : Expander.Dynamic.targets =
     match rule.targets with
     | Infer -> Infer
     | Static fns ->
@@ -27,7 +28,11 @@ let user_rule sctx ?extra_bindings ~dir ~scope (rule : Rule.t) =
             "%s does not denote a file in the current directory" s;
         in
         let error_loc = String_with_vars.loc fn in
-        List.map ~f:(function
+        let expansion =
+          Expander.Static.expand_vars (Super_context.expander sctx)
+            ~mode:Many ~scope ~dir fn
+        in
+        List.map expansion ~f:(function
           | Value.String ("." | "..") ->
             Errors.fail error_loc "'.' and '..' are not valid filenames"
           | String s ->
@@ -39,8 +44,7 @@ let user_rule sctx ?extra_bindings ~dir ~scope (rule : Rule.t) =
               not_in_dir ~error_loc (Path.to_string p);
             p
           | Dir p ->
-            not_in_dir ~error_loc (Path.to_string p)
-        ) (SC.expand_vars sctx ~mode:Many ~scope ~dir fn)
+            not_in_dir ~error_loc (Path.to_string p))
       in
       Static (List.concat_map ~f fns)
   in
@@ -63,7 +67,10 @@ let user_rule sctx ?extra_bindings ~dir ~scope (rule : Rule.t) =
 let copy_files sctx ~dir ~scope ~src_dir (def: Copy_files.t) =
   let loc = String_with_vars.loc def.glob in
   let glob_in_src =
-    let src_glob = SC.expand_vars_string sctx ~dir def.glob ~scope in
+    let src_glob =
+      Expander.Static.expand_vars_string
+        (Super_context.expander sctx)
+        ~dir def.glob ~scope in
     Path.relative src_dir src_glob ~error_loc:loc
   in
   if def.syntax_version < (1, 3)
@@ -113,7 +120,8 @@ let alias sctx ?extra_bindings ~dir ~scope (alias_conf : Alias_conf.t) =
       let f : String_with_vars.t Blang.expander =
         { f = fun ~mode sw ->
             ( String_with_vars.loc sw
-            , Super_context.expand_vars sctx ~scope ~mode ~dir sw
+            , Expander.Static.expand_vars (Super_context.expander sctx)
+                ~scope ~mode ~dir sw
             )
         } in
       Blang.eval_bool blang ~dir ~f

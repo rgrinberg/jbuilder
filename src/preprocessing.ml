@@ -502,7 +502,9 @@ let lint_module sctx ~dir ~dep_kind ~lint ~lib_name ~scope ~dir_kind =
                  (Values [String corrected_suffix])
              in
              Build.memoize "ppx flags"
-               (SC.expand_and_eval_set sctx driver.info.lint_flags
+               (Expander.expand_and_eval_set
+                  (Super_context.expander sctx)
+                  driver.info.lint_flags
                   ~scope
                   ~dir
                   ~bindings
@@ -590,7 +592,9 @@ let make sctx ~dir ~dep_kind ~lint ~preprocess
                (Values [String corrected_suffix])
            in
            Build.memoize "ppx flags"
-             (SC.expand_and_eval_set sctx driver.info.flags
+             (Expander.expand_and_eval_set
+                (Super_context.expander sctx)
+                driver.info.flags
                 ~scope
                 ~dir
                 ~bindings
@@ -626,7 +630,9 @@ let make sctx ~dir ~dep_kind ~lint ~preprocess
              >>>
              preprocessor_deps >>^ ignore
              >>>
-             SC.expand_and_eval_set sctx driver.info.as_ppx_flags
+             Expander.expand_and_eval_set
+               (Super_context.expander sctx)
+               driver.info.as_ppx_flags
                ~scope
                ~dir
                ~standard:(Build.return [])
