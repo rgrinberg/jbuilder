@@ -15,6 +15,10 @@ next
 - Fix bad interaction between multi-directory libraries the `menhir`
   stanza (#1373, fix #1372, @diml)
 
+- Better error message when using `(self_build_stubs_archive ...)` and
+  `(c_names ...)` or `(cxx_names ...)` simultaneously.
+  (#1375, fix #1306, @nojb)
+
 1.3.0 (23/09/2018)
 ------------------
 
