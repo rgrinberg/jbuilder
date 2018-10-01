@@ -68,8 +68,10 @@ module L : sig
     -> _ Arg_spec.t
 
   (** All the library archive files (.a, .cmxa, _stubs.a, ...)  that
-      should be linked in when linking an executable. *)
+      should be linked in when linking an executable.*)
   val archive_files : t -> mode:Mode.t -> Path.t list
+
+  val foreign_dlls : t -> Path.t list
 
   val jsoo_runtime_files : t -> Path.t list
 
@@ -240,6 +242,7 @@ module DB : sig
   (** Create a database from a list of library stanzas *)
   val create_from_library_stanzas
     :  ?parent:t
+    -> ext_dll:string
     -> ext_lib:string
     -> ext_obj:string
     -> (Path.t * Dune_file.Library.t) list

@@ -280,6 +280,9 @@ module L = struct
       Mode.Dict.get t.info.archives mode @
       Mode.Dict.get t.info.foreign_archives mode)
 
+  let foreign_dlls =
+    List.filter_map ~f:(fun t -> t.info.foreign_dll)
+
   let remove_dups l =
     let rec loop acc l seen =
       match l with
@@ -927,10 +930,10 @@ module DB = struct
     ; all    = Lazy.from_fun all
     }
 
-  let create_from_library_stanzas ?parent ~ext_lib ~ext_obj stanzas =
+  let create_from_library_stanzas ?parent ~ext_dll ~ext_lib ~ext_obj stanzas =
     let map =
       List.concat_map stanzas ~f:(fun (dir, (conf : Dune_file.Library.t)) ->
-        let info = Lib_info.of_library_stanza ~dir ~ext_lib ~ext_obj conf in
+        let info = Lib_info.of_library_stanza ~dir ~ext_dll ~ext_lib ~ext_obj conf in
         match conf.public with
         | None ->
           [Dune_file.Library.best_name conf, Resolve_result.Found info]

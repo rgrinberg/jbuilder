@@ -72,6 +72,7 @@ type t =
   ; plugins          : Path.t list Mode.Dict.t
   ; foreign_objects  : Path.t list
   ; foreign_archives : Path.t list Mode.Dict.t
+  ; foreign_dll      : Path.t option
   ; jsoo_runtime     : Path.t list
   ; requires         : Deps.t
   ; ppx_runtime_deps : (Loc.t * Lib_name.t) list
@@ -90,7 +91,8 @@ let user_written_deps t =
     ~init:(Deps.to_lib_deps t.requires)
     ~f:(fun acc s -> Dune_file.Lib_dep.Direct s :: acc)
 
-let of_library_stanza ~dir ~ext_lib ~ext_obj (conf : Dune_file.Library.t) =
+let of_library_stanza ~dir ~ext_dll ~ext_lib ~ext_obj
+      (conf : Dune_file.Library.t) =
   let (_loc, lib_name) = conf.name in
   let archive_file ext =
     Path.relative dir (Lib_name.Local.to_string lib_name ^ ext) in
@@ -128,6 +130,12 @@ let of_library_stanza ~dir ~ext_lib ~ext_obj (conf : Dune_file.Library.t) =
     , List.map (conf.c_names @ conf.cxx_names) ~f:(fun (_, name) ->
         Path.relative obj_dir (name ^ ext_obj))
     )
+  in
+  let foreign_dll =
+    if Dune_file.Library.has_stubs conf then
+      Some (Dune_file.Library.dll conf ~dir ~ext_dll)
+    else
+      None
   in
   let foreign_archives =
     match conf.stdlib with
@@ -175,6 +183,7 @@ let of_library_stanza ~dir ~ext_lib ~ext_obj (conf : Dune_file.Library.t) =
   ; optional = conf.optional
   ; foreign_objects
   ; foreign_archives
+  ; foreign_dll
   ; jsoo_runtime
   ; status
   ; virtual_deps     = conf.virtual_deps
@@ -217,6 +226,7 @@ let of_findlib_package pkg =
   ; foreign_objects  = []
   ; (* We don't know how these are named for external libraries *)
     foreign_archives = Mode.Dict.make_both []
+  ; foreign_dll = None
   ; sub_systems      = sub_systems
   ; dune_version = None
   ; virtual_ = None

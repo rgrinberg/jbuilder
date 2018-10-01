@@ -157,7 +157,13 @@ let link_exe
        link_flags
      >>>
      Build.of_result_map requires ~f:(fun libs ->
-       Build.paths (Lib.L.archive_files libs ~mode))
+       let paths =
+         let archives = Lib.L.archive_files libs ~mode in
+         match mode with
+         | Byte -> Lib.L.foreign_dlls libs @ archives
+         | Native -> archives
+       in
+       Build.paths paths)
      >>>
      Build.run ~dir:ctx.build_dir
        (Ok compiler)

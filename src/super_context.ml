@@ -515,6 +515,7 @@ let create
       ~projects
       ~context:context.name
       ~installed_libs
+      ~ext_dll:context.ext_dll
       ~ext_lib:context.ext_lib
       ~ext_obj:context.ext_obj
       internal_libs

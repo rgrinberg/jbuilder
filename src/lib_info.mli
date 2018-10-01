@@ -52,6 +52,7 @@ type t = private
   ; plugins          : Path.t list Mode.Dict.t
   ; foreign_objects  : Path.t list
   ; foreign_archives : Path.t list Mode.Dict.t (** [.a/.lib/...] files *)
+  ; foreign_dll      : Path.t option
   ; jsoo_runtime     : Path.t list
   ; requires         : Deps.t
   ; ppx_runtime_deps : (Loc.t * Lib_name.t) list
@@ -66,7 +67,8 @@ type t = private
   }
 
 val of_library_stanza
-  : dir:Path.t
+  :  dir:Path.t
+  -> ext_dll:string
   -> ext_lib:string
   -> ext_obj:string
   -> Dune_file.Library.t
