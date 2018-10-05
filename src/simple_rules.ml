@@ -46,20 +46,25 @@ let user_rule sctx ?extra_bindings ~dir ~scope (rule : Rule.t) =
         Static (List.concat_map ~f fns)
     in
     let bindings = dep_bindings ~extra_bindings rule.deps in
-    SC.add_rule_get_targets sctx ~mode:rule.mode ~loc:rule.loc
-      ~locks:(interpret_locks sctx ~dir ~scope rule.locks)
-      (SC.Deps.interpret_named sctx ~scope ~dir rule.deps
-       >>>
-       SC.Action.run
-         sctx
-         (snd rule.action)
-         ~loc:(fst rule.action)
-         ~dir
-         ~bindings
-         ~dep_kind:Required
-         ~targets
-         ~targets_dir:dir
-         ~scope)
+    let targets =
+      SC.add_rule_get_targets sctx ~mode:rule.mode ~loc:rule.loc
+        ~locks:(interpret_locks sctx ~dir ~scope rule.locks)
+        (SC.Deps.interpret_named sctx ~scope ~dir rule.deps
+        >>>
+        SC.Action.run
+          sctx
+          (snd rule.action)
+          ~loc:(fst rule.action)
+          ~dir
+          ~bindings
+          ~dep_kind:Required
+          ~targets
+          ~targets_dir:dir
+          ~scope)
+    in
+    Super_context.add_alias_deps sctx
+      (Build_system.Alias.all ~dir) (Path.Set.of_list targets);
+    targets
   end else
     []
 
