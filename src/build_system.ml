@@ -278,7 +278,8 @@ module Alias0 = struct
       stamp_file (make ~dir name)))
 
   let is_standard = function
-    | "runtest" | "install" | "doc" | "doc-private" | "lint" | "default" -> true
+    | "runtest" | "install" | "doc" | "doc-private" | "lint" | "default"
+    | "all" -> true
     | _ -> false
 
   open Build.O
@@ -334,6 +335,7 @@ module Alias0 = struct
   let doc         = make "doc"
   let private_doc = make "doc-private"
   let lint        = make "lint"
+  let all         = make "all"
 
   let package_install ~(context : Context.t) ~pkg =
     make (sprintf ".%s-files" (Package.Name.to_string pkg))

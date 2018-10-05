@@ -49,6 +49,11 @@ let executables_rules ~sctx ~dir ~dir_kind
                   Module.Name.pp mod_name)
   in
 
+  List.map programs ~f:(fun (exe : Exe.Program.t) ->
+    Path.relative dir (exe.name ^ ".exe"))
+  |> Path.Set.of_list
+  |> Super_context.add_alias_deps sctx (Build_system.Alias.all ~dir);
+
   let linkages =
     let module L = Dune_file.Executables.Link_mode in
     let ctx = SC.context sctx in
