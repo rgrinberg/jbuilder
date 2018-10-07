@@ -98,16 +98,21 @@ let copy_files sctx ~dir ~scope ~src_dir (def: Copy_files.t) =
   (* add rules *)
   let src_in_build = Path.append (SC.context sctx).build_dir src_in_src in
   let files = SC.eval_glob sctx ~dir:src_in_build re in
-  List.map files ~f:(fun basename ->
-    let file_src = Path.relative src_in_build basename in
-    let file_dst = Path.relative dir basename in
-    SC.add_rule sctx ~loc
-      ((if def.add_line_directive
-        then Build.copy_and_add_line_directive
-        else Build.copy)
-         ~src:file_src
-         ~dst:file_dst);
-    file_dst)
+  let targets =
+    List.map files ~f:(fun basename ->
+      let file_src = Path.relative src_in_build basename in
+      let file_dst = Path.relative dir basename in
+      SC.add_rule sctx ~loc
+        ((if def.add_line_directive
+          then Build.copy_and_add_line_directive
+          else Build.copy)
+          ~src:file_src
+          ~dst:file_dst);
+      file_dst)
+  in
+  SC.add_alias_deps sctx (Build_system.Alias.all ~dir)
+    (Path.Set.of_list targets);
+  targets
 
 let add_alias sctx ~dir ~name ~stamp ~loc ?(locks=[]) build =
   let alias = Build_system.Alias.make name ~dir in
