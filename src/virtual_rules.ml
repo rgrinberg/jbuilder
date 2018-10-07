@@ -56,9 +56,15 @@ module Gen (P : sig val sctx : Super_context.t end) = struct
         Module.file m Ml_kind.Intf
         |> Option.value_exn
         |> Path.extend_basename ~suffix:".all-deps"
+        |> copy_to_obj_dir;
+        Module.cmt_file m ~obj_dir Ml_kind.Intf
+        |> Option.value_exn
         |> copy_to_obj_dir
       end;
       if Module.has_impl m then begin
+        Module.cmt_file m ~obj_dir Ml_kind.Impl
+        |> Option.value_exn
+        |> copy_to_obj_dir;
         if modes.byte then
           copy_obj_file (Cm_kind.ext Cmo);
         if modes.native then
