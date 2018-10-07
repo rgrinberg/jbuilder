@@ -15,6 +15,14 @@
    (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
 
 (alias
+ (name all-alias)
+ (deps (package dune) (source_tree test-cases/all-alias))
+ (action
+  (chdir
+   test-cases/all-alias
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name bad-alias-error)
  (deps (package dune) (source_tree test-cases/bad-alias-error))
  (action
@@ -1017,6 +1025,7 @@
  (deps
   (alias action-modifying-a-dependency)
   (alias aliases)
+  (alias all-alias)
   (alias bad-alias-error)
   (alias block-strings)
   (alias byte-code-only)
@@ -1143,6 +1152,7 @@
  (deps
   (alias action-modifying-a-dependency)
   (alias aliases)
+  (alias all-alias)
   (alias bad-alias-error)
   (alias block-strings)
   (alias byte-code-only)
