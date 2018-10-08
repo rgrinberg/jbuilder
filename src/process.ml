@@ -261,8 +261,10 @@ let run_internal ?dir ?(stdout_to=Terminal) ?(stderr_to=Terminal) ~env ~purpose
   Option.iter to_close ~f:Unix.close;
   close_std_output close_stdout;
   close_std_output close_stderr;
+  let stats_event = Stats.Catapult.on_process_start ~program:prog_str ~args in
   Scheduler.wait_for_process pid
   >>| fun exit_status ->
+  Stats.Catapult.on_process_end stats_event;
   Option.iter response_file ~f:Path.unlink;
   let output =
     match output_filename with
