@@ -197,9 +197,8 @@ module Gen(P : Params) = struct
     List.concat
       [ sources
       ; List.map module_files ~f:(make_entry Lib)
-      ; List.map (Lib_archives.files archives) ~f:(make_entry Lib)
+      ; Lib_archives.install_entries archives
       ; List.map execs ~f:(make_entry Libexec)
-      ; List.map (Lib_archives.dlls archives) ~f:(Install.Entry.make Stublibs)
       ; [make_entry Lib (lib_dune_file ~dir
                            ~name:(Dune_file.Library.best_name lib))]
       ]

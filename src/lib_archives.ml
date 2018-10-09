@@ -3,12 +3,20 @@ open Stdune
 type t =
   { dlls : Path.t list
   ; files : Path.t list
+  ; sub_dir : string option
   }
 
-let files t = t.files
-let dlls t = t.dlls
+let install_entries { files; dlls ; sub_dir } =
+  let dst =
+    match sub_dir with
+    | None -> Path.basename
+    | Some dir -> fun p -> sprintf "%s/%s" dir (Path.basename p)
+  in
+  List.rev_append
+    (List.map files ~f:(fun p -> Install.Entry.make Lib p ~dst:(dst p)))
+    (List.map dlls ~f:(Install.Entry.make Stublibs))
 
-let all { files; dlls } =
+let all { files; dlls ; sub_dir = _ } =
   Path.Set.of_list (List.rev_append dlls files)
 
 module Library = Dune_file.Library
@@ -51,6 +59,10 @@ let make ~(ctx : Context.t) ~dir (lib : Library.t) =
          Dynlink_supported.get lib.dynlink ctx.supports_shared_libraries)
       [Library.dll ~dir lib ~ext_dll:ctx.ext_dll]
   in
+  let sub_dir =
+    Option.bind lib.public ~f:(fun public -> public.sub_dir)
+  in
   { files
   ; dlls
+  ; sub_dir
   }
