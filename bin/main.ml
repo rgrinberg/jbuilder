@@ -138,6 +138,7 @@ let all =
   ; Subst.command
   ; Print_rules.command
   ; Utop.command
+  ; Init.command
   ; promote
   ; Printenv.command
   ; Help.command

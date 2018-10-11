@@ -406,6 +406,16 @@ module Stanzas : sig
 
   type syntax = OCaml | Plain
 
+  (* TODO Ensure that this documentation description is correct *)
+  (** [parse ~file ~kind project stanza_exprs] is a list of [Stanza.t]s derived
+      from decoding the [stanza_exprs] from [Dune_lang.Ast.t]s to [Stanza.t]s
+      and combining those with the stanzas parsed from the supplied dune [file].
+
+      The stanzas are parsed in the context of the dune [project].
+
+      The syntax [kind] determines whether the expected syntax is either the
+      depreciated jbuilder syntax or the version of dune syntax specified in the
+      [project]. *)
   val parse
     :  file:Path.t
     -> kind:Dune_lang.Syntax.t

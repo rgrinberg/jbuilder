@@ -2,6 +2,8 @@ open Stdune
 
 type t = A of string [@@unboxed]
 
+let equal (A a) (A b) = String.equal a b
+
 let invalid_argf fmt = Printf.ksprintf invalid_arg fmt
 
 let is_valid_dune =

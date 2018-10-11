@@ -184,6 +184,14 @@
    (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
 
 (alias
+ (name dune-init)
+ (deps (package dune) (source_tree test-cases/dune-init))
+ (action
+  (chdir
+   test-cases/dune-init
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name dune-jbuild-var-case)
  (deps (package dune) (source_tree test-cases/dune-jbuild-var-case))
  (action
@@ -1338,6 +1346,7 @@
   (alias dir-target-dep)
   (alias double-echo)
   (alias dune-build-dir-exec-1101)
+  (alias dune-init)
   (alias dune-jbuild-var-case)
   (alias dune-package)
   (alias dune-ppx-driver-system)
@@ -1499,6 +1508,7 @@
   (alias dir-target-dep)
   (alias double-echo)
   (alias dune-build-dir-exec-1101)
+  (alias dune-init)
   (alias dune-jbuild-var-case)
   (alias dune-package)
   (alias dune-project-edition)
