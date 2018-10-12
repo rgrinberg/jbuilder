@@ -35,6 +35,13 @@ next
 
 - Document virtual libraries (experimental) (#1580, @rgrinberg)
 
+- Reimplement the core of Dune using a new generic memoization system
+  (#1489, @rudihorn, @diml)
+
+- Replace the broken cycle detection algorithm by a state of the art
+  one from [this paper](https://doi.org/10.1145/2756553) (#1489,
+  @rudihorn)
+
 1.5.1 (7/11/2018)
 -----------------
 
