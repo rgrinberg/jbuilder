@@ -167,6 +167,26 @@ Is equivalent to:
 
    dune build @@dir/default
 
+
+Built-in Aliases
+----------------
+
+There's a few aliases that dune automatically creates for the user
+
+* ``runtest`` - this is the alias to run al the tests, building them if
+  necessary.
+
+* ``install`` - build all public artifacts - those that will be installed.
+
+* ``doc`` - build documentation for public libraries.
+
+* ``doc-private`` - build documentation for all libraries - public & private.
+
+* ``lint`` - run linting tools.
+
+* ``all`` - build all available targets in a directory and installable artifacts
+  defined in that directory.
+
 Finding external libraries
 ==========================
 
@@ -360,7 +380,7 @@ version of OCaml by simply running:
 
 .. code:: bash
 
-    $ dune build --workspace dune-workspace.dev @install @runtest
+    $ dune build --workspace dune-workspace.dev @all @runtest
 
 dune-workspace
 --------------
