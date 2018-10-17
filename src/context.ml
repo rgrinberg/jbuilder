@@ -31,6 +31,7 @@ type t =
   ; kind                    : Kind.t
   ; profile                 : string
   ; merlin                  : bool
+  ; bin_annot               : bool
   ; for_host                : t option
   ; implicit                : bool
   ; build_dir               : Path.t
@@ -186,8 +187,8 @@ let ocamlfind_printconf_path ~env ~ocamlfind ?toolchain () =
   >>| fun l ->
   List.map l ~f:Path.of_filename_relative_to_initial_cwd
 
-let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~targets
-      ~profile () =
+let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~bin_annot
+      ~targets ~profile () =
   let opam_var_cache = Hashtbl.create 128 in
   (match kind with
    | Opam { root = Some root; _ } ->
@@ -465,6 +466,7 @@ let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~targets
             (Ocaml_config.supports_shared_libraries ocfg)
 
       ; which_cache
+      ; bin_annot
       }
     in
     if Ocaml_version.supports_response_file version then begin
@@ -496,9 +498,9 @@ let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~targets
 
 let opam_config_var t var = opam_config_var ~env:t.env ~cache:t.opam_var_cache var
 
-let default ?(merlin=true) ~env_nodes ~env ~targets () =
+let default ?(merlin=true) ~bin_annot ~env_nodes ~env ~targets () =
   create ~kind:Default ~path:Bin.path ~env ~env_nodes ~name:"default"
-    ~merlin ~targets ()
+    ~merlin ~bin_annot ~targets ()
 
 let opam_version =
   let res = ref None in
@@ -520,7 +522,7 @@ let opam_version =
       Fiber.Future.wait future
 
 let create_for_opam ~root ~env ~env_nodes ~targets ~profile
-      ~switch ~name ~merlin () =
+      ~switch ~name ~bin_annot ~merlin () =
   let opam =
     match Lazy.force opam with
     | None -> Utils.program_not_found "opam" ~loc:None
@@ -566,7 +568,7 @@ let create_for_opam ~root ~env ~env_nodes ~targets ~profile
   in
   let env = Env.extend env ~vars in
   create ~kind:(Opam { root; switch }) ~profile ~targets ~path ~env ~env_nodes
-    ~name ~merlin ()
+    ~name ~merlin ~bin_annot ()
 
 let create ~env (workspace : Workspace.t) =
   let env_nodes context =
@@ -577,15 +579,16 @@ let create ~env (workspace : Workspace.t) =
   in
   Fiber.parallel_map workspace.contexts ~f:(fun def ->
     match def with
-    | Default { targets; profile; env = env_node ; loc = _ } ->
+    | Default { targets; profile; env = env_node ; loc = _ ; bin_annot } ->
       let merlin =
         workspace.merlin_context = Some (Workspace.Context.name def)
       in
-      default ~env ~env_nodes:(env_nodes env_node) ~profile ~targets ~merlin ()
-    | Opam { base = { targets; profile; env = env_node; loc = _ }
+      default ~env ~env_nodes:(env_nodes env_node) ~profile ~targets
+        ~merlin ~bin_annot ()
+    | Opam { base = { targets; profile; env = env_node; loc = _; bin_annot }
            ; name; switch; root; merlin } ->
       create_for_opam ~root ~env_nodes:(env_nodes env_node) ~env ~profile
-        ~switch ~name ~merlin ~targets ())
+        ~switch ~name ~merlin ~bin_annot ~targets ())
   >>| List.concat
 
 let which t s = which ~cache:t.which_cache ~path:t.path s

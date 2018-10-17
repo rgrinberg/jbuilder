@@ -10,16 +10,17 @@ module Context : sig
       | Named of string
   end
   module Common : sig
-    type t =
-      { loc     : Loc.t
-      ; profile : string
-      ; targets : Target.t list
-      ; env     : Dune_env.Stanza.t option
+    type 'bin_annot t =
+      { loc       : Loc.t
+      ; profile   : string
+      ; targets   : Target.t list
+      ; env       : Dune_env.Stanza.t option
+      ; bin_annot : 'bin_annot
       }
   end
   module Opam : sig
     type t =
-      { base    : Common.t
+      { base    : bool Common.t
       ; name    : string
       ; switch  : string
       ; root    : string option
@@ -28,7 +29,7 @@ module Context : sig
   end
 
   module Default : sig
-    type t = Common.t
+    type t = bool Common.t
   end
 
   type t = Default of Default.t | Opam of Opam.t

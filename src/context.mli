@@ -47,6 +47,9 @@ type t =
   ; (** [true] if this context is used for the .merlin files *)
     merlin : bool
 
+  ; (** [true] if this context context generates .cmt and .cmti targets *)
+    bin_annot : bool
+
   ; (** If this context is a cross-compilation context, you need another context for
         building tools used for the compilation that run on the host. *)
     for_host : t option

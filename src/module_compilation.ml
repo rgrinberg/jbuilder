@@ -80,9 +80,10 @@ let build_cm cctx ?sandbox ?(dynlink=true) ~dep_graphs
                  deps))
       in
       let other_targets, cmt_args =
-        match cm_kind with
-        | Cmx -> (other_targets, Arg_spec.S [])
-        | Cmi | Cmo ->
+        match cm_kind, ctx.bin_annot with
+        | _ , false
+        | Cmx, _ -> (other_targets, Arg_spec.S [])
+        | (Cmi | Cmo), true ->
           let fn = Option.value_exn (Target.cmt m ml_kind) in
           (fn :: other_targets, A "-bin-annot")
       in

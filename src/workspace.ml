@@ -46,11 +46,12 @@ module Context = struct
   end
 
   module Common = struct
-    type t =
-      { loc     : Loc.t
-      ; profile : string
-      ; targets : Target.t list
-      ; env     : Dune_env.Stanza.t option
+    type 'bin_annot t =
+      { loc       : Loc.t
+      ; profile   : string
+      ; targets   : Target.t list
+      ; env       : Dune_env.Stanza.t option
+      ; bin_annot : 'bin_annot
       }
 
     let t ~profile =
@@ -58,17 +59,19 @@ module Context = struct
       and targets = field "targets" (list Target.t) ~default:[Target.Native]
       and profile = field "profile" string ~default:profile
       and loc = loc
+      and bin_annot = field_o_b "bin_annot"
       in
       { targets
       ; profile
       ; loc
       ; env
+      ; bin_annot
       }
   end
 
   module Opam = struct
     type t =
-      { base    : Common.t
+      { base    : bool Common.t
       ; name    : string
       ; switch  : string
       ; root    : string option
@@ -83,7 +86,12 @@ module Context = struct
       and merlin = field_b "merlin"
       in
       let name = Option.value ~default:switch name in
-      let base = { base with targets = Target.add base.targets x } in
+      let base =
+        { base with
+          targets = Target.add base.targets x
+        ; bin_annot = Option.value ~default:merlin base.bin_annot
+        }
+      in
       { base
       ; switch
       ; name
@@ -93,11 +101,14 @@ module Context = struct
   end
 
   module Default = struct
-    type t = Common.t
+    type t = bool Common.t
 
     let t ~profile ~x =
       Common.t ~profile >>| fun t ->
-      { t with targets = Target.add t.targets x }
+      { t with
+        targets = Target.add t.targets x
+      ; bin_annot = Option.value ~default:true t.bin_annot
+      }
   end
 
   type t = Default of Default.t | Opam of Opam.t
@@ -147,6 +158,7 @@ module Context = struct
       ; profile = Option.value profile
                     ~default:Config.default_build_profile
       ; env = None
+      ; bin_annot = true
       }
 end
 
