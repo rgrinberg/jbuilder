@@ -77,15 +77,15 @@ type t =
   ; supported_versions : Supported_versions.t
   }
 
-module Error_msg = struct
-  let since t ver ~what =
-    Printf.sprintf "%s is only available since version %s of %s"
-      what (Version.to_string ver) t.desc
-end
-
 module Error = struct
-  let since loc t ver ~what =
-    Errors.fail loc "%s" @@ Error_msg.since t ver ~what
+  let since ?warn_and_return loc t ver ~what =
+    let handle_message msg =
+      match warn_and_return with
+      | Some value -> Errors.warn loc "%s" msg; value
+      | None -> Errors.fail loc "%s" msg
+    in
+    Printf.ksprintf handle_message "%s is only available since version %s of %s"
+      what (Version.to_string ver) t.desc
 
   let renamed_in loc t ver ~what ~to_ =
     Errors.fail loc "%s was renamed to '%s' in the %s version of %s"
@@ -181,8 +181,6 @@ let since ?(fatal=true) t ver =
   if current_ver >= ver then
     return ()
   else
-    desc () >>= function
-    | (loc, what) when fatal -> Error.since loc t ver ~what
-    | (loc, what) ->
-      Errors.warn loc "%s" @@ Error_msg.since t ver ~what;
-      return ()
+    desc () >>= fun (loc, what) ->
+    let warn_and_return = if fatal then None else Some (return ()) in
+    Error.since loc t ver ~what ?warn_and_return

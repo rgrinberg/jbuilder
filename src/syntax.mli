@@ -26,7 +26,10 @@ end
 type t
 
 module Error : sig
-  val since      : Loc.t -> t -> Version.t -> what:string -> _
+  (** Fail with an error indicating [what] is only available since the given version.
+      If [warn_and_return] is set, just output a warning and return the given value.
+  *)
+  val since : ?warn_and_return:'a -> Loc.t -> t -> Version.t -> what:string -> 'a
 
   val renamed_in : Loc.t -> t -> Version.t -> what:string -> to_:string -> _
 
