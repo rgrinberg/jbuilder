@@ -14,6 +14,10 @@ From a (context) stanza in the workspace:
   Entering directory 'precedence'
   VARIABLE_FROM_CONTEXT=value2
 
+Or from an (env) stanza in a dune file:
+
+  $ dune exec --root precedence ./printenv.exe VARIABLE_FROM_DUNE_FILE
+
 When a variable is set from both a context and a global one, the context one is
 used.
 
