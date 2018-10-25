@@ -244,26 +244,33 @@ end = struct
         Exn.code_error "Super_context.Env.get called on invalid directory"
           [ "dir", Path.to_sexp dir ]
 
-  let external_ t ~dir =
+  let make_prop t ~dir ~make_default ~make_prop ~get_prop ~set_prop =
     let rec loop t node =
-      match node.external_ with
+      match get_prop node with
       | Some x -> x
       | None ->
         let profile = profile t in
         let default =
           match node.inherit_from with
-          | None -> t.context.env
+          | None -> make_default ()
           | Some (lazy node) -> loop t node
         in
-        let flags =
+        let prop =
           match Dune_env.Stanza.find node.config ~profile with
           | None -> default
-          | Some cfg -> cfg.env_vars
+          | Some cfg -> make_prop ~default cfg
         in
-        node.external_ <- Some flags;
-        flags
+        set_prop node (Some prop);
+        prop
     in
     loop t (get t ~dir)
+
+  let external_ t =
+    make_prop t
+      ~make_default:(fun () -> t.context.env)
+      ~make_prop:(fun ~default:_ cfg -> cfg.env_vars)
+      ~get_prop:(fun node -> node.external_)
+      ~set_prop:(fun node ext -> node.external_ <- ext)
 
   let expander t ~dir =
     let node = get t ~dir in
@@ -273,32 +280,18 @@ end = struct
     |> Expander.set_dir ~dir
 
   let ocaml_flags t ~dir =
-    let rec loop t node =
-      match node.ocaml_flags with
-      | Some x -> x
-      | None ->
-        let profile = profile t in
-        let default =
-          match node.inherit_from with
-          | None -> Ocaml_flags.default ~profile
-          | Some (lazy node) -> loop t node
-        in
-        let flags =
-          match Dune_env.Stanza.find node.config ~profile with
-          | None -> default
-          | Some cfg ->
-            let expander = expander t ~dir in
-            Ocaml_flags.make
-              ~flags:cfg.flags
-              ~ocamlc_flags:cfg.ocamlc_flags
-              ~ocamlopt_flags:cfg.ocamlopt_flags
-              ~default
-              ~eval:(expand_and_eval_set ~expander)
-        in
-        node.ocaml_flags <- Some flags;
-        flags
-    in
-    loop t (get t ~dir)
+    make_prop t ~dir
+      ~make_default:(fun () -> Ocaml_flags.default ~profile:(profile t))
+      ~make_prop:(fun ~default cfg ->
+        let expander = expander t ~dir in
+        Ocaml_flags.make
+          ~flags:cfg.flags
+          ~ocamlc_flags:cfg.ocamlc_flags
+          ~ocamlopt_flags:cfg.ocamlopt_flags
+          ~default
+          ~eval:(expand_and_eval_set ~expander))
+      ~get_prop:(fun node -> node.ocaml_flags)
+      ~set_prop:(fun node flags -> node.ocaml_flags <- flags)
 end
 
 
