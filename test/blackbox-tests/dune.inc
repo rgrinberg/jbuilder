@@ -200,6 +200,14 @@
    (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
 
 (alias
+ (name env-dune-file)
+ (deps (package dune) (source_tree test-cases/env-dune-file))
+ (action
+  (chdir
+   test-cases/env-dune-file
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name env-tracking)
  (deps (package dune) (source_tree test-cases/env-tracking))
  (action
@@ -1098,6 +1106,7 @@
   (alias duplicate-target-no-loc)
   (alias enabled_if)
   (alias env)
+  (alias env-dune-file)
   (alias env-tracking)
   (alias env-var-expansion)
   (alias env-variables)
@@ -1231,6 +1240,7 @@
   (alias duplicate-target-no-loc)
   (alias enabled_if)
   (alias env)
+  (alias env-dune-file)
   (alias env-tracking)
   (alias env-var-expansion)
   (alias env-variables)
