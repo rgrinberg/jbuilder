@@ -910,7 +910,9 @@ and setup_copy_rules t ~ctx_dir ~non_target_source_files =
 
        This allows to keep generated files in tarballs. Maybe we
        should allow it on a case-by-case basis though. *)
-    compile_rule t (Pre_rule.make build ~context:None ~env:None)
+    compile_rule t
+      (Pre_rule.make build ~context:None ~env:None
+         ~dir:(Path.parent_exn ctx_path))
       ~copy_source:true)
 
 and load_dir   t ~dir = ignore (load_dir_and_get_targets t ~dir : Path.Set.t)
@@ -1009,7 +1011,7 @@ and load_dir_step2_exn t ~dir ~collector ~lazy_generators =
                      ~suffix:("-" ^ Digest.to_hex stamp)
                  in
                  let rule =
-                   Pre_rule.make ~locks ~context:(Some context) ~env ?loc
+                   Pre_rule.make ~locks ~context:(Some context) ~env ~dir ?loc
                      (Build.progn [ action; Build.create_file path ])
                  in
                  (rule :: rules, Path.Set.add deps path))
@@ -1018,6 +1020,7 @@ and load_dir_step2_exn t ~dir ~collector ~lazy_generators =
         (Pre_rule.make
            ~context:None
            ~env:None
+           ~dir
            (Build.path_set deps >>>
             dyn_deps >>>
             Build.dyn_path_set (Build.arr (fun x -> x))
@@ -1234,6 +1237,7 @@ let stamp_file_for_files_of t ~dir ~ext =
       (let open Build.O in
        Pre_rule.make
          ~env:None
+         ~dir
          ~context:None
          (Build.paths files >>>
           Build.action ~targets:[stamp_file]

@@ -205,7 +205,7 @@ module Rule = struct
     }
 
   let make ?(sandbox=false) ?(mode=Dune_file.Rule.Mode.Not_a_rule_stanza)
-        ~context ~env ?(locks=[]) ?loc build =
+        ~context ~dir ~env ?(locks=[]) ?loc build =
     let targets = targets build in
     let dir =
       match targets with
@@ -214,8 +214,7 @@ module Rule = struct
         | Some loc -> Errors.fail loc "Rule has no targets specified"
         | None -> Exn.code_error "Build_interpret.Rule.make: no targets" []
         end
-      | x :: l ->
-        let dir = Path.parent_exn (Target.path x) in
+      | l ->
         List.iter l ~f:(fun target ->
           let path = Target.path target in
           if Path.parent_exn path <> dir then
@@ -224,6 +223,7 @@ module Rule = struct
               Exn.code_error "rule has targets in different directories"
                 [ "targets", Sexp.Encoder.list Path.to_sexp
                                (List.map targets ~f:Target.path)
+                ; "dir", Path.to_sexp dir
                 ]
             | Some loc ->
               Errors.fail loc

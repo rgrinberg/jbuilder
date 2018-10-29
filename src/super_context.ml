@@ -233,14 +233,14 @@ let add_rule t ?sandbox ?mode ?locks ?loc ~dir build =
   let env = Env.external_ t ~dir in
   Build_system.add_rule t.build_system
     (Build_interpret.Rule.make ?sandbox ?mode ?locks ?loc
-       ~context:(Some t.context) ~env:(Some env) build)
+       ~context:(Some t.context) ~env:(Some env) ~dir build)
 
 let add_rule_get_targets t ?sandbox ?mode ?locks ?loc ~dir build =
   let build = Build.O.(>>>) build t.chdir in
   let env = Env.external_ t ~dir in
   let rule =
     Build_interpret.Rule.make ?sandbox ?mode ?locks ?loc
-      ~context:(Some t.context) ~env:(Some env) build
+      ~dir ~context:(Some t.context) ~env:(Some env) build
   in
   Build_system.add_rule t.build_system rule;
   List.map rule.targets ~f:Build_interpret.Target.path

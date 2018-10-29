@@ -28,6 +28,7 @@ module Rule : sig
     :  ?sandbox:bool
     -> ?mode:Dune_file.Rule.Mode.t
     -> context:Context.t option
+    -> dir:Path.t
     -> env:Env.t option
     -> ?locks:Path.t list
     -> ?loc:Loc.t
