@@ -25,16 +25,85 @@ let check_mkdir loc path =
       (Dune_lang.pp Dune)
       (List [Dune_lang.unsafe_atom_of_string "mkdir"; Path_dune_lang.encode path])
 
+module P : sig
+  type 'a t
+
+  val return : 'a -> 'a t
+
+  val of_partial
+    :  String_with_vars.t
+    -> mode:'a String_with_vars.Mode.t
+    -> expander:Expander.t
+    -> 'a t
+
+  val expand : 'a t -> Expander.t -> 'a
+
+  val map_m : 'a list -> f:('a -> 'b t) -> 'b list t
+
+  val is_expanded : _ t -> bool
+
+  val expanded : 'a t -> 'a option
+
+  module O : sig
+    val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
+    val (>>|) : 'a t -> ('a -> 'b) -> 'b t
+  end
+end = struct
+  type 'a t =
+    | Expanded of 'a
+    | Unexpanded of (Expander.t -> 'a t)
+
+  let expanded = function
+    | Expanded a -> Some a
+    | Unexpanded _ -> None
+
+  let is_expanded = function
+    | Expanded _ -> true
+    | Unexpanded _ -> false
+
+  let rec expand t expander =
+    match t with
+    | Expanded a -> a
+    | Unexpanded a -> expand (a expander) expander
+
+  let return a = Expanded a
+
+  let of_partial template ~mode ~expander =
+    let dir = Expander.dir expander in
+    let f = Expander.expand_var_exn expander in
+    match String_with_vars.partial_expand template ~mode ~dir ~f with
+    | Expanded a -> Expanded a
+    | Unexpanded a ->
+      Unexpanded (fun expander ->
+        let dir = Expander.dir expander in
+        let f = Expander.expand_var_exn expander in
+        Expanded (String_with_vars.expand ~mode ~dir ~f a))
+
+  module O = struct
+    let rec (>>=) t f =
+      match t with
+      | Expanded a -> f a
+      | Unexpanded f' -> Unexpanded (fun e -> f' e >>= f)
+
+    let (>>|) t f = t >>= fun x -> return (f x)
+  end
+
+  open O
+
+  let rec map_m t ~f =
+    match t with
+    | [] -> Expanded []
+    | [x] -> f x >>| fun x -> [x]
+    | x :: xs ->
+      f x >>= fun x ->
+      map_m xs ~f >>| fun xs ->
+      x :: xs
+end
+
+module Program = Unresolved.Program
 module Partial = struct
-  module Program = Unresolved.Program
 
-  module type Past = Action_intf.Ast
-    with type program = (Program.t, String_with_vars.t) either
-    with type path    = (Path.t   , String_with_vars.t) either
-    with type string  = (String.t , String_with_vars.t) either
-  module rec Past : Past = Past
-
-  include Past
+  type t = Action.Unresolved.t P.t
 
   module E = struct
     let expand ~expander ~mode ~l ~r =
@@ -81,78 +150,16 @@ module Partial = struct
         ~r:prog_and_args_of_values
   end
 
-  let rec expand t ~map_exe ~expander : Unresolved.t =
-    match t with
-    | Run (prog, args) ->
-      let args = List.concat_map args ~f:(E.strings ~expander) in
-      let prog, more_args = E.prog_and_args ~expander prog in
-      let prog =
-        match prog with
-        | Search _ -> prog
-        | This path -> This (map_exe path)
-      in
-      Run (prog, more_args @ args)
-    | Chdir (fn, t) ->
-      let fn = E.path ~expander fn in
-      let expander = Expander.set_dir expander ~dir:fn in
-      Chdir (fn, expand t ~expander ~map_exe)
-    | Setenv (var, value, t) ->
-      let var = E.string ~expander var in
-      let value = E.string ~expander value in
-      let expander = Expander.set_env expander ~var ~value in
-      Setenv (var, value, expand t ~expander ~map_exe)
-    | Redirect (outputs, fn, t) ->
-      Redirect (outputs, E.path ~expander fn, expand t ~map_exe ~expander)
-    | Ignore (outputs, t) ->
-      Ignore (outputs, expand t ~expander ~map_exe)
-    | Progn l -> Progn (List.map l ~f:(expand ~expander ~map_exe))
-    | Echo xs -> Echo (List.concat_map xs ~f:(E.strings ~expander))
-    | Cat x -> Cat (E.path ~expander x)
-    | Copy (x, y) ->
-      Copy (E.path ~expander x, E.path ~expander y)
-    | Symlink (x, y) ->
-      Symlink (E.path ~expander x, E.path ~expander y)
-    | Copy_and_add_line_directive (x, y) ->
-      Copy_and_add_line_directive (E.path ~expander x, E.path ~expander y)
-    | System x -> System (E.string ~expander x)
-    | Bash x -> Bash (E.string ~expander x)
-    | Write_file (x, y) -> Write_file (E.path ~expander x, E.string ~expander y)
-    | Rename (x, y) ->
-      Rename (E.path ~expander x, E.path ~expander y)
-    | Remove_tree x ->
-      Remove_tree (E.path ~expander x)
-    | Mkdir x -> begin
-        match x with
-        | Left  path -> Mkdir path
-        | Right tmpl ->
-          let path = E.path ~expander x in
-          check_mkdir (String_with_vars.loc tmpl) path;
-          Mkdir path
-      end
-    | Digest_files x ->
-      Digest_files (List.map x ~f:(E.path ~expander))
-    | Diff { optional; file1; file2; mode } ->
-      Diff { optional
-           ; file1 = E.path ~expander file1
-           ; file2 = E.path ~expander file2
-           ; mode
-           }
-    | Merge_files_into (sources, extras, target) ->
-      Merge_files_into
-        (List.map ~f:(E.path ~expander) sources,
-         List.map ~f:(E.string ~expander) extras,
-         E.path ~expander target)
+  let expand t ~expander : Unresolved.t = P.expand t expander
 end
 
 module E = struct
   let expand ~expander ~mode ~map x =
+    let open P.O in
     let dir = Expander.dir expander in
-    let f = Expander.expand_var_exn expander in
-    match String_with_vars.partial_expand ~mode ~dir ~f x with
-    | Expanded e ->
-      let loc = Some (String_with_vars.loc x) in
-      Left (map ~loc e ~dir)
-    | Unexpanded x -> Right x
+    P.of_partial x ~mode ~expander >>| fun e ->
+    let loc = Some (String_with_vars.loc x) in
+    map ~loc e ~dir
 
   let string = expand ~mode:Single ~map:(ignore_loc Value.to_string)
   let strings = expand ~mode:Many ~map:(ignore_loc Value.L.to_strings)
@@ -163,96 +170,108 @@ module E = struct
   let prog_and_args = expand ~mode:Many ~map:Partial.E.prog_and_args_of_values
 end
 
-let rec partial_expand t ~map_exe ~expander : Partial.t =
+let rec partial_expand (t : t) ~map_exe ~expander : Partial.t =
+  let open P.O in
+  let open Unresolved in
   match t with
   | Run (prog, args) ->
-    let args =
-      List.concat_map args ~f:(fun arg ->
-        match E.strings ~expander arg with
-        | Left args -> List.map args ~f:(fun x -> Left x)
-        | Right _ as x -> [x])
-    in
-    begin
-      match E.prog_and_args ~expander prog with
-      | Left (prog, more_args) ->
-        let more_args = List.map more_args ~f:(fun x -> Left x) in
-        let prog =
-          match prog with
-          | Search _ -> prog
-          | This path -> This (map_exe path)
-        in
-        Run (Left prog, more_args @ args)
-      | Right _ as prog ->
-        Run (prog, args)
-    end
+    P.map_m args ~f:(E.strings ~expander)
+    >>| List.concat
+    >>= fun args ->
+    E.prog_and_args ~expander prog >>| (fun (prog, more_args) ->
+      let prog =
+        match prog with
+        | Search _ -> prog
+        | This path -> This (map_exe path)
+      in
+      let args = more_args @ args in
+      Run (prog, args))
   | Chdir (fn, t) -> begin
       let res = E.path ~expander fn in
-      match res with
-      | Left dir ->
+      if P.is_expanded res then
+        res >>= fun dir ->
         let expander = Expander.set_dir expander ~dir in
-        Chdir (res, partial_expand t ~expander ~map_exe)
-      | Right fn ->
+        partial_expand t ~expander ~map_exe >>| fun t ->
+        Chdir (dir, t)
+      else
         let loc = String_with_vars.loc fn in
         Errors.fail loc
           "This directory cannot be evaluated statically.\n\
            This is not allowed by dune"
     end
   | Setenv (var, value, t) ->
-    let var =
-      match E.string ~expander var with
-      | Left l -> l
-      | Right sw ->
-        Errors.fail (String_with_vars.loc sw)
-          "environment variable names must be static"
-    in
-    let value =
-      match E.string ~expander value with
-      | Left l -> l
-      | Right sw ->
-        Errors.fail (String_with_vars.loc sw)
-          "environment variable values must be static"
-    in
+    (let var' = E.string ~expander var in
+     if P.is_expanded var' then
+       var'
+     else
+       Errors.fail (String_with_vars.loc var)
+         "environment variable names must be static")
+    >>= fun var ->
+    E.string ~expander value >>= fun value ->
     let expander = Expander.set_env expander ~var ~value in
-    Setenv (Left var, Left value, partial_expand t ~expander ~map_exe)
+    partial_expand t ~expander ~map_exe >>| fun t ->
+    Setenv (var, value, t)
   | Redirect (outputs, fn, t) ->
-    Redirect (outputs, E.path ~expander fn, partial_expand t ~expander ~map_exe)
+    E.path ~expander fn >>= fun fn ->
+    partial_expand t ~expander ~map_exe >>| fun t ->
+    Redirect (outputs, fn, t)
   | Ignore (outputs, t) ->
-    Ignore (outputs, partial_expand t ~expander ~map_exe)
-  | Progn l -> Progn (List.map l ~f:(partial_expand ~map_exe ~expander))
-  | Echo xs -> Echo (List.map xs ~f:(E.cat_strings ~expander))
-  | Cat x -> Cat (E.path ~expander x)
+    partial_expand t ~expander ~map_exe >>| fun t ->
+    Ignore (outputs, t)
+  | Progn l ->
+    P.map_m l ~f:(partial_expand ~map_exe ~expander)
+    >>| fun l -> Progn l
+  | Echo xs ->
+    P.map_m xs ~f:(E.cat_strings ~expander)
+    >>| fun xs -> Echo xs
+  | Cat x ->
+    E.path ~expander x
+    >>| fun x -> Cat x
   | Copy (x, y) ->
-    Copy (E.path ~expander x, E.path ~expander y)
+    E.path ~expander x >>= fun x ->
+    E.path ~expander y >>| fun y ->
+    Copy (x, y)
   | Symlink (x, y) ->
-    Symlink (E.path ~expander x, E.path ~expander y)
+    E.path ~expander x >>= fun x ->
+    E.path ~expander y >>| fun y ->
+    Symlink (x, y)
   | Copy_and_add_line_directive (x, y) ->
-    Copy_and_add_line_directive (E.path ~expander x, E.path ~expander y)
-  | System x -> System (E.string ~expander x)
-  | Bash x -> Bash (E.string ~expander x)
-  | Write_file (x, y) -> Write_file (E.path ~expander x, E.string ~expander y)
+    E.path ~expander x >>= fun x ->
+    E.path ~expander y >>| fun y ->
+    Copy_and_add_line_directive (x, y)
+  | System x ->
+    E.string ~expander x >>| fun x ->
+    System x
+  | Bash x ->
+    E.string ~expander x >>| fun x ->
+    Bash x
+  | Write_file (x, y) ->
+    E.path ~expander x >>= fun x ->
+    E.string ~expander y >>| fun y ->
+    Write_file (x, y)
   | Rename (x, y) ->
-    Rename (E.path ~expander x, E.path ~expander y)
+    E.path ~expander x >>= fun x ->
+    E.path ~expander y >>| fun y ->
+    Rename (x, y)
   | Remove_tree x ->
-    Remove_tree (E.path ~expander x)
+    E.path ~expander x >>| fun x ->
+    Remove_tree x
   | Mkdir x ->
-    let res = E.path ~expander x in
-    (match res with
-     | Left path -> check_mkdir (String_with_vars.loc x) path
-     | Right _   -> ());
-    Mkdir res
+    E.path ~expander x >>| (fun path ->
+      check_mkdir (String_with_vars.loc x) path;
+      Mkdir path)
   | Digest_files x ->
-    Digest_files (List.map x ~f:(E.path ~expander))
+    P.map_m x ~f:(E.path ~expander)
+    >>| fun x -> Digest_files x
   | Diff { optional; file1; file2; mode } ->
-    Diff { optional
-         ; file1 = E.path ~expander file1
-         ; file2 = E.path ~expander file2
-         ; mode
-         }
+    E.path ~expander file1 >>= fun file1 ->
+    E.path ~expander file2 >>| fun file2 ->
+    Diff { optional ; file1 ; file2 ; mode}
   | Merge_files_into (sources, extras, target) ->
-    Merge_files_into
-      (List.map sources ~f:(E.path ~expander),
-       List.map extras ~f:(E.string ~expander),
-       E.path ~expander target)
+    P.map_m sources ~f:(E.path ~expander) >>= fun sources ->
+    P.map_m extras ~f:(E.string ~expander) >>= fun extras ->
+    E.path ~expander target >>| fun target ->
+    Merge_files_into (sources, extras, target)
 
 module Infer = struct
   module Outcome = struct
