@@ -42,10 +42,8 @@ module Dune_file = struct
     in
     let osl ~sub_dirs =
       let open Dune_lang.Decoder in
-      Ordered_set_lang.decode >>| fun osl ->
-      Ordered_set_lang.String.eval osl
-        ~parse:(fun ~loc:_ s -> s)
-        ~standard:(Lazy.force sub_dirs)
+      Predicate_lang.decode >>| fun plang ->
+      Predicate_lang.filter plang ~standard:Predicate_lang.empty sub_dirs
       |> String.Set.of_list
     in
     let stanza ~sub_dirs =
