@@ -805,10 +805,8 @@ The ``ignored_subdirs`` stanza allows to tell Dune to ignore one or more
 sub-directories. The syntax is based on dune's predicate language and allows the
 user the following operations:
 
-- Special values. ``:all`` refers to all sub directories.
-
-- Set operations. Differences are expressed with backslash: ``:all \ bar``,
-  unions are just concatenation.
+- Set operations. Differences are expressed with backslash: ``* \ bar``, unions
+  are done by listing multiple items.
 
 - Sets can be defined using globs.
 
@@ -816,8 +814,8 @@ Examples:
 
 .. code:: scheme
 
-   (ignored_subdirs :all) ;; ignore all directories
-   (ignored_subdirs :all \ ocaml) ;; ignore all directories except ocaml
+   (ignored_subdirs *) ;; ignore all directories
+   (ignored_subdirs * \ ocaml) ;; ignore all directories except ocaml
    (ignored_subdirs test* foo*) ;; ignore all directories that start with test or foo
 
 A directory that is ignored will not be eagerly scanned by Dune. Any ``dune`` or

@@ -3,7 +3,7 @@ next
 
 - Add predicate language support for ignoring sub directories. This allows the
   use globs, set operations, and special values in specifying the ignore sub
-  directories. For example: `(ignore_subdirs (:all \ lib*))` ignores all
+  directories. For example: `(ignore_subdirs (* \ lib*))` ignores all
   directories except those that support with lib. (#1517, @rgrinberg)
 
 1.5.1 (7/11/2018)

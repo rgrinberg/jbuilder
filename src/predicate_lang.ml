@@ -4,7 +4,6 @@ module Ast = struct
   type 'a t =
     | Element of 'a
     | Standard
-    | All
     | Union of 'a t list
     | Diff of 'a t * 'a t
 
@@ -20,8 +19,6 @@ module Ast = struct
           match s with
           | ":standard" ->
             junk >>> return Standard
-          | ":all" ->
-            junk >>> return All
           | ":include" ->
             Errors.fail loc ":include isn't supported in the predicate language"
           | _ when s.[0] = ':' ->
@@ -76,7 +73,6 @@ let empty =
 let rec mem t ~standard ~elem =
   match (t : _ Ast.t) with
   | Element (_loc, a) -> Glob.test a elem
-  | All -> true
   | Union xs -> List.exists ~f:(mem ~standard ~elem) xs
   | Diff (l, r) ->
     mem l ~standard ~elem && not (mem ~standard ~elem r)
@@ -84,7 +80,6 @@ let rec mem t ~standard ~elem =
 
 let filter t ~standard elems =
   match t.ast with
-  | All -> Lazy.force elems
   | Union [] -> []
   | _ ->
     (List.filter (Lazy.force elems)
