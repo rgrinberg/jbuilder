@@ -805,6 +805,9 @@ The ``ignored_subdirs`` stanza allows to tell Dune to ignore one or more
 sub-directories. The syntax is based on dune's predicate language and allows the
 user the following operations:
 
+- The special value ``:standard`` which refers to the default set of ignored
+  directories. These are the directories that start with any of ``[._#]``.
+
 - Set operations. Differences are expressed with backslash: ``* \ bar``, unions
   are done by listing multiple items.
 
