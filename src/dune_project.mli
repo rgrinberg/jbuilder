@@ -109,4 +109,4 @@ val get_exn : unit -> (t, 'k) Dune_lang.Decoder.parser
     written in dune-project. *)
 val find_extension_args : t -> 'a Extension.t -> 'a option
 
-val set_parser : t -> 'a Dune_lang.Decoder.t -> 'a Dune_lang.Decoder.t
+val set_parsing_context : t -> 'a Dune_lang.Decoder.t -> 'a Dune_lang.Decoder.t

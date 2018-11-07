@@ -505,5 +505,5 @@ let load ~dir ~files =
   else
     None
 
-let set_parser t parser =
+let set_parsing_context t parser =
   Dune_lang.Decoder.set_many t.parsing_context parser

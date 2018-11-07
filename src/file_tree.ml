@@ -62,7 +62,8 @@ module Dune_file = struct
         List.partition_map sexps ~f:(fun sexp ->
           match (sexp : Dune_lang.Ast.t) with
           | List (_, (Atom (_, A "ignored_subdirs") :: _)) ->
-            let stanza = Dune_project.set_parser project (stanza ~sub_dirs) in
+            let stanza =
+              Dune_project.set_parsing_context project (stanza ~sub_dirs) in
             Left (Dune_lang.Decoder.parse stanza Univ_map.empty sexp)
           | _ -> Right sexp)
       in
