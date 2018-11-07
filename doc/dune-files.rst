@@ -817,7 +817,7 @@ Examples:
 .. code:: scheme
 
    (ignored_subdirs :all) ;; ignore all directories
-   (ignored_subdirs (:all \ ocaml)) ;; ignore all directories except ocaml
+   (ignored_subdirs :all \ ocaml) ;; ignore all directories except ocaml
    (ignored_subdirs test* foo*) ;; ignore all directories that start with test or foo
 
 A directory that is ignored will not be eagerly scanned by Dune. Any ``dune`` or
