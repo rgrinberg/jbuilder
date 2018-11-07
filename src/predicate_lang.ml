@@ -9,7 +9,7 @@ module Ast = struct
 
   let decode elt =
     let open Stanza.Decoder in
-    let elt = located elt >>| fun (loc, e) -> Element (loc, e) in
+    let elt = elt >>| fun e -> Element e in
     let rec one (kind : Dune_lang.Syntax.t) =
       peek_exn >>= function
       | Atom (loc, A "\\") -> Errors.fail loc "unexpected \\"
@@ -53,35 +53,31 @@ module Ast = struct
     | Jbuild -> one kind
 end
 
-type t =
-  { ast : (Loc.t * Glob.t) Ast.t
-  ; loc : Loc.t
-  }
+type t = (string -> bool) Ast.t
 
-let decode =
+let decode : t Dune_lang.Decoder.t =
   let open Stanza.Decoder in
-  let%map (loc, ast) = located (Ast.decode Glob.decode) in
-  { ast
-  ; loc
-  }
+  Ast.decode (Glob.decode >>| Glob.test)
 
-let empty =
-  { ast = Union []
-  ; loc = Loc.none
-  }
+let empty = Ast.Union []
 
 let rec mem t ~standard ~elem =
   match (t : _ Ast.t) with
-  | Element (_loc, a) -> Glob.test a elem
+  | Element f -> f elem
   | Union xs -> List.exists ~f:(mem ~standard ~elem) xs
   | Diff (l, r) ->
     mem l ~standard ~elem && not (mem ~standard ~elem r)
   | Standard -> mem standard ~standard ~elem
 
-let filter t ~standard elems =
-  match t.ast with
+let filter (t : t) ~standard elems =
+  match t with
   | Union [] -> []
   | _ ->
     (List.filter (Lazy.force elems)
-       ~f:(fun elem -> mem t.ast ~standard:standard.ast ~elem))
+       ~f:(fun elem -> mem t ~standard:standard ~elem))
 
+let union t = Ast.Union t
+
+let of_glob g = Ast.Element (Glob.test g)
+
+let of_string_set s = Ast.Element (String.Set.mem s)
