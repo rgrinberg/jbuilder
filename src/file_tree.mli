@@ -62,7 +62,11 @@ end
     compatibility. *)
 type t
 
-val load : ?extra_ignored_subtrees:Path.Set.t -> Path.t -> t
+val load
+  :  ?extra_ignored_subtrees:Path.Set.t
+  -> defaults:Predicate_lang.t Path.Map.t
+  -> Path.t
+  -> t
 
 (** Passing [~traverse_ignored_dirs:true] to this functions causes the
     whole source tree to be deeply scanned, including ignored

@@ -39,20 +39,6 @@ let setup ?(log=Log.no_log)
       ?(capture_outputs=true)
       ?profile
       () =
-  let env = setup_env ~capture_outputs in
-  let conf =
-    Dune_load.load ?extra_ignored_subtrees ?ignore_promoted_rules ()
-  in
-  Option.iter only_packages ~f:(fun set ->
-    Package.Name.Set.iter set ~f:(fun pkg ->
-      if not (Package.Name.Map.mem conf.packages pkg) then
-        let pkg_name = Package.Name.to_string pkg in
-        die "@{<error>Error@}: I don't know about package %s \
-             (passed through --only-packages/--release)%s"
-          pkg_name
-          (hint pkg_name
-             (Package.Name.Map.keys conf.packages
-             |> List.map ~f:Package.Name.to_string))));
   let workspace =
     match workspace with
     | Some w -> w
@@ -71,7 +57,19 @@ let setup ?(log=Log.no_log)
         | Some p -> Workspace.load ?x ?profile p
         | None -> Workspace.default ?x ?profile ()
   in
-
+  let env = setup_env ~capture_outputs in
+  let conf =
+    Dune_load.load ?extra_ignored_subtrees ?ignore_promoted_rules workspace in
+  Option.iter only_packages ~f:(fun set ->
+    Package.Name.Set.iter set ~f:(fun pkg ->
+      if not (Package.Name.Map.mem conf.packages pkg) then
+        let pkg_name = Package.Name.to_string pkg in
+        die "@{<error>Error@}: I don't know about package %s \
+             (passed through --only-packages/--release)%s"
+          pkg_name
+          (hint pkg_name
+             (Package.Name.Map.keys conf.packages
+             |> List.map ~f:Package.Name.to_string))));
   Context.create ~env workspace
   >>= fun contexts ->
   List.iter contexts ~f:(fun (ctx : Context.t) ->

@@ -1,16 +1,6 @@
 open! Stdune
 open! Import
 
-let standard_ignore_dirs =
-  let open Re in
-  [ empty
-  ; str "."
-  ; seq [set "._#"; rep any]
-  ]
-  |> alt
-  |> Glob.of_re
-  |> Predicate_lang.of_glob
-
 module Dune_file = struct
   module Plain = struct
     type t =
@@ -75,11 +65,11 @@ module Dune_file = struct
       let ignored_subdirs = Predicate_lang.union ignored_subdirs in
       (ignored_subdirs, sexps)
 
-  let load file ~project ~kind =
+  let load file ~project ~kind ~default_ignored_subdirs =
     Io.with_lexbuf_from_file file ~f:(fun lb ->
       let contents, ignored_subdirs =
         if Dune_lexer.is_script lb then
-          (Contents.Ocaml_script file, standard_ignore_dirs)
+          (Contents.Ocaml_script file, default_ignored_subdirs)
         else
           let sexps =
             Dune_lang.Parser.parse lb
@@ -180,8 +170,12 @@ end
 
 module File_map = Map.Make(File)
 
-let load ?(extra_ignored_subtrees=Path.Set.empty) path =
+let load ?(extra_ignored_subtrees=Path.Set.empty) ~defaults path =
   let rec walk path ~dirs_visited ~project ~ignored : Dir.t =
+    let default_ignored_subdirs =
+      Option.value ~default:Ignored_dirs.standard
+        (Path.Map.find defaults path)
+    in
     let contents = lazy (
       let files, sub_dirs =
         Path.readdir_unsorted path
@@ -212,19 +206,20 @@ let load ?(extra_ignored_subtrees=Path.Set.empty) path =
       in
       let project, dune_file, ignored_subdirs =
         if ignored then
-          (project, None, standard_ignore_dirs)
+          (project, None, default_ignored_subdirs)
         else
           let project =
             Option.value (Dune_project.load ~dir:path ~files) ~default:project
           in
           let dune_file, ignored_subdirs =
             match List.filter ["dune"; "jbuild"] ~f:(String.Set.mem files) with
-            | [] -> (None, standard_ignore_dirs )
+            | [] -> (None, default_ignored_subdirs)
             | [fn] ->
               if fn = "dune" then
                 Dune_project.ensure_project_file_exists project;
               let dune_file, ignored_subdirs =
                 Dune_file.load (Path.relative path fn)
+                  ~default_ignored_subdirs
                   ~project
                   ~kind:(Option.value_exn (Dune_lang.Syntax.of_basename fn))
               in
@@ -249,7 +244,7 @@ let load ?(extra_ignored_subtrees=Path.Set.empty) path =
         let ignored = lazy (
           lazy (List.map sub_dirs ~f:(fun (a, _, _) -> a))
           |> Predicate_lang.filter ignored_subdirs
-               ~standard:standard_ignore_dirs
+               ~standard:default_ignored_subdirs
           |> String.Set.of_list
         ) in
         String.Set.mem (Lazy.force ignored)

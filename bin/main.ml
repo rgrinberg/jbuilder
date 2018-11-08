@@ -82,12 +82,14 @@ let installed_libraries =
     Scheduler.go ~log:(Log.create common) ~common
       (Context.create ~env
          { merlin_context = Some "default"
-         ; contexts = [Default { loc = Loc.of_pos __POS__
-                               ; targets   = [Native]
-                               ; profile   = Config.default_build_profile
-                               ; env       = None
-                               ; toolchain = None
-                               }]
+         ; contexts = [Default
+                         { loc = Loc.of_pos __POS__
+                         ; targets         = [Native]
+                         ; profile         = Config.default_build_profile
+                         ; env             = None
+                         ; toolchain       = None
+                         ; ignored_subdirs = None
+                         }]
          ; env = None
          }
        >>= fun ctxs ->

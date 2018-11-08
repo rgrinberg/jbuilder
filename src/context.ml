@@ -593,7 +593,8 @@ let create ~env (workspace : Workspace.t) =
   in
   Fiber.parallel_map workspace.contexts ~f:(fun def ->
     match def with
-    | Default { targets; profile; env = env_node ; toolchain ; loc = _ } ->
+    | Default { ignored_subdirs = _; targets; profile
+              ; env = env_node ; toolchain ; loc = _ } ->
       let merlin =
         workspace.merlin_context = Some (Workspace.Context.name def)
       in
@@ -604,7 +605,13 @@ let create ~env (workspace : Workspace.t) =
       in
       default ~env ~env_nodes:(env_nodes env_node) ~profile ~targets ~merlin
         ~host_toolchain
-    | Opam { base = { targets; profile; env = env_node; toolchain; loc = _ }
+    | Opam { base = { targets
+                    ; profile
+                    ; env = env_node
+                    ; toolchain
+                    ; loc = _
+                    ; ignored_subdirs = _
+                    }
            ; name; switch; root; merlin } ->
       create_for_opam ~root ~env_nodes:(env_nodes env_node) ~env ~profile
         ~switch ~name ~merlin ~targets ~host_toolchain:toolchain)

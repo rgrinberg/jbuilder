@@ -52,6 +52,7 @@ module Context = struct
       ; targets   : Target.t list
       ; env       : Dune_env.Stanza.t option
       ; toolchain : string option
+      ; ignored_subdirs : Predicate_lang.t option
       }
 
     let t ~profile =
@@ -60,6 +61,9 @@ module Context = struct
       and profile = field "profile" string ~default:profile
       and toolchain =
         field_o "toolchain" (Syntax.since syntax (1, 5) >>= fun () -> string)
+      and ignored_subdirs =
+        field_o "ignored_subdirs"
+          (Syntax.since syntax (1, 6) >>> Predicate_lang.decode)
       and loc = loc
       in
       { targets
@@ -67,6 +71,7 @@ module Context = struct
       ; loc
       ; env
       ; toolchain
+      ; ignored_subdirs
       }
   end
 
@@ -134,6 +139,10 @@ module Context = struct
     | Default _ -> "default"
     | Opam    o -> o.name
 
+  let ignored_subdirs = function
+    | Default d -> d.ignored_subdirs
+    | Opam    b -> b.base.ignored_subdirs
+
   let targets = function
     | Default x -> x.targets
     | Opam    x -> x.base.targets
@@ -152,6 +161,7 @@ module Context = struct
                     ~default:Config.default_build_profile
       ; env = None
       ; toolchain = None
+      ; ignored_subdirs = None
       }
 end
 

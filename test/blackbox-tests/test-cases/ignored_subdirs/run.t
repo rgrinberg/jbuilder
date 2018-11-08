@@ -8,3 +8,9 @@
   $ dune build --root glob @runtest
   Entering directory 'glob'
   real dir
+  $ dune build --root per-workspace --workspace per-workspace/dune-workspace
+  File "garbage/dune", line 1, characters 0-7:
+  1 | garbage
+      ^^^^^^^
+  Error: Unknown constructor garbage
+  [1]

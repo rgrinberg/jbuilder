@@ -11,11 +11,12 @@ module Context : sig
   end
   module Common : sig
     type t =
-      { loc       : Loc.t
-      ; profile   : string
-      ; targets   : Target.t list
-      ; env       : Dune_env.Stanza.t option
-      ; toolchain : string option
+      { loc             : Loc.t
+      ; profile         : string
+      ; targets         : Target.t list
+      ; env             : Dune_env.Stanza.t option
+      ; toolchain       : string option
+      ; ignored_subdirs : Predicate_lang.t option
       }
   end
   module Opam : sig
@@ -35,6 +36,8 @@ module Context : sig
   type t = Default of Default.t | Opam of Opam.t
 
   val name : t -> string
+
+  val ignored_subdirs : t -> Predicate_lang.t option
 end
 
 type t =
