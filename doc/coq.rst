@@ -30,6 +30,7 @@ The basic form for defining Coq libraries is very similar to the OCaml form:
      (public_name <package.module_prefix>)
      (synopsis <text>)
      (modules <ordered_set_expr>)
+     (libraries <ocaml_libraries>)
      (flags <coq_flags>))
 
 The stanza will build all `.v` files on the given directory, *à la*
@@ -40,6 +41,8 @@ The stanza will build all `.v` files on the given directory, *à la*
 - the ``modules`` field does allow to constraint the set of modules
   included in the compilation, similarly to its OCaml counterpart;
   ``:standard`` is bound to all the ``.v`` files in the directory,
+- the path to sources of ``<ocaml_libraries>`` will be passed to
+  ``coqdep`` and ``coqc`` using Coq's ``-I`` flag,
 - ``<coq_flags>`` will be passed to ``coqc``.
 
 Library Composition and Handling

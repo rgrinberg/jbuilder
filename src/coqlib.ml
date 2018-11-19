@@ -12,6 +12,26 @@ let debug = false
 (* - handle (include_subdirs ...)              *)
 (* - save library information                  *)
 
+(* This should go away once we fix coqdep      *)
+module Util = struct
+
+  let to_iflags dirs =
+    Arg_spec.S
+      (Path.Set.fold dirs ~init:[] ~f:(fun dir acc ->
+         Arg_spec.Path dir :: A "-I" :: acc)
+       |> List.rev)
+
+  let include_paths ts ~stdlib_dir =
+    let dirs =
+      List.fold_left ts ~init:Path.Set.empty ~f:(fun acc t ->
+        Path.Set.add acc Lib.(src_dir t))
+    in
+    Path.Set.remove dirs stdlib_dir
+
+  let include_flags ts ~stdlib_dir =
+    to_iflags (include_paths ts ~stdlib_dir)
+end
+
 type coq_context =
   { coqdep : Action.program
   ; coqc   : Action.program
@@ -89,9 +109,15 @@ let parse_coqdep ~coq_module (lines : string list) =
     let deps =
       String.extract_blank_separated_words deps in
     (* Format.eprintf "deps for %a: %a@\n%!" Path.pp file pp_ls deps; *)
-    deps
+    (* XXX: coqdep problems *)
+    let fix_deps f =
+      if Filename.extension f = ".cmo" then
+        (fst @@ Filename.split_extension f) ^ ".cma"
+      else f
+    in
+    List.map ~f:fix_deps deps
 
-let gen_rule ~expander ~dir ~cc ~source_rule ~libname ~cflags coq_module =
+let gen_rule ~scope ~expander ~dir ~cc ~source_rule ~libname ~stdlib_dir ~caml_libs ~cflags coq_module =
 
   (* Format.eprintf "gen_rule coq_module: %s@\n%!" coq_module; *)
   let obj_dir = dir in
@@ -99,14 +125,29 @@ let gen_rule ~expander ~dir ~cc ~source_rule ~libname ~cflags coq_module =
   let stdout_to = CoqModule.obj_file ~obj_dir ~ext:".v.d" coq_module in
   let object_to = CoqModule.obj_file ~obj_dir ~ext:".vo"  coq_module in
 
+  let ml_flag scope =
+    let lib_db = Scope.libs scope in
+    let loc = Loc.none in
+    match Lib.DB.find_many ~loc lib_db List.(concat_map ~f:Dune_file.Lib_dep.to_lib_names caml_libs) with
+    | Ok libs ->
+      (* Lib.L.include_flags ~stdlib_dir libs *)
+      Util.include_flags ~stdlib_dir libs
+    | Error exn ->
+      (* TODO: Proper error handling *)
+      raise exn
+  in
+
   let iflags = Arg_spec.As ["-R"; "."; libname] in
-  let cd_arg = Arg_spec.[ iflags; Dep source ] in
+  let cd_arg = Arg_spec.[ iflags; ml_flag scope; Dep source ] in
 
   (*  *)
   let cd_rule =
     source_rule >>>
     Build.(run ~dir ~stdout_to cc.coqdep cd_arg)
   in
+
+  (* Require ML libs to be built *)
+  let deps_of_caml_libs =  Build.return () in
 
   (* Process coqdep and generate rules *)
   let deps_of = Build.dyn_paths (
@@ -116,10 +157,12 @@ let gen_rule ~expander ~dir ~cc ~source_rule ~libname ~cflags coq_module =
   ) in
   let cc_arg = Arg_spec.[
     iflags;
+    ml_flag scope;
     Dep source;
     Hidden_targets [object_to] ]
   in
   [cd_rule;
+   deps_of_caml_libs >>>
    deps_of >>>
    Expander.expand_and_eval_set expander cflags ~standard:Build.(return []) >>>
    Build.run ~dir cc.coqc (Dyn (fun flags -> As flags) :: cc_arg)
@@ -151,9 +194,11 @@ let gen_rules ~sctx ~dir ~dir_contents ~scope s =
   (* coqdep requires all the files to be in the tree to produce correct dependencies *)
   let source_rule = Build.paths List.(map ~f:CoqModule.source coq_modules) in
   let libname = snd s.Dune_file.Coq.name in
+  let caml_libs = s.Dune_file.Coq.libraries in
   let cflags = s.Dune_file.Coq.flags in
+  let stdlib_dir = SC.(context sctx).stdlib_dir in
   let expander = SC.expander sctx ~dir in
-  let coq_rules = List.concat_map ~f:(gen_rule ~expander ~dir ~cc ~source_rule ~libname ~cflags) coq_modules in
+  let coq_rules = List.concat_map ~f:(gen_rule ~scope ~expander ~dir ~cc ~source_rule ~libname ~stdlib_dir ~caml_libs ~cflags) coq_modules in
   coq_rules
 
 let install_rules ~sctx ~dir s =
