@@ -938,6 +938,7 @@ module DB = struct
   let create_from_library_stanzas ?parent ~ext_lib ~ext_obj stanzas =
     let map =
       List.concat_map stanzas ~f:(fun (dir, (conf : Dune_file.Library.t)) ->
+        (* Format.eprintf "registering local lib %a @\n%!" Lib_name.Local.pp (snd conf.Dune_file.Library.name); *)
         let info = Lib_info.of_library_stanza ~dir ~ext_lib ~ext_obj conf in
         match conf.public with
         | None ->

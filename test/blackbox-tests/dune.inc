@@ -96,6 +96,14 @@
    (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
 
 (alias
+ (name coq)
+ (deps (package dune) (source_tree test-cases/coq))
+ (action
+  (chdir
+   test-cases/coq
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name cross-compilation)
  (deps (package dune) (source_tree test-cases/cross-compilation))
  (action
@@ -1157,6 +1165,7 @@
   (alias configurator-gh1166)
   (alias copy-files-non-sub-dir-error)
   (alias copy_files)
+  (alias coq)
   (alias cross-compilation)
   (alias custom-build-dir)
   (alias dep-vars)
@@ -1299,6 +1308,7 @@
   (alias configurator-gh1166)
   (alias copy-files-non-sub-dir-error)
   (alias copy_files)
+  (alias coq)
   (alias cross-compilation)
   (alias custom-build-dir)
   (alias dep-vars)

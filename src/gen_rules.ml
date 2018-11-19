@@ -176,6 +176,11 @@ module Gen(P : Install_rules.Params) = struct
         | Some cctx ->
           Menhir_rules.gen_rules cctx m ~dir:ctx_dir
         end
+      | Coq.T m when Expander.eval_blang expander m.enabled_if ->
+        (* Format.eprintf "[coq] gen_rules called @\n%!"; *)
+        let dir = ctx_dir in
+        let coq_rules = Coqlib.gen_rules ~sctx ~dir ~scope ~dir_contents m in
+        SC.add_rules ~dir:ctx_dir sctx coq_rules
       | _ -> ());
     Super_context.add_alias_deps sctx
       ~dyn_deps:(Build.paths_matching ~dir:ctx_dir ~loc:Loc.none (fun p ->

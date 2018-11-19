@@ -1,0 +1,7 @@
+(coqlib
+ (name basic)
+ ; (public_name dune.test.basic)
+ (modules)
+ (synopsis "Test Coq library"))
+
+(include_subdirs unqualified)

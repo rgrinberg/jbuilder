@@ -39,6 +39,8 @@ next
 - Exclude the local esy directory (`_esy`) from the list of watched
   directories (#1578, @andreypopp)
 
+- Experimental Coq support (1466, @ejgallego)
+
 1.5.1 (7/11/2018)
 -----------------
 
