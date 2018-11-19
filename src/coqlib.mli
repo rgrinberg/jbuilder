@@ -17,7 +17,8 @@ module CoqModule : sig
 end
 
 val build_coq_modules
-  :  dir:Path.t
+  :  modules:Ordered_set_lang.t
+  -> dir:Path.t
   -> dir_contents:Dir_contents.t
   -> CoqModule.t list
 

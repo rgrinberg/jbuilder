@@ -54,10 +54,20 @@ end = struct
 
 end
 
-let build_coq_modules ~dir ~dir_contents =
+module CMValue = struct
+  type t = CoqModule.t
+  type key = string
+  let key = CoqModule.name
+end
+
+module CMEval = Ordered_set_lang.Make(String)(CMValue)
+
+let build_coq_modules ~modules ~dir ~dir_contents =
   let files = Dir_contents.text_files dir_contents in
   let v_files = String.Set.filter files ~f:(fun f -> Filename.check_suffix f ".v") in
-  List.map ~f:(fun file -> CoqModule.make ~file:Path.(relative dir file)) String.Set.(to_list v_files)
+  let all_mods = List.map ~f:(fun file -> CoqModule.make ~file:Path.(relative dir file)) String.Set.(to_list v_files) in
+  let parse ~loc:_ name = CoqModule.make ~file:Path.(extend_basename (relative dir name) ~suffix:".v") in
+  CMEval.eval modules ~parse ~standard:all_mods
 
 let parse_coqdep ~coq_module (lines : string list) =
   let source = CoqModule.source coq_module in
@@ -136,7 +146,7 @@ let gen_rules ~sctx ~dir ~dir_contents ~scope s =
   ;
 
   let cc = create_ccoq sctx ~dir in
-  let coq_modules = build_coq_modules ~dir ~dir_contents in
+  let coq_modules = build_coq_modules ~modules:s.Dune_file.Coq.modules ~dir ~dir_contents in
 
   (* coqdep requires all the files to be in the tree to produce correct dependencies *)
   let source_rule = Build.paths List.(map ~f:CoqModule.source coq_modules) in
@@ -150,10 +160,10 @@ let install_rules ~sctx ~dir s =
   match s with
   | { Dune_file.Coq. public = None; _ } ->
     []
-  | { Dune_file.Coq. public = Some { package = _ ; _ } ; name; _ } ->
+  | { Dune_file.Coq. public = Some { package = _ ; _ } ; name; modules; _ } ->
     (* Format.eprintf "[coq] gen_install called@\n%!"; *)
     let dir_contents = Dir_contents.get sctx ~dir in
-    build_coq_modules ~dir ~dir_contents
+    build_coq_modules ~modules ~dir ~dir_contents
     |> List.map ~f:(fun (vfile : CoqModule.t) ->
       (* XXX: This won't work on recursive Coq libraries modules *)
       let vofile = CoqModule.obj_file ~obj_dir:dir ~ext:".vo" vfile in

@@ -1722,7 +1722,7 @@ module Coq = struct
     (* TODO: validate name *)
     ; public     : Public_lib.t option
     ; synopsis   : string option
-    ; modules    : string list
+    ; modules    : Ordered_set_lang.t
     ; flags      : Ordered_set_lang.Unexpanded.t
     ; libraries  : Lib_dep.t list
     (** ocaml libraries *)
@@ -1744,7 +1744,7 @@ module Coq = struct
        and public = Public_lib.public_name_field
        and synopsis = field_o "synopsis" string
        and flags = field_oslu "flags"
-       and modules = field ~default:[] "modules" (list string)
+       and modules = modules_field "modules"
        and libraries = field "libraries" Lib_deps.decode ~default:[]
        and enabled_if = enabled_if
        in

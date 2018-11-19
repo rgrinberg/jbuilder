@@ -378,7 +378,7 @@ module Coq : sig
     { name       : Loc.t * string
     ; public     : Public_lib.t option
     ; synopsis   : string option
-    ; modules    : string list
+    ; modules    : Ordered_set_lang.t
     ; flags      : Ordered_set_lang.Unexpanded.t
     ; libraries  : Lib_dep.t list
     (** ocaml libraries *)
