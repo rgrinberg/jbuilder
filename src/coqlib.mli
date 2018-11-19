@@ -28,3 +28,9 @@ val gen_rules
   -> scope:Scope.t
   -> Dune_file.Coq.t
   -> (unit, Action.t) Build.t list
+
+val install_rules
+  :  sctx:Super_context.t
+  -> dir:Path.t
+  -> Dune_file.Coq.t
+  -> Install.Entry.t list

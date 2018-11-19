@@ -320,12 +320,23 @@ module Gen(P : Params) = struct
                 lib_install_files ~dir ~sub_dir lib ~scope
                   ~dir_kind ~dir_contents)
     in
+    let coqlib_install_files =
+      Local_package.coqlibs package
+      |> List.concat_map
+           ~f:(fun { Dir_with_dune.
+                     data = coqlib
+                   ; ctx_dir = dir
+                   ; _
+                   } ->
+                Coqlib.install_rules ~sctx ~dir coqlib)
+    in
     let entries =
       let install_paths = Local_package.install_paths package in
       let package = Local_package.name package in
       List.rev_append docs lib_install_files
       |> local_install_rules ~package ~install_paths
       |> List.rev_append entries
+      |> List.rev_append coqlib_install_files
     in
     install_file package entries
 

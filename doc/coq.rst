@@ -27,12 +27,16 @@ The basic form for defining Coq libraries is very similar to the OCaml form:
 
     (coqlib
      (name <module_prefix>)
+     (public_name <package.module_prefix>)
      (synopsis <text>)
      (flags <coq_flags>))
 
 The stanza will build all `.v` files on the given directory, *à la*
-``coq_makefile``. Coq will use ``<module_prefix>`` as the argument for
-``-R .``, and ``<coq_flags>`` will be passed to ``coqc``.
+``coq_makefile``. The semantics of fields is:
+- ``<module_prefix>`` will be used as the default Coq library prefix (``-R .``),
+- ``public_name`` will make Dune generate install rules for the `.vo`
+  files; files will be installed in ``lib/coq/<module_prefix>``.
+- ``<coq_flags>`` will be passed to ``coqc``.
 
 Library Composition and Handling
 ===================

@@ -1718,9 +1718,9 @@ end
 module Coq = struct
 
   type t =
-    (* ; public     : Public_lib.t option *\) *)
     { name       : Loc.t * string
     (* TODO: validate name *)
+    ; public     : Public_lib.t option
     ; synopsis   : string option
     ; modules    : string list
     ; flags      : Ordered_set_lang.Unexpanded.t
@@ -1741,6 +1741,7 @@ module Coq = struct
       (* let_map name = field_o "name" Lib_name.Local.decode_loc
        * and public = Public_lib.public_name_field *)
       (let%map name = field "name" (located string)
+       and public = Public_lib.public_name_field
        and synopsis = field_o "synopsis" string
        and flags = field_oslu "flags"
        and modules = field ~default:[] "modules" (list string)
@@ -1750,6 +1751,7 @@ module Coq = struct
        (* { name
         * ; public *)
        { name
+       ; public
        ; synopsis
        ; modules
        ; flags
@@ -2061,5 +2063,7 @@ let stanza_package = function
   | Install { package; _ }
   | Documentation { package; _ }
   | Tests { package = Some package; _} ->
+    Some package
+  | Coq.T { public = Some { package; _ }; _ } ->
     Some package
   | _ -> None

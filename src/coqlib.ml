@@ -145,3 +145,17 @@ let gen_rules ~sctx ~dir ~dir_contents ~scope s =
   let expander = SC.expander sctx ~dir in
   let coq_rules = List.concat_map ~f:(gen_rule ~expander ~dir ~cc ~source_rule ~libname ~cflags) coq_modules in
   coq_rules
+
+let install_rules ~sctx ~dir s =
+  match s with
+  | { Dune_file.Coq. public = None; _ } ->
+    []
+  | { Dune_file.Coq. public = Some { package = _ ; _ } ; name; _ } ->
+    (* Format.eprintf "[coq] gen_install called@\n%!"; *)
+    let dir_contents = Dir_contents.get sctx ~dir in
+    build_coq_modules ~dir ~dir_contents
+    |> List.map ~f:(fun (vfile : CoqModule.t) ->
+      (* XXX: This won't work on recursive Coq libraries modules *)
+      let vofile = CoqModule.obj_file ~obj_dir:dir ~ext:".vo" vfile in
+      let dst = sprintf "coq/%s/%s" (snd name) Path.(basename vofile) in
+      Install.(Entry.make Section.Lib_root ~dst vofile))

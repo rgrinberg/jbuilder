@@ -30,3 +30,5 @@ val install_paths : t -> Install.Section.Paths.t
 val libs : t -> Lib.Set.t
 
 val package : t -> Package.t
+
+val coqlibs : t -> Dune_file.Coq.t Dir_with_dune.t list

@@ -375,8 +375,8 @@ end
 module Coq : sig
 
   type t =
-    (* ; public     : Public_lib.t option *\) *)
     { name       : Loc.t * string
+    ; public     : Public_lib.t option
     ; synopsis   : string option
     ; modules    : string list
     ; flags      : Ordered_set_lang.Unexpanded.t
