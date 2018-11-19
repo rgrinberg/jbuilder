@@ -180,6 +180,7 @@ type t =
   ; modules : Modules.t Lazy.t
   ; c_sources : C_sources.t Lazy.t
   ; mlds : (Dune_file.Documentation.t * Path.t list) list Lazy.t
+  ; coq_modules : Coq_module.t list String.Map.t Lazy.t
   }
 
 and kind =
@@ -239,6 +240,16 @@ let mlds t (doc : Documentation.t) =
                        (List.map map ~f:(fun (d, _) -> d.Documentation.loc))
       ]
 
+let coq_modules_of_library t ~name =
+  let map = Lazy.force t.coq_modules in
+  match String.Map.find map name with
+  | Some x -> x
+  | None ->
+    Exn.code_error "Dir_contents.coq_modules_of_library"
+      [ "name", Sexp.Encoder.string name
+      ; "available", Sexp.Encoder.(list string) (String.Map.keys map)
+      ]
+
 (* As a side-effect, setup user rules and copy_files rules. *)
 let load_text_files sctx ft_dir
       { Dir_with_dune.
@@ -255,6 +266,10 @@ let load_text_files sctx ft_dir
   let generated_files =
     List.concat_map stanzas ~f:(fun stanza ->
       match (stanza : Stanza.t) with
+      | Coq.T _coq ->
+        (* Format.eprintf "[coq] generated_files called at sctx: %a@\n%!" Path.pp (File_tree.Dir.path ft_dir); *)
+        (* FIXME: Need to generate ml files from mlg ? *)
+        []
       | Menhir.T menhir ->
         Menhir_rules.targets menhir
       | Rule rule ->
@@ -339,6 +354,29 @@ let build_mlds_map (d : _ Dir_with_dune.t) ~files =
       Some (doc, List.map (String.Map.values mlds) ~f:(Path.relative dir))
     | _ -> None)
 
+let coq_modules_of_files ~subdirs =
+  let filter_v_files (dir, local, files) =
+    (dir, local, String.Set.filter files ~f:(fun f -> Filename.check_suffix f ".v")) in
+  let subdirs = List.map subdirs ~f:filter_v_files in
+  let build_mod_dir (dir, prefix, files) =
+    String.Set.to_list files |> List.map ~f:(fun file ->
+      let name, _ = Filename.split_extension file in
+      let name = Coq_module.Name.make name in
+      Coq_module.make ~source:(Path.relative dir file) ~prefix ~name) in
+  let modules = List.concat_map ~f:build_mod_dir subdirs in
+  modules
+
+(* TODO: Build reverse map and check duplicates, however, are duplicates harmful?
+ * In Coq all libs are "wrapped" so including a module twice is not so bad.
+ *)
+let build_coq_modules_map (d : _ Dir_with_dune.t) ~dir ~modules =
+  List.fold_left d.data ~init:String.Map.empty ~f:(fun map -> function
+    | Coq.T coq ->
+      let modules = Coq_module.Eval.eval coq.modules
+        ~parse:(Coq_module.parse ~dir) ~standard:modules in
+      String.Map.add map (snd coq.name) modules
+    | _ -> map)
+
 let cache = Hashtbl.create 32
 
 let clear_cache () =
@@ -368,6 +406,9 @@ let rec get sctx ~dir =
               C_sources.make d
                 ~c_sources:(C_sources.load_sources ~dune_version ~dir:d.ctx_dir
                               ~files))
+          ; coq_modules =
+              lazy (build_coq_modules_map d ~dir:d.ctx_dir
+                      ~modules:(coq_modules_of_files ~subdirs:[dir,[],files]))
           }
         | Some (_, None)
         | None ->
@@ -377,6 +418,7 @@ let rec get sctx ~dir =
           ; modules = lazy Modules.empty
           ; mlds = lazy []
           ; c_sources = lazy C_sources.empty
+          ; coq_modules = lazy String.Map.empty
           }
       in
       Hashtbl.add cache dir t;
@@ -390,7 +432,7 @@ let rec get sctx ~dir =
           Hashtbl.find_exn cache dir
       end
     | Group_root (ft_dir, d) ->
-      let rec walk ft_dir ~dir acc =
+      let rec walk ft_dir ~dir ~local acc =
         match
           Dir_status.DB.get dir_status_db ~dir
         with
@@ -400,20 +442,21 @@ let rec get sctx ~dir =
             | None -> File_tree.Dir.files ft_dir
             | Some d -> load_text_files sctx ft_dir d
           in
-          walk_children ft_dir ~dir ((dir, files) :: acc)
+          walk_children ft_dir ~dir ~local ((dir, local, files) :: acc)
         | _ -> acc
-      and walk_children ft_dir ~dir acc =
+      and walk_children ft_dir ~dir ~local acc =
         String.Map.foldi (File_tree.Dir.sub_dirs ft_dir) ~init:acc
           ~f:(fun name ft_dir acc ->
             let dir = Path.relative dir name in
-            walk ft_dir ~dir acc)
+            let local = local @ [name] in
+            walk ft_dir ~dir ~local acc)
       in
       let files = load_text_files sctx ft_dir d in
-      let subdirs = walk_children ft_dir ~dir [] in
+      let subdirs = walk_children ft_dir ~dir ~local:[] [] in
       let modules = lazy (
         let modules =
-          List.fold_left ((dir, files) :: subdirs) ~init:Module.Name.Map.empty
-            ~f:(fun acc (dir, files) ->
+          List.fold_left ((dir, [], files) :: subdirs) ~init:Module.Name.Map.empty
+            ~f:(fun acc (dir, _, files) ->
               let modules = modules_of_files ~dir ~files in
               Module.Name.Map.union acc modules ~f:(fun name x y ->
                 Errors.fail (Loc.in_file
@@ -435,8 +478,8 @@ let rec get sctx ~dir =
         let dune_version = d.dune_version in
         let init = C.Kind.Dict.make String.Map.empty in
         let c_sources =
-          List.fold_left ((dir, files) :: subdirs) ~init
-            ~f:(fun acc (dir, files) ->
+          List.fold_left ((dir, [], files) :: subdirs) ~init
+            ~f:(fun acc (dir, _, files) ->
               let sources = C_sources.load_sources ~dir ~dune_version ~files in
               let f acc sources =
                 String.Map.union acc sources ~f:(fun name x y ->
@@ -459,18 +502,23 @@ let rec get sctx ~dir =
         in
         C_sources.make d ~c_sources
       ) in
+      let coq_modules = lazy (
+        build_coq_modules_map d ~dir:d.ctx_dir
+          ~modules:(coq_modules_of_files ~subdirs:((dir,[],files)::subdirs))
+      ) in
       let t =
         { kind = Group_root
-                   (lazy (List.map subdirs ~f:(fun (dir, _) -> get sctx ~dir)))
+                   (lazy (List.map subdirs ~f:(fun (dir, _, _) -> get sctx ~dir)))
         ; dir
         ; text_files = files
         ; modules
         ; c_sources
         ; mlds = lazy (build_mlds_map d ~files)
+        ; coq_modules
         }
       in
       Hashtbl.add cache dir t;
-      List.iter subdirs ~f:(fun (dir, files) ->
+      List.iter subdirs ~f:(fun (dir, _local, files) ->
         Hashtbl.add cache dir
           { kind = Group_part t
           ; dir
@@ -478,5 +526,6 @@ let rec get sctx ~dir =
           ; modules
           ; c_sources
           ; mlds = lazy (build_mlds_map d ~files)
+          ; coq_modules
           });
       t

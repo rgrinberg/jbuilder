@@ -11,6 +11,8 @@ unreleased
 
 - Fix glob dependencies on installed directories (#1965, @rgrinberg)
 
+- Experimental Coq support (1466, @ejgallego)
+
 1.8.2 (10/03/2019)
 ------------------
 
