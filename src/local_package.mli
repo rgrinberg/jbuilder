@@ -32,3 +32,5 @@ val install_paths : t -> Install.Section.Paths.t
 val libs : t -> Lib.Set.t
 
 val package : t -> Package.t
+
+val version : t -> (unit, string option) Build.t

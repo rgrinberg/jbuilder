@@ -192,31 +192,6 @@ let source_files t ~src_path =
   | None -> String.Set.empty
   | Some dir -> File_tree.Dir.files dir
 
-module Pkg_version = struct
-  open Build.O
-
-  module V = Vfile_kind.Make(struct
-      type t = string option
-      let encode = Dune_lang.Encoder.(option string)
-      let name = "Pkg_version"
-    end)
-
-  let spec sctx (p : Package.t) =
-    let fn =
-      Path.relative (Path.append sctx.context.build_dir p.path)
-        (sprintf "%s.version.sexp" (Package.Name.to_string p.name))
-    in
-    Build.Vspec.T (fn, (module V))
-
-  let read sctx p = Build.vpath (spec sctx p)
-
-  let set sctx p get =
-    let spec = spec sctx p in
-    add_rule sctx ~dir:(build_dir sctx)
-      (get >>> Build.store_vfile spec);
-    Build.vpath spec
-end
-
 let partial_expand sctx ~dep_kind ~targets_written_by_user ~map_exe
       ~expander t =
   let acc = Expander.Resolved_forms.empty () in

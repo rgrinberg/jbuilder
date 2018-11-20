@@ -29,58 +29,15 @@ module Gen(P : Params) = struct
        >>> Build.write_file_dyn
              (lib_dune_file ~dir:(Lib.src_dir lib) ~name:(Lib.name lib)))
 
-  let version_from_dune_project (pkg : Package.t) =
-    let dir = Path.append (SC.build_dir sctx) pkg.path in
-    let project = Scope.project (SC.find_scope_by_dir sctx dir) in
-    Dune_project.version project
-
-  type version_method =
-    | File of string
-    | From_dune_project
-
-  let pkg_version path ~(pkg : Package.t) =
-    match pkg.version_from_opam_file with
-    | Some s -> Build.return (Some s)
-    | None ->
-      let rec loop = function
-        | [] -> Build.return None
-        | candidate :: rest ->
-          match candidate with
-          | File fn ->
-            let p = Path.relative path fn in
-            Build.if_file_exists p
-              ~then_:(Build.lines_of p
-                      >>^ function
-                      | ver :: _ -> Some ver
-                      | _ -> Some "")
-              ~else_:(loop rest)
-          | From_dune_project ->
-            match version_from_dune_project pkg with
-            | None -> loop rest
-            | Some _ as x -> Build.return x
-      in
-      loop
-        [ File (Package.Name.version_fn pkg.name)
-        ; From_dune_project
-        ; File "version"
-        ; File "VERSION"
-        ]
-
   let init_meta (pkg : Local_package.t) =
     let libs = Local_package.libs pkg in
     Lib.Set.iter libs ~f:(gen_lib_dune_file ~dir:ctx.build_dir);
     let path = Local_package.build_dir pkg in
     let pkg_name = Local_package.name pkg in
     let meta = Local_package.meta_file pkg in
-    let pkg = Local_package.package pkg in
     SC.on_load_dir sctx ~dir:path ~f:(fun () ->
       let meta_template = Path.extend_basename meta ~suffix:".template" in
-
-      let version =
-        let get = pkg_version ~pkg path in
-        Super_context.Pkg_version.set sctx pkg get
-      in
-
+      let version = Local_package.version pkg in
       let template =
         Build.if_file_exists meta_template
           ~then_:(Build.lines_of meta_template)

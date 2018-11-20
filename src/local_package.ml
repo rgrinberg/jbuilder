@@ -9,6 +9,7 @@ type t =
   ; mlds : Path.t list
   ; pkg : Package.t
   ; libs : Lib.Set.t
+  ; sctx : Super_context.t
   }
 
 let is_odig_doc_file fn =
@@ -108,6 +109,7 @@ let of_sctx (sctx : Super_context.t) =
         ; ctx_build_dir = ctx.build_dir
         ; libs
         ; mlds = []
+        ; sctx
         }
         (Package.Name.Map.find stanzas_per_package pkg.name
          |> Option.value ~default:[])
@@ -130,3 +132,66 @@ let name t = t.pkg.name
 
 let install_paths t =
   Install.Section.Paths.make ~package:t.pkg.name ~destdir:Path.root ()
+
+let project t =
+  let dir = build_dir t in
+  Scope.project (Super_context.find_scope_by_dir t.sctx dir)
+
+module Version = struct
+  open Build.O
+
+  module V = Vfile_kind.Make(struct
+      type t = string option
+      let encode = Dune_lang.Encoder.(option string)
+      let name = "version"
+    end)
+
+  let spec t =
+    let fn =
+      Path.relative (build_dir t)
+        (sprintf "%s.version.sexp" (Package.Name.to_string (name t)))
+    in
+    Build.Vspec.T (fn, (module V))
+
+  let read t = Build.vpath (spec t)
+
+  let set t get =
+    let spec = spec t in
+    Super_context.add_rule t.sctx ~dir:(build_dir t)
+      (get >>> Build.store_vfile spec);
+    Build.vpath spec
+
+  type version_method =
+    | File of string
+    | From_dune_project
+
+  let version t =
+    match t.pkg.version_from_opam_file with
+    | Some s -> Build.return (Some s)
+    | None ->
+      let rec loop = function
+        | [] -> Build.return None
+        | candidate :: rest ->
+          match candidate with
+          | File fn ->
+            let p = Path.relative (build_dir t) fn in
+            Build.if_file_exists p
+              ~then_:(Build.lines_of p
+                      >>^ function
+                      | ver :: _ -> Some ver
+                      | _ -> Some "")
+              ~else_:(loop rest)
+          | From_dune_project ->
+            match Dune_project.version (project t) with
+            | None -> loop rest
+            | Some _ as x -> Build.return x
+      in
+      loop
+        [ File (Package.Name.version_fn (name t))
+        ; From_dune_project
+        ; File "version"
+        ; File "VERSION"
+        ]
+end
+
+let version = Version.version
