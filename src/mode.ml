@@ -42,6 +42,8 @@ module Dict = struct
     ; native : 'a
     }
 
+  let for_all { byte ; native } ~f = f byte && f native
+
   let pp pp fmt { byte; native } =
     Fmt.record fmt
       [ "byte", Fmt.const pp byte
@@ -72,24 +74,6 @@ module Dict = struct
     ; native = x
     }
 
-  let encode f { byte ; native } =
-    let open Dune_lang.Encoder in
-    record
-      [ "byte", f byte
-      ; "native", f native
-      ]
-
-  let decode f =
-    let open Dune_lang.Decoder in
-    record (
-      let%map byte = field "byte" f
-      and native = field "native" f
-      in
-      { byte
-      ; native
-      }
-    )
-
   module Set = struct
     type nonrec t = bool t
 
@@ -116,5 +100,29 @@ module Dict = struct
     let iter t ~f =
       if t.byte   then f Byte;
       if t.native then f Native
+  end
+
+  module List = struct
+    type nonrec 'a t = 'a list t
+
+    let empty = { byte = [] ; native = [] }
+
+    let encode f { byte ; native } =
+      let open Dune_lang.Encoder in
+      record_fields Dune
+        [ field_l "byte" f byte
+        ; field_l "native" f native
+        ]
+
+    let decode f =
+      let open Stanza.Decoder in
+      record (
+        let%map byte = field ~default:[] "byte" (list f)
+        and native = field ~default:[] "native" (list f)
+        in
+        { byte
+        ; native
+        }
+      )
   end
 end

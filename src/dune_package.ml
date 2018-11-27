@@ -111,26 +111,27 @@ module Lib = struct
         } =
     let open Dune_lang.Encoder in
     let no_loc f (_loc, x) = f x in
-    let no_locs f xs = (list f) (List.map ~f:snd xs) in
     let path = Path_dune_lang.Local.encode ~dir in
+    let paths name f = field_l name path f in
+    let mode_paths name (xs : Path.t Mode.Dict.List.t) =
+      field_l name (fun x -> x) (Mode.Dict.List.encode path xs) in
+    let libs name = field_l name (no_loc Lib_name.encode) in
     record_fields Dune
       [ field "name" Lib_name.encode name
       ; field "kind" Kind.encode kind
       ; field_o "synopsis" string synopsis
-      ; field "archives"
-          (Mode.Dict.encode (list path)) archives
-      ; field "plugins" (Mode.Dict.encode (list path)) plugins
-      ; field "foreign_objects" (list path) foreign_objects
-      ; field "foreign_archives" (Mode.Dict.encode (list path))
-          foreign_archives
-      ; field "jsoo_runtime" (list path) jsoo_runtime
-      ; field "requires" (no_locs Lib_name.encode) requires
-      ; field "ppx_runtime_deps" (no_locs Lib_name.encode) ppx_runtime_deps
-      ; field "pps" (no_locs Lib_name.encode) pps
+      ; mode_paths "archives" archives
+      ; mode_paths "plugins" plugins
+      ; paths "foreign_objects" foreign_objects
+      ; mode_paths "foreign_archives" foreign_archives
+      ; paths "jsoo_runtime" jsoo_runtime
+      ; libs "requires" requires
+      ; libs "ppx_runtime_deps" ppx_runtime_deps
+      ; libs "pps" pps
       ; field_o "implements" (no_loc Lib_name.encode) implements
       ; field_o "main_module_name" Module.Name.encode main_module_name
       ; field_o "virtual" Virtual.encode virtual_
-      ; field "sub_systems" (list sexp) (
+      ; field_l "sub_systems" sexp (
           Sub_system_name.Map.to_list sub_systems
           |> List.map ~f:(fun (name, (ver, sexp)) ->
             Dune_lang.List
@@ -143,29 +144,32 @@ module Lib = struct
       ]
 
   let decode ~base =
-    let open Dune_lang.Decoder in
+    let open Stanza.Decoder in
     let path = Path_dune_lang.Local.decode ~dir:base in
+    let field_l s x = field ~default:[] s (list x) in
+    let libs s = field_l s (located Lib_name.decode) in
+    let paths s = field_l s path in
+    let mode_paths name =
+      field ~default:Mode.Dict.List.empty
+        name (Mode.Dict.List.decode path) in
     record (
       let%map loc = loc
       and name = field "name" Lib_name.decode
       and synopsis = field_o "synopsis" string
       and kind = field "kind" Kind.decode
-      and archives = field "archives" (Mode.Dict.decode (list path))
-      and plugins = field "plugins" (Mode.Dict.decode (list path))
-      and foreign_objects = field "foreign_objects" (list path)
-      and foreign_archives =
-        field "foreign_archives" (Mode.Dict.decode (list path))
-      and jsoo_runtime = field "jsoo_runtime" (list path)
-      and requires =
-        field "requires" (list (located Lib_name.decode)) ~default:[]
-      and ppx_runtime_deps =
-        field "ppx_runtime_deps" (list (located Lib_name.decode)) ~default:[]
-      and pps = field "pps" (list (located Lib_name.decode)) ~default:[]
+      and archives = mode_paths "archives"
+      and plugins = mode_paths "plugins"
+      and foreign_objects = paths "foreign_objects"
+      and foreign_archives = mode_paths "foreign_archives"
+      and jsoo_runtime = paths "jsoo_runtime"
+      and requires = libs "requires"
+      and ppx_runtime_deps = libs "ppx_runtime_deps"
+      and pps = libs "pps"
       and main_module_name = field_o "main_module_name" Module.Name.decode
       and virtual_ = field_o "virtual" Virtual.decode
       and sub_systems =
-        field ~default:[] "sub_systems"
-          (list (triple (located string) (located Syntax.Version.decode) raw))
+        field_l "sub_systems"
+          (triple (located string) (located Syntax.Version.decode) raw)
       and implements = field_o "implements" (located Lib_name.decode)
       in
       let sub_systems =
@@ -246,9 +250,7 @@ let gen ~dune_version { libs ; name ; version } =
   in
   let libs =
     List.map libs ~f:(fun lib ->
-      list [ Dune_lang.atom "library"
-           ; List (Lib.encode lib)
-           ])
+      list (Dune_lang.atom "library" :: Lib.encode lib))
   in
   sexp @ libs
 

@@ -26,10 +26,17 @@ module Dict : sig
     ; native : 'a
     }
 
+  val for_all : 'a t -> f:('a -> bool) -> bool
+
   val pp : 'a Fmt.t -> 'a t Fmt.t
 
-  val encode : 'a Dune_lang.Encoder.t -> 'a t Dune_lang.Encoder.t
-  val decode : 'a Dune_lang.Decoder.t -> 'a t Dune_lang.Decoder.t
+  module List : sig
+    type 'a dict
+    type 'a t = 'a list dict
+    val empty : 'a t
+    val decode : 'a Dune_lang.Decoder.t -> 'a t Dune_lang.Decoder.t
+    val encode : 'a Dune_lang.Encoder.t -> 'a t -> Dune_lang.t list
+  end with type 'a dict := 'a t
 
   val get : 'a t -> mode -> 'a
 
