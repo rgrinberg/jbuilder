@@ -1,0 +1,27 @@
+(* -*- tuareg -*- *)
+open Dune;;
+open! Stdune;;
+open! Import;;
+
+let sexp_pp = Dune_lang.pp Dune;;
+#install_printer sexp_pp;;
+
+let standard =
+  let open Re in
+  [ Dune_re.empty
+  ; seq [set "._"; rep any]
+  ]
+  |> alt
+  |> Glob.of_re
+  |> Predicate_lang.of_glob
+  |> Predicate_lang.compl
+;;
+[%%ignore]
+
+let test s = Predicate_lang.filter standard ~standard (lazy s);;
+[%%ignore]
+
+test [".git"; "_build"; "baz"; "src"]
+[%%expect{|
+- : string list * string list = (["a"], ["b"])
+|}]
