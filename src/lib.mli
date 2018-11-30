@@ -34,7 +34,7 @@ val foreign_objects : t -> Path.t list
 
 val main_module_name : t -> Module.Name.t option Or_exn.t
 
-val virtual_ : t -> Lib_info.Virtual.t option
+val vlib : t -> Dune_file.Library.Vlib.t option
 
 val dune_version : t -> Syntax.Version.t option
 

@@ -21,23 +21,6 @@ module Deps : sig
   val of_lib_deps : Dune_file.Lib_deps.t -> t
 end
 
-module Virtual : sig
-  module Modules : sig
-    type t = private
-      | Unexpanded
-  end
-
-  module Dep_graph : sig
-    type t = private
-      | Local
-  end
-
-  type t = private
-    { modules   : Modules.t
-    ; dep_graph : Dep_graph.t
-    }
-end
-
 type t = private
   { loc              : Loc.t
   ; name             : Lib_name.t
@@ -61,8 +44,7 @@ type t = private
   ; virtual_deps     : (Loc.t * Lib_name.t) list
   ; dune_version : Syntax.Version.t option
   ; sub_systems      : Dune_file.Sub_system_info.t Sub_system_name.Map.t
-  ; virtual_         : Virtual.t option
-  ; implements       : (Loc.t * Lib_name.t) option
+  ; vlib             : Dune_file.Library.Vlib.t option
   ; main_module_name : Dune_file.Library.Main_module_name.t
   }
 

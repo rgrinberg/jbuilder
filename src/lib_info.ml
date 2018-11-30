@@ -41,23 +41,6 @@ module Deps = struct
     | Complex l -> l
 end
 
-module Virtual = struct
-  module Modules = struct
-    type t =
-      | Unexpanded
-  end
-
-  module Dep_graph = struct
-    type t =
-      | Local
-  end
-
-  type t =
-    { modules   : Modules.t
-    ; dep_graph : Dep_graph.t
-    }
-end
-
 type t =
   { loc              : Loc.t
   ; name             : Lib_name.t
@@ -81,8 +64,7 @@ type t =
   ; virtual_deps     : (Loc.t * Lib_name.t) list
   ; dune_version : Syntax.Version.t option
   ; sub_systems      : Dune_file.Sub_system_info.t Sub_system_name.Map.t
-  ; virtual_         : Virtual.t option
-  ; implements       : (Loc.t * Lib_name.t) option
+  ; vlib             : Dune_file.Library.Vlib.t option
   ; main_module_name : Dune_file.Library.Main_module_name.t
   }
 
@@ -147,16 +129,7 @@ let of_library_stanza ~dir ~ext_lib ~ext_obj (conf : Dune_file.Library.t) =
     | _ -> foreign_archives
   in
   let jsoo_archive = Some (gen_archive_file ~dir:obj_dir ".cma.js") in
-  let (virtual_, implements) =
-    match conf.vlib with
-    | None -> (None, None)
-    | Some (Virtual_modules _) ->
-      (Some { Virtual.
-              modules = Virtual.Modules.Unexpanded
-            ; dep_graph = Virtual.Dep_graph.Local
-            }, None)
-    | Some (Implements l) -> (None, Some l)
-  in
+  let vlib = conf.vlib in
   let (archives, plugins) =
     if virtual_library then
       ( Mode.Dict.make_both []
@@ -189,8 +162,7 @@ let of_library_stanza ~dir ~ext_lib ~ext_obj (conf : Dune_file.Library.t) =
   ; pps = Dune_file.Preprocess_map.pps conf.buildable.preprocess
   ; sub_systems = conf.sub_systems
   ; dune_version = Some conf.dune_version
-  ; virtual_
-  ; implements
+  ; vlib
   ; main_module_name
   ; private_obj_dir
   }
@@ -226,8 +198,7 @@ let of_findlib_package pkg =
     foreign_archives = Mode.Dict.make_both []
   ; sub_systems      = sub_systems
   ; dune_version = None
-  ; virtual_ = None
-  ; implements = None
+  ; vlib = None
   ; main_module_name = This None
   ; private_obj_dir = None
   }

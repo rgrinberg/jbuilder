@@ -151,8 +151,10 @@ module Gen (P : sig val sctx : Super_context.t end) = struct
           Lib_name.pp implements
       | Ok vlib ->
         let virtual_modules =
-          Option.map (Lib.virtual_ vlib) ~f:(fun (v : Lib_info.Virtual.t) ->
-            v.modules)
+          match Lib.vlib vlib with
+          | Some (Virtual_modules modules) -> modules
+          | Some (Implements _)
+          | None ->  None
         in
         let vlib_modules =
           match virtual_modules with

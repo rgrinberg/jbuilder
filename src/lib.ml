@@ -184,9 +184,9 @@ let jsoo_runtime t = t.info.jsoo_runtime
 let jsoo_archive t = t.info.jsoo_archive
 let unique_id    t = t.unique_id
 
-let virtual_     t = t.info.virtual_
-
 let dune_version t = t.info.dune_version
+
+let vlib t = t.info.vlib
 
 let src_dir t = t.info.src_dir
 let obj_dir t = t.info.obj_dir
@@ -513,7 +513,7 @@ end = struct
         let rec loop acc = function
           | [] -> Ok acc
           | (lib, stack) :: libs ->
-            match lib.implements, lib.info.virtual_ with
+            match lib.vlib, lib.info.vlib with
             | None, None -> loop acc libs
             | Some _, Some _ ->
               assert false (* can't be virtual and implement *)
