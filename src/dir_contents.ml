@@ -163,9 +163,10 @@ let build_modules_map (d : _ Dir_with_dune.t) ~modules =
               all_modules = modules
             ; virtual_modules
             } =
+          let virtual_modules = Library.virtual_modules lib in
           Modules_field_evaluator.eval ~modules
             ~buildable:lib.buildable
-            ~virtual_modules:lib.virtual_modules
+            ~virtual_modules
             ~private_modules:(
               Option.value ~default:Ordered_set_lang.standard
                 lib.private_modules)

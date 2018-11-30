@@ -140,8 +140,11 @@ module Gen (P : sig val sctx : Super_context.t end) = struct
     end
 
   let impl ~(lib : Dune_file.Library.t) ~scope ~modules =
-    Option.map lib.implements ~f:begin fun (loc, implements) ->
-      match Lib.DB.find (Scope.libs scope) implements with
+    match lib.vlib with
+    | None
+    | Some (Virtual_modules _) -> None
+    | Some (Implements (loc, implements)) ->
+      begin match Lib.DB.find (Scope.libs scope) implements with
       | Error _ ->
         Errors.fail loc
           "Cannot implement %a as that library isn't available"
@@ -165,10 +168,11 @@ module Gen (P : sig val sctx : Super_context.t end) = struct
         in
         let virtual_modules = Lib_modules.virtual_modules vlib_modules in
         check_module_fields ~lib ~virtual_modules ~modules ~implements;
-        { Implementation.
-          impl = lib
-        ; vlib
-        ; vlib_modules
-        }
-    end
+        Some
+          { Implementation.
+            impl = lib
+          ; vlib
+          ; vlib_modules
+          }
+      end
 end

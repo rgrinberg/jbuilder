@@ -228,6 +228,12 @@ module Library : sig
       }
   end
 
+  module Vlib : sig
+    type t =
+      | Virtual_modules of Ordered_set_lang.t
+      | Implements of (Loc.t * Lib_name.t)
+  end
+
   type t =
     { name                     : (Loc.t * Lib_name.Local.t)
     ; public                   : Public_lib.t option
@@ -252,8 +258,7 @@ module Library : sig
     ; sub_systems              : Sub_system_info.t Sub_system_name.Map.t
     ; no_keep_locs             : bool
     ; dune_version             : Syntax.Version.t
-    ; virtual_modules          : Ordered_set_lang.t option
-    ; implements               : (Loc.t * Lib_name.t) option
+    ; vlib                     : Vlib.t option
     ; private_modules          : Ordered_set_lang.t option
     ; stdlib                   : Stdlib.t option
     }
@@ -267,6 +272,8 @@ module Library : sig
   val best_name : t -> Lib_name.t
   val is_virtual : t -> bool
   val is_impl : t -> bool
+
+  val virtual_modules : t -> Ordered_set_lang.t option
 
   module Main_module_name : sig
     type t =

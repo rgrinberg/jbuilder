@@ -147,13 +147,15 @@ let of_library_stanza ~dir ~ext_lib ~ext_obj (conf : Dune_file.Library.t) =
     | _ -> foreign_archives
   in
   let jsoo_archive = Some (gen_archive_file ~dir:obj_dir ".cma.js") in
-  let virtual_ =
-    Option.map conf.virtual_modules ~f:(fun _ ->
-      { Virtual.
-        modules = Virtual.Modules.Unexpanded
-      ; dep_graph = Virtual.Dep_graph.Local
-      }
-    )
+  let (virtual_, implements) =
+    match conf.vlib with
+    | None -> (None, None)
+    | Some (Virtual_modules _) ->
+      (Some { Virtual.
+              modules = Virtual.Modules.Unexpanded
+            ; dep_graph = Virtual.Dep_graph.Local
+            }, None)
+    | Some (Implements l) -> (None, Some l)
   in
   let (archives, plugins) =
     if virtual_library then
@@ -188,7 +190,7 @@ let of_library_stanza ~dir ~ext_lib ~ext_obj (conf : Dune_file.Library.t) =
   ; sub_systems = conf.sub_systems
   ; dune_version = Some conf.dune_version
   ; virtual_
-  ; implements = conf.implements
+  ; implements
   ; main_module_name
   ; private_obj_dir
   }

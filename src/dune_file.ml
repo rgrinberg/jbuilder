@@ -864,6 +864,32 @@ module Library = struct
          })
   end
 
+  module Vlib = struct
+    type t =
+      | Virtual_modules of Ordered_set_lang.t
+      | Implements of (Loc.t * Lib_name.t)
+
+    let make ~virtual_modules ~implements =
+      match virtual_modules, implements with
+      | None, None -> None
+      | Some virtual_modules, None ->
+        Some (Virtual_modules virtual_modules)
+      | None, Some implements ->
+        Some (Implements implements)
+      | Some virtual_modules, Some (_, impl) ->
+        of_sexp_errorf
+          (Ordered_set_lang.loc virtual_modules
+           |> Option.value_exn)
+          "A library cannot be both virtual and implement %s"
+          (Lib_name.to_string impl)
+
+    let is_virtual = function
+      | Virtual_modules _ -> true
+      | Implements _ -> false
+
+    let is_impl t = not (is_virtual t)
+  end
+
   type t =
     { name                     : (Loc.t * Lib_name.Local.t)
     ; public                   : Public_lib.t option
@@ -888,8 +914,7 @@ module Library = struct
     ; sub_systems              : Sub_system_info.t Sub_system_name.Map.t
     ; no_keep_locs             : bool
     ; dune_version             : Syntax.Version.t
-    ; virtual_modules          : Ordered_set_lang.t option
-    ; implements               : (Loc.t * Lib_name.t) option
+    ; vlib                     : Vlib.t option
     ; private_modules          : Ordered_set_lang.t option
     ; stdlib                   : Stdlib.t option
     }
@@ -969,13 +994,6 @@ module Library = struct
                "name field is missing"
            )
        in
-       Option.both virtual_modules implements
-       |> Option.iter ~f:(fun (virtual_modules, (_, impl)) ->
-         of_sexp_errorf
-           (Ordered_set_lang.loc virtual_modules
-            |> Option.value_exn)
-           "A library cannot be both virtual and implement %s"
-           (Lib_name.to_string impl));
        begin match virtual_modules, wrapped, implements with
        | Some _, Some (loc, Wrapped.Simple false), _ ->
          of_sexp_error loc "A virtual library must be wrapped"
@@ -985,6 +1003,7 @@ module Library = struct
             It is inherited from the virtual library."
        | _, _, _ -> ()
        end;
+       let vlib = Vlib.make ~virtual_modules ~implements in
        let self_build_stubs_archive =
          let loc, self_build_stubs_archive = self_build_stubs_archive in
          let err =
@@ -1025,8 +1044,7 @@ module Library = struct
        ; sub_systems
        ; no_keep_locs
        ; dune_version
-       ; virtual_modules
-       ; implements
+       ; vlib
        ; private_modules
        ; stdlib
        })
@@ -1060,21 +1078,33 @@ module Library = struct
     | None -> Lib_name.of_local t.name
     | Some p -> snd p.name
 
-  let is_virtual t = Option.is_some t.virtual_modules
-  let is_impl t = Option.is_some t.implements
-
   module Main_module_name = struct
     type t =
       | This of Module.Name.t option
       | Inherited_from of (Loc.t * Lib_name.t)
   end
 
+  let is_virtual t =
+    match t.vlib with
+    | None -> false
+    | Some vlib -> Vlib.is_virtual vlib
+
+  let is_impl t =
+    match t.vlib with
+    | None -> false
+    | Some vlib -> Vlib.is_impl vlib
+
+  let virtual_modules t =
+    Option.bind t.vlib ~f:(function
+      | Vlib.Virtual_modules v -> Some v
+      | Implements _ -> None)
+
   let main_module_name t : Main_module_name.t =
-    match t.implements, Wrapped.to_bool t.wrapped with
-    | Some x, true -> Inherited_from x
-    | Some _, false -> assert false
-    | None, false -> This None
-    | None, true -> This (Some (Module.Name.of_local_lib_name (snd t.name)))
+    match t.vlib, Wrapped.to_bool t.wrapped with
+    | Some (Implements x), true -> Inherited_from x
+    | Some (Implements _), false -> assert false
+    | _, false -> This None
+    | _, true -> This (Some (Module.Name.of_local_lib_name (snd t.name)))
 
   let special_compiler_module t (m : Module.t) =
     match t.stdlib with
