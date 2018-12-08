@@ -111,6 +111,7 @@ let add_alias sctx ~dir ~name ~stamp ~loc ?(locks=[]) build =
 
 let alias sctx ?extra_bindings ~dir ~expander (alias_conf : Alias_conf.t) =
   let stamp =
+    let open Digestable in
     ( "user-alias"
     , Bindings.map
         ~f:Dune_file.Dep_conf.remove_locs alias_conf.deps
@@ -118,6 +119,7 @@ let alias sctx ?extra_bindings ~dir ~expander (alias_conf : Alias_conf.t) =
         alias_conf.action
     , Option.map extra_bindings ~f:Pform.Map.to_stamp
     )
+    |> digest (t4 string raw raw raw)
   in
   let loc = Some alias_conf.loc in
   if Expander.eval_blang expander alias_conf.enabled_if then

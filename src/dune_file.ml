@@ -208,6 +208,9 @@ module Dep_conf = struct
     | Universe -> Universe
     | Env_var sw -> Env_var sw
 
+  let digest t =
+    Digestable.raw (remove_locs t)
+
   let decode =
     let decode =
       let sw = String_with_vars.decode in

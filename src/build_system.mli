@@ -184,7 +184,7 @@ module Alias : sig
     -> env:Env.t option
     -> loc:Loc.t option
     -> ?locks:Path.t list
-    -> stamp:_
+    -> stamp:Digest.t
     -> (unit, Action.t) Build.t
     -> unit
 end with type build_system := t

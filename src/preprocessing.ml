@@ -28,6 +28,9 @@ end = struct
     ; scope : Dune_project.Name.t option
     }
 
+  let digest { pps ; scope } =
+    Digestable.(t2 raw (opt raw)) (pps, scope)
+
   let reverse_table : (encoded, decoded) Hashtbl.t = Hashtbl.create 128
 
   let of_libs ~dir_kind libs =
@@ -58,7 +61,7 @@ end = struct
     { pps; scope }
 
   let encode x =
-    let y = Digest.string (Marshal.to_string x []) in
+    let y = Digestable.digest digest x in
     match Hashtbl.find reverse_table y with
     | None ->
       Hashtbl.add reverse_table y x;
@@ -556,7 +559,9 @@ let lint_module sctx ~dir ~expander ~dep_kind ~lint ~lib_name ~scope ~dir_kind =
     let alias = Build_system.Alias.lint ~dir in
     let add_alias fn build =
       SC.add_alias_action sctx alias build ~dir
-        ~stamp:("lint", lib_name, fn)
+        ~stamp:(Digestable.(
+          digest (t3 string (opt string) path)
+            ("lint", (Option.map ~f:Lib_name.Local.to_string lib_name), fn)))
     in
     let lint =
       Per_module.map lint ~f:(function

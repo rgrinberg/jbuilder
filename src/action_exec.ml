@@ -141,15 +141,8 @@ let rec exec t ~ectx ~dir ~env ~stdout_to ~stderr_to =
     Path.mkdir_p path;
     Fiber.return ()
   | Digest_files paths ->
-    let s =
-      let data =
-        List.map paths ~f:(fun fn ->
-          (Path.to_string fn, Utils.Cached_digest.file fn))
-      in
-      Digest.string
-        (Marshal.to_string data [])
-    in
-    exec_echo stdout_to s
+    Digestable.digest Digestable.trace_paths paths
+    |> exec_echo stdout_to
   | Diff { optional; file1; file2; mode } ->
     let compare_files =
       match mode with

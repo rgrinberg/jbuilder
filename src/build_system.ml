@@ -803,13 +803,14 @@ let rec compile_rule t ?(copy_source=false) pre_rule =
         | Some e, _ -> e
         | None, Some c -> c.env
       in
-      let trace =
-        ( Deps.trace all_deps env,
-          List.map targets_as_list ~f:Path.to_string,
-          Option.map context ~f:(fun c -> c.name),
-          Action.for_shell action)
-      in
-      Digest.string (Marshal.to_string trace [])
+      ( all_deps
+      , targets_as_list
+      , Option.map context ~f:(fun c -> c.name)
+      , action
+      )
+      |> Digestable.digest (
+        Digestable.t4 (Deps.digest env)
+          Digestable.paths Digestable.string_opt Action.digest)
     in
     let targets_digest =
       match List.map targets_as_list ~f:Utils.Cached_digest.file with
@@ -1645,7 +1646,7 @@ module Alias = struct
 
   let add_action build_system t ~context ~env ~loc ?(locks=[]) ~stamp action =
     let def = get_alias_def build_system t in
-    def.actions <- { stamp = Digest.string (Marshal.to_string stamp [])
+    def.actions <- { stamp
                    ; action
                    ; locks
                    ; context

@@ -103,7 +103,7 @@ val add_alias_action
   -> dir:Path.t
   -> loc:Loc.t option
   -> ?locks:Path.t list
-  -> stamp:_
+  -> stamp:Digest.t
   -> (unit, Action.t) Build.t
   -> unit
 

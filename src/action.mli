@@ -86,3 +86,5 @@ val sandbox
   -> deps:Deps.t
   -> targets:Path.t list
   -> t
+
+val digest : t Digestable.t

@@ -89,6 +89,8 @@ module Dep_conf : sig
 
   val remove_locs : t -> t
 
+  val digest : t Digestable.t
+
   include Dune_lang.Conv with type t := t
   val to_sexp : t Sexp.Encoder.t
 end

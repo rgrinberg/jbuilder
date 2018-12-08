@@ -225,3 +225,6 @@ let sandbox t ~sandboxed ~deps ~targets : t =
         else
           None))
     ]
+
+let digest t =
+  Digestable.raw (for_shell t)
