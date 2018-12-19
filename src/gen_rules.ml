@@ -203,7 +203,8 @@ module Gen(P : Install_rules.Params) = struct
          |> List.iter ~f:(fun t ->
            let src = File_bindings.src_path t ~dir:src_dir in
            let dst = File_bindings.dst_path t ~dir in
-           Super_context.add_rule sctx ~dir (Build.symlink ~src ~dst))
+           let backtrace = Printexc.get_callstack 20 in
+           Super_context.add_rule sctx ~backtrace ~dir (Build.symlink ~src ~dst))
        | _ ->
          match
            File_tree.find_dir (SC.file_tree sctx)

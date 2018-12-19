@@ -22,6 +22,7 @@ module Rule : sig
     ; loc      : Loc.t option
     ; (** Directory where all the targets are produced *)
       dir      : Path.t
+    ; backtrace : Printexc.raw_backtrace option
     }
 
   val make
@@ -31,6 +32,7 @@ module Rule : sig
     -> env:Env.t option
     -> ?locks:Path.t list
     -> ?loc:Loc.t
+    -> ?backtrace:Printexc.raw_backtrace
     -> (unit, Action.t) Build.t
     -> t
 end

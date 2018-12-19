@@ -18,7 +18,8 @@ let setup_copy_rules_for_impl ~sctx ~dir vimpl =
   in
   let copy_to_obj_dir ~obj_dir file =
     let dst = Path.relative obj_dir (Path.basename file) in
-    Super_context.add_rule ~dir ~loc:(Loc.of_pos __POS__)
+    let backtrace = Printexc.get_callstack () in
+    Super_context.add_rule ~dir ~backtrace ~loc:(Loc.of_pos __POS__)
       sctx (Build.symlink ~src:file ~dst)
   in
   let obj_dir = Lib.obj_dir vlib in

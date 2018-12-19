@@ -75,6 +75,7 @@ val add_rule
   -> ?mode:Dune_file.Rule.Mode.t
   -> ?locks:Path.t list
   -> ?loc:Loc.t
+  -> ?backtrace:Printexc.raw_backtrace
   -> dir:Path.t
   -> (unit, Action.t) Build.t
   -> unit
@@ -84,12 +85,14 @@ val add_rule_get_targets
   -> ?mode:Dune_file.Rule.Mode.t
   -> ?locks:Path.t list
   -> ?loc:Loc.t
+  -> ?backtrace:Printexc.raw_backtrace
   -> dir:Path.t
   -> (unit, Action.t) Build.t
   -> Path.t list
 val add_rules
   :  t
   -> ?sandbox:bool
+  -> ?backtrace:Printexc.raw_backtrace
   -> dir:Path.t
   -> (unit, Action.t) Build.t list
   -> unit

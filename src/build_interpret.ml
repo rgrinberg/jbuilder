@@ -202,10 +202,11 @@ module Rule = struct
     ; locks    : Path.t list
     ; loc      : Loc.t option
     ; dir      : Path.t
+    ; backtrace : Printexc.raw_backtrace option
     }
 
   let make ?(sandbox=false) ?(mode=Dune_file.Rule.Mode.Not_a_rule_stanza)
-        ~context ~env ?(locks=[]) ?loc build =
+        ~context ~env ?(locks=[]) ?loc ?backtrace build =
     let targets = targets build in
     let dir =
       match targets with
@@ -243,5 +244,6 @@ module Rule = struct
     ; locks
     ; loc
     ; dir
+    ; backtrace
     }
 end

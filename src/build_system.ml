@@ -83,6 +83,7 @@ module Internal_rule = struct
       ; build            : (unit, Action.t) Build.t
       ; mode             : Dune_file.Rule.Mode.t
       ; loc              : Loc.t option
+      ; backtrace        : Printexc.raw_backtrace option
       ; dir              : Path.t
       ; env              : Env.t option
       ; sandbox          : bool
@@ -134,6 +135,7 @@ module Internal_rule = struct
     ; locks       = []
     ; rev_deps    = []
     ; transitive_rev_deps = Id.Set.empty
+    ; backtrace   = None
     }
 
   let make_request ~build ~static_deps =
@@ -759,6 +761,7 @@ let rec compile_rule t ?(copy_source=false) pre_rule =
       ; locks
       ; loc
       ; dir
+      ; backtrace
       } =
     pre_rule
   in
@@ -785,6 +788,7 @@ let rec compile_rule t ?(copy_source=false) pre_rule =
     ; dir
     ; transitive_rev_deps = Internal_rule.Id.Set.singleton id
     ; rev_deps = []
+    ; backtrace
     }
   in
   create_file_specs t target_specs rule ~copy_source
@@ -801,6 +805,7 @@ and run_rule  t rule action deps =
       ; mode
       ; sandbox
       ; locks
+      ; backtrace = _
       ; id = _
       ; static_deps = _
       ; build = _
