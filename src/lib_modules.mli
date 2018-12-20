@@ -24,7 +24,7 @@ val public_modules : t -> Module.Name_map.t
 
 val make
   :  Dune_file.Library.t
-  -> dir:Path.t
+  -> obj_dir:Module.Obj_dir.t
   -> Module.Name_map.t
   -> virtual_modules:Module.Name_map.t
   -> main_module_name:Module.Name.t option
@@ -32,6 +32,8 @@ val make
   -> t
 
 val set_modules : t -> Module.Name_map.t -> t
+
+val version_installed : install_dir:Path.t -> t -> t
 
 val for_compilation : t -> Module.Name_map.t
 

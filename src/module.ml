@@ -130,6 +130,91 @@ module Visibility = struct
   let is_private t = not (is_public t)
 end
 
+module Obj_dir = struct
+  type t =
+    { dir: Path.t (** The main directory *)
+    ; public_dir: Path.t  (** The public compiled file directory *)
+    ; private_dir: Path.t option   (** The private compiled file directory *)
+    }
+
+  let all_objs_dir t = (t.public_dir::(Option.to_list t.private_dir))
+
+  let make ~dir ~public_dir ?private_dir () =
+    { dir
+    ; public_dir
+    ; private_dir
+    }
+
+
+  let make_local ~dir ~has_private_modules lib_name =
+    let obj_dir = Utils.library_object_directory ~dir lib_name in
+    let private_dir =
+      Option.some_if
+        has_private_modules
+        (Utils.library_private_obj_dir ~obj_dir)
+    in
+    make ~dir ~public_dir:obj_dir ?private_dir ()
+
+  let make_exe ~dir exe_name =
+    let obj_dir = Utils.executable_object_directory ~dir exe_name in
+    make ~dir ~public_dir:obj_dir ?private_dir:None ()
+
+  let make_external ~dir =
+    { dir
+    ; public_dir = dir
+    ; private_dir = None
+    }
+
+  let to_sexp { dir; public_dir; private_dir } =
+    let open Sexp.Encoder in
+    record
+      [ "dir", Path.to_sexp dir
+      ; "public_dir", Path.to_sexp public_dir
+      ; "private_dir", (option Path.to_sexp) private_dir
+      ]
+
+  let pp fmt { dir; public_dir; private_dir } =
+    Fmt.record fmt
+      [ "dir", Fmt.const Path.pp dir
+      ; "public_dir", Fmt.const Path.pp public_dir
+      ; "private_dir", Fmt.const (Fmt.optional Path.pp) private_dir
+      ]
+
+
+  let encode
+        { dir
+        ; public_dir
+        ; private_dir
+        } =
+    let open Dune_lang.Encoder in
+    let extract d =
+      Path.descendant ~of_:dir d
+      |> Option.value_exn
+      |> Path.to_string
+    in
+    let public_dir = extract public_dir in
+    let private_dir = Option.map ~f:extract private_dir in
+    record_fields
+      [ field "public_dir" ~equal:String.equal ~default:"." string public_dir
+      ; field_o "private_dir" string private_dir
+      ]
+
+
+  let decode ~dir =
+    let open Dune_lang.Decoder in
+    fields (
+      let%map public_dir = field ~default:"." "public_dir" string
+      and private_dir = field_o "private_dir" string
+      in
+      make ~dir
+        ~public_dir:(Path.relative dir public_dir)
+        ?private_dir:(Option.map ~f:(Path.relative dir) private_dir)
+        ()
+    )
+
+
+end
+
 type t =
   { name       : Name.t
   ; impl       : File.t option
@@ -137,14 +222,16 @@ type t =
   ; obj_name   : string
   ; pp         : (unit, string list) Build.t option
   ; visibility : Visibility.t
+  ; obj_dir    : Obj_dir.t
   }
 
 let name t = t.name
 let pp_flags t = t.pp
 let intf t = t.intf
 let impl t = t.impl
+let obj_dir t = t.obj_dir
 
-let make ?impl ?intf ?obj_name ~visibility name =
+let make ?impl ?intf ?obj_name ~visibility ~obj_dir name =
   let file : File.t =
     match impl, intf with
     | None, None ->
@@ -171,6 +258,7 @@ let make ?impl ?intf ?obj_name ~visibility name =
   ; obj_name
   ; pp = None
   ; visibility
+  ; obj_dir
   }
 
 let real_unit_name t = Name.of_string (Filename.basename t.obj_name)
@@ -189,11 +277,11 @@ let file t (kind : Ml_kind.t) =
   in
   Option.map file ~f:(fun f -> f.path)
 
-let obj_file t ~obj_dir ~ext =
+let obj_file t ~ext =
   let base =
     match t.visibility with
-    | Public -> obj_dir
-    | Private -> Utils.library_private_obj_dir ~obj_dir
+    | Public -> t.obj_dir.public_dir
+    | Private -> Option.value_exn t.obj_dir.private_dir
   in
   Path.relative base (t.obj_name ^ ext)
 
@@ -201,25 +289,31 @@ let obj_name t = t.obj_name
 
 let cm_source t kind = file t (Cm_kind.source kind)
 
-let cm_file_unsafe t ~obj_dir kind =
-  obj_file t ~obj_dir ~ext:(Cm_kind.ext kind)
+let cm_file_unsafe t ?ext kind =
+  obj_file t ~ext:(Option.value ~default:(Cm_kind.ext kind) ext)
 
-let cm_file t ~obj_dir (kind : Cm_kind.t) =
+let cm_file t (kind : Cm_kind.t) =
   match kind with
   | (Cmx | Cmo) when not (has_impl t) -> None
-  | _ -> Some (cm_file_unsafe t ~obj_dir kind)
+  | _ -> Some (cm_file_unsafe t kind)
 
-let cmt_file t ~obj_dir (kind : Ml_kind.t) =
+let cmt_file t (kind : Ml_kind.t) =
   match kind with
-  | Impl -> Option.map t.impl ~f:(fun _ -> obj_file t ~obj_dir ~ext:".cmt" )
-  | Intf -> Option.map t.intf ~f:(fun _ -> obj_file t ~obj_dir ~ext:".cmti")
+  | Impl -> Option.map t.impl ~f:(fun _ -> obj_file t ~ext:".cmt" )
+  | Intf -> Option.map t.intf ~f:(fun _ -> obj_file t ~ext:".cmti")
 
-let odoc_file t ~doc_dir = obj_file t ~obj_dir:doc_dir~ext:".odoc"
+let odoc_file t ~doc_dir =
+  let base =
+    match t.visibility with
+    | Public -> doc_dir
+    | Private -> Utils.library_private_obj_dir ~obj_dir:doc_dir
+  in
+  Path.relative base (t.obj_name ^ ".odoc")
 
-let cmti_file t ~obj_dir =
+let cmti_file t =
   match t.intf with
-  | None   -> obj_file t ~obj_dir ~ext:".cmt"
-  | Some _ -> obj_file t ~obj_dir ~ext:".cmti"
+  | None   -> obj_file t ~ext:".cmt"
+  | Some _ -> obj_file t ~ext:".cmti"
 
 let iter t ~f =
   Option.iter t.impl ~f:(f Ml_kind.Impl);
@@ -246,7 +340,7 @@ let src_dir t =
 
 let set_pp t pp = { t with pp }
 
-let to_sexp { name; impl; intf; obj_name ; pp ; visibility } =
+let to_sexp { name; impl; intf; obj_name ; pp ; visibility; obj_dir } =
   let open Sexp.Encoder in
   record
     [ "name", Name.to_sexp name
@@ -255,15 +349,17 @@ let to_sexp { name; impl; intf; obj_name ; pp ; visibility } =
     ; "intf", (option File.to_sexp) intf
     ; "pp", (option string) (Option.map ~f:(fun _ -> "has pp") pp)
     ; "visibility", Visibility.to_sexp visibility
+    ; "obj_dir", Obj_dir.to_sexp obj_dir
     ]
 
-let pp fmt { name; impl; intf; obj_name ; pp = _ ; visibility } =
+let pp fmt { name; impl; intf; obj_name ; pp = _ ; visibility; obj_dir } =
   Fmt.record fmt
     [ "name", Fmt.const Name.pp name
     ; "impl", Fmt.const (Fmt.optional File.pp) impl
     ; "intf", Fmt.const (Fmt.optional File.pp) intf
     ; "obj_name", Fmt.const Format.pp_print_string obj_name
     ; "visibility", Fmt.const Visibility.pp visibility
+    ; "obj_dir", Fmt.const Obj_dir.pp obj_dir
     ]
 
 let wrapped_compat t =
@@ -308,6 +404,8 @@ let is_private t = Visibility.is_private t.visibility
 
 let set_private t =
   { t with visibility = Private }
+let set_obj_dir ~obj_dir t =
+  { t with obj_dir }
 
 let visibility t = t.visibility
 
@@ -347,6 +445,7 @@ let encode
        ; obj_name
        ; pp = _
        ; visibility
+       ; obj_dir
        } as t) =
   let open Dune_lang.Encoder in
   record_fields
@@ -355,6 +454,7 @@ let encode
     ; field "visibility" Visibility.encode visibility
     ; field_b "impl" (has_impl t)
     ; field_b "intf" (has_intf t)
+    ; field_i "obj_dir" Obj_dir.encode obj_dir
     ]
 
 let decode ~dir =
@@ -365,6 +465,7 @@ let decode ~dir =
     and visibility = field "visibility" Visibility.decode
     and impl = field_b "impl"
     and intf = field_b "intf"
+    and obj_dir = field ~default:(Obj_dir.make ~dir ~public_dir:dir ()) "obj_dir" (Obj_dir.decode ~dir)
     in
     let file exists ml_kind =
       if exists then
@@ -375,5 +476,41 @@ let decode ~dir =
     in
     let intf = file intf Intf in
     let impl = file impl Impl in
-    make ~obj_name ~visibility ?impl ?intf name
+    make ~obj_name ~visibility ?impl ?intf ~obj_dir name
   )
+
+
+(* Only the source of a module, not yet associated to a library *)
+module Source = struct
+  type t =
+    { name : Name.t
+    ; impl : File.t option
+    ; intf : File.t option
+    }
+
+  let make ?impl ?intf name =
+    begin match impl, intf with
+    | None, None ->
+      Exn.code_error "Module.Source.make called with no files"
+        [ "name", Sexp.Encoder.string name
+        ; "impl", Sexp.Encoder.(option unknown) impl
+        ; "intf", Sexp.Encoder.(option unknown) intf
+        ]
+    | Some _, _
+    | _, Some _ -> ()
+    end;
+    { name
+    ; impl
+    ; intf
+    }
+
+  let has_impl t = Option.is_some t.impl
+
+  let src_dir t =
+  match t.intf, t.impl with
+  | None, None -> None
+  | Some x, Some _
+  | Some x, None
+  | None, Some x -> Some (Path.parent_exn x.path)
+
+end
