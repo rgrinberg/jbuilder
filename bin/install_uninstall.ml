@@ -11,12 +11,20 @@ let interpret_destdir ~destdir path =
       (Path.of_string prefix)
       (Path.local_part path)
 
+type dirs =
+  { prefix : Path.t
+  ; libdir : Path.t option
+  }
+
 let get_dirs context ~prefix_from_command_line ~libdir_from_command_line =
   match prefix_from_command_line with
   | Some p ->
     let prefix = Path.of_string p in
     let dir = Option.value ~default:"lib" libdir_from_command_line in
-    Fiber.return (prefix, Some (Path.relative prefix dir))
+    Fiber.return
+      { prefix
+      ; libdir = Some (Path.relative prefix dir)
+      }
   | None ->
     Context.install_prefix context >>= fun prefix ->
     let libdir =
@@ -25,7 +33,9 @@ let get_dirs context ~prefix_from_command_line ~libdir_from_command_line =
       | Some l -> Fiber.return (Some (Path.relative prefix l))
     in
     libdir >>| fun libdir ->
-    (prefix, libdir)
+    { prefix
+    ; libdir
+    }
 
 let resolve_package_install setup pkg =
   match Import.Main.package_install_file setup pkg with
@@ -207,7 +217,7 @@ let install_uninstall ~what =
       Fiber.parallel_iter install_files_by_context
         ~f:(fun (context, install_files) ->
           get_dirs context ~prefix_from_command_line ~libdir_from_command_line
-          >>| fun (prefix, libdir) ->
+          >>| fun { prefix ; libdir } ->
           List.iter install_files ~f:(fun (package, path) ->
             let entries = Install.load_install_file path in
             let paths =
