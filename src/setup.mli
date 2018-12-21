@@ -10,3 +10,6 @@ val library_path : string list option
 
 (** Where to install libraries for the default context. *)
 val library_destdir : string option
+
+(** Path relative to which  *)
+val install_prefix : string option
