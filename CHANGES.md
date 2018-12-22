@@ -53,6 +53,10 @@ unreleased
 - Look for jsoo runtime in the same dir as the `js_of_ocaml` binary
   when the ocamlfind package is not available (#1467, @nobj)
 
+- Add locations to error messages where a rule fails to generate targets and
+  rules that require files outside the build/source directory. (#1708, fixes
+  #848, @rgrinberg)
+
 1.6.2 (05/12/2018)
 ------------------
 
