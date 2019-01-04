@@ -193,15 +193,16 @@ let targets =
 
 module Rule = struct
   type t =
-    { context  : Context.t option
-    ; env      : Env.t option
-    ; build    : (unit, Action.t) Build.t
-    ; targets  : Target.t list
-    ; sandbox  : bool
-    ; mode     : Dune_file.Rule.Mode.t
-    ; locks    : Path.t list
-    ; loc      : Loc.t option
-    ; dir      : Path.t
+    { context   : Context.t option
+    ; env       : Env.t option
+    ; build     : (unit, Action.t) Build.t
+    ; targets   : Target.t list
+    ; sandbox   : bool
+    ; mode      : Dune_file.Rule.Mode.t
+    ; locks     : Path.t list
+    ; loc       : Loc.t option
+    ; dir       : Path.t
+    ; callstack : Printexc.raw_backtrace
     }
 
   let make ?(sandbox=false) ?(mode=Dune_file.Rule.Mode.Not_a_rule_stanza)
@@ -234,6 +235,7 @@ module Rule = struct
                         (Target.path t |> Path.to_string_maybe_quoted)))));
         dir
     in
+    let callstack = Printexc.get_callstack 20 in
     { context
     ; env
     ; build
@@ -243,5 +245,6 @@ module Rule = struct
     ; locks
     ; loc
     ; dir
+    ; callstack
     }
 end

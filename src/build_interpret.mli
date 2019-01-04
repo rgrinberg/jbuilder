@@ -22,6 +22,7 @@ module Rule : sig
     ; loc      : Loc.t option
     ; (** Directory where all the targets are produced *)
       dir      : Path.t
+    ; callstack : Printexc.raw_backtrace
     }
 
   val make

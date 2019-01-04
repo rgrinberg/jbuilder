@@ -92,6 +92,7 @@ module Internal_rule = struct
         mutable rev_deps : (Path.t * t) list
       ; (* Transitive reverse dependencies discovered so far. *)
         mutable transitive_rev_deps : Id.Set.t
+      ; callstack : Printexc.raw_backtrace
       }
 
     let compare a b = Id.compare a.id b.id
@@ -134,6 +135,7 @@ module Internal_rule = struct
     ; locks       = []
     ; rev_deps    = []
     ; transitive_rev_deps = Id.Set.empty
+    ; callstack = Printexc.get_callstack 20
     }
 
   let make_request ~build ~static_deps =
@@ -770,6 +772,7 @@ let rec compile_rule t ?(copy_source=false) pre_rule =
       ; locks
       ; loc
       ; dir
+      ; callstack
       } =
     pre_rule
   in
@@ -796,6 +799,7 @@ let rec compile_rule t ?(copy_source=false) pre_rule =
     ; dir
     ; transitive_rev_deps = Internal_rule.Id.Set.singleton id
     ; rev_deps = []
+    ; callstack
     }
   in
   create_file_specs t target_specs rule ~copy_source
@@ -818,6 +822,7 @@ and run_rule t rule action deps =
       ; loc
       ; transitive_rev_deps = _
       ; rev_deps = _
+      ; callstack = _
       } = rule in
   make_local_dir t dir;
   let targets_as_list  = Path.Set.to_list targets  in
