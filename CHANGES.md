@@ -26,6 +26,7 @@ unreleased
 
 - When executing actions, open files lazily and close them as soon as
   possible in order to reduce the maximum number of file descriptors
+
   opened by Dune (#1635, #1643, fixes #1633, @jonludlam, @rgrinberg,
   @diml)
 
