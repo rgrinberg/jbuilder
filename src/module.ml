@@ -272,24 +272,24 @@ let cm_file_unsafe t ?ext kind =
   let ext = Option.value ext ~default:(Cm_kind.ext kind) in
   obj_file t ~mode ~ext
 
-let cm_file t ?ext (kind : Cm_kind.t) =
+let cm_file t (kind : Cm_kind.t) =
   match kind with
   | (Cmx | Cmo) when not (has_impl t) -> None
-  | _ -> Some (cm_file_unsafe t ?ext kind)
+  | _ -> Some (cm_file_unsafe t kind)
 
-let cm_public_file_unsafe t ?ext kind =
-  let ext = Option.value ext ~default:(Cm_kind.ext kind) in
+let cm_public_file_unsafe t kind =
+  let ext = Cm_kind.ext kind in
   let base = match kind with
     | Cm_kind.Cmx -> Obj_dir.native_dir t.obj_dir
     | Cmo -> Obj_dir.byte_dir t.obj_dir
     | Cmi -> Obj_dir.public_cmi_dir t.obj_dir in
   Path.relative base (t.obj_name ^ ext)
 
-let cm_public_file t ?ext (kind : Cm_kind.t) =
+let cm_public_file t (kind : Cm_kind.t) =
   match kind with
   | (Cmx | Cmo) when not (has_impl t) -> None
   |  Cmi when is_private t -> None
-  | _ -> Some (cm_public_file_unsafe t ?ext kind)
+  | _ -> Some (cm_public_file_unsafe t kind)
 
 let cmt_file t (kind : Ml_kind.t) =
   match kind with
