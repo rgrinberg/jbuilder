@@ -19,7 +19,7 @@ let term =
   Common.set_common common ~targets:[];
   let log = Log.create common in
   Scheduler.go ~log ~common (fun () ->
-    Import.Main.setup ~log common >>= fun setup ->
-    Dune.Upgrader.upgrade setup.file_tree)
+    Import.Main.scan_workspace ~log common >>= fun w ->
+    Dune.Upgrader.upgrade w.conf.file_tree)
 
 let command = term, info
