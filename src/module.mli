@@ -84,7 +84,6 @@ val real_unit_name : t -> Name.t
 
 val intf : t -> File.t option
 val impl : t -> File.t option
-val obj_dir : t -> Obj_dir.t
 
 val pp_flags : t -> (unit, string list) Build.t option
 
