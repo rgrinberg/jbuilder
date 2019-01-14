@@ -42,6 +42,7 @@ type rename_and_edit =
 type todo =
   { mutable to_rename_and_edit : rename_and_edit list
   ; mutable to_add : Path.t list
+  ; mutable to_edit : (Path.t * string) list
   }
 
 let upgrade_stanza stanza =
@@ -203,12 +204,104 @@ let upgrade_file todo file sexps ~look_for_jbuild_ignore =
     ; contents
     } :: todo.to_rename_and_edit
 
+type replace_kind =
+  | All_line
+  | Chars of int
+
+let upgrade_opam_file todo fn =
+  let open OpamParserTypes in
+  let s = Io.read_file fn ~binary:true in
+  let lb = Lexing.from_string s in
+  lb.lex_curr_p <-
+    { pos_fname = Path.to_string fn
+    ; pos_lnum  = 1
+    ; pos_bol   = 0
+    ; pos_cnum  = 0
+    };
+  let t = Opam_file.parse lb in
+  let substs = ref [] in
+  let replace (_, line, col) old new_ =
+    let len = String.length old + 2 in
+    substs := ((line, col - len + 1), (Chars len, sprintf "%S" new_)) :: !substs
+  in
+  let rec scan = function
+    | String (pos, ("jbuilder" as s)) ->
+      replace pos s "dune"
+    | Option ((_, line, _), String (_, "jbuilder"), _) ->
+      substs := ((line, 0), (All_line,
+                             sprintf {|  "dune" {build & >= "%s"}|}
+                               (Syntax.Version.to_string
+                                  (Syntax.greatest_supported_version
+                                     Stanza.syntax))))
+                :: !substs
+    | Bool _ | Int _ | String _ | Relop _ | Logop _ | Pfxop _
+    | Ident _ | Prefix_relop _ -> ()
+    | List (_, l) | Group (_, l) ->
+      List.iter l ~f:scan
+    | Option (_, v, l) ->
+      scan v;
+      List.iter l ~f:scan
+    | Env_binding (_, v1, _, v2) ->
+      scan v1;
+      scan v2
+  in
+  let rec scan_item = function
+    | Section (_, s) ->
+      List.iter s.section_items ~f:scan_item
+    | Variable (_, _, v) -> scan v
+  in
+  List.iter t.file_contents ~f:scan_item;
+  let substs = List.sort !substs ~compare in
+  if not (List.is_empty substs) then begin
+    let rec to_absolute_offsets line bol substs =
+      match substs with
+      | [] -> []
+      | ((line', col), (kind, repl)) :: substs when
+          (assert (line' >= line); line' = line) ->
+        let ofs_start = bol + col in
+        let ofs_end =
+          match kind with
+          | Chars n -> ofs_start + n
+          | All_line ->
+            let i = String.index_from s ofs_start '\n' in
+            if s.[i - 1] = '\r' then i - 1 else i
+        in
+        (ofs_start, ofs_end, repl)
+        :: to_absolute_offsets line bol substs
+      | _ ->
+        advance_to_next_line line bol substs
+    and advance_to_next_line line ofs substs =
+      match s.[ofs] with
+      | '\n' ->
+        to_absolute_offsets (line + 1) (ofs + 1) substs
+      | _ -> advance_to_next_line line (ofs + 1) substs
+    in
+    let substs = to_absolute_offsets 1 0 substs in
+    let buf = Buffer.create (String.length s + 128) in
+    let ofs =
+      List.fold_left substs ~init:0 ~f:(fun ofs (start, stop, repl) ->
+        Buffer.add_substring buf s ofs (start - ofs);
+        Buffer.add_string buf repl;
+        stop)
+    in
+    Buffer.add_substring buf s ofs (String.length s - ofs);
+    let s' = Buffer.contents buf in
+    if s <> s' then
+      todo.to_edit <- (fn, s') :: todo.to_edit
+  end
+
 let upgrade_dir todo dir =
   let project = File_tree.Dir.project dir in
-  (match Dune_project.ensure_project_file_exists project with
-   | Already_exist -> ()
-   | Created ->
-     todo.to_add <- Dune_project.file project :: todo.to_add);
+  let project_root = Path.of_local (Dune_project.root project) in
+  if project_root = File_tree.Dir.path dir then begin
+    (match Dune_project.ensure_project_file_exists project with
+     | Already_exist -> ()
+     | Created ->
+       todo.to_add <- Dune_project.file project :: todo.to_add);
+    Package.Name.Map.iter (Dune_project.packages project) ~f:(fun pkg ->
+      let fn = Package.opam_file pkg in
+      if Path.exists fn then upgrade_opam_file todo fn)
+  end;
   Option.iter (File_tree.Dir.dune_file dir) ~f:(fun dune_file ->
     match dune_file.kind, dune_file.contents with
     | Dune, _ -> ()
@@ -225,6 +318,7 @@ let upgrade ft =
   let todo =
     { to_rename_and_edit = []
     ; to_add = []
+    ; to_edit = []
     }
   in
   File_tree.fold ft ~traverse_ignored_dirs:false ~init:() ~f:(fun dir () ->
@@ -261,6 +355,9 @@ let upgrade ft =
         ["add"; Path.reach fn ~from:dir]
     | None -> Fiber.return ())
   >>= fun () ->
+  List.iter todo.to_edit ~f:(fun (fn, s) ->
+    log "Upgrading %s...\n" (Path.to_string_maybe_quoted fn);
+    Io.write_file fn s ~binary:true);
   Fiber.map_all_unit todo.to_rename_and_edit ~f:(fun x ->
     let { original_file
         ; new_file
