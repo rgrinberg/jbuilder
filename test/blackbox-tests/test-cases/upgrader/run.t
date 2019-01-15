@@ -23,8 +23,8 @@
 
   $ cat foo.opam
   build: [
-    ["dune" "subst" "-p" name]
-    ["dune" "build"]
+    ["dune" "subst"]
+    ["dune" "build" "-p" name "-j" jobs]
   ]
   depends: [
     "dune" {build & >= "1.0"}

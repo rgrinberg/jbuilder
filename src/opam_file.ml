@@ -25,7 +25,7 @@ let get_field t name =
 
 let absolutify_positions ~file_contents t =
   let open OpamParserTypes in
-  let bols = ref [] in
+  let bols = ref [0] in
   String.iteri file_contents ~f:(fun i ch ->
     if ch = '\n' then bols := (i + 1) :: !bols);
   let bols = Array.of_list (List.rev !bols) in

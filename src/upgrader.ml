@@ -204,23 +204,22 @@ let upgrade_file todo file sexps ~look_for_jbuild_ignore =
     ; contents
     } :: todo.to_rename_and_edit
 
-type replace_kind =
-  | All_line
-  | Chars of int
-
-let pos_of_opam_value : OpamParserTypes.value -> OpamParserTypes.pos = function
-  | Bool (pos, _)
-  | Int (pos, _)
-  | String (pos, _)
-  | Relop (pos, _, _, _)
-  | Prefix_relop (pos, _, _)
-  | Logop (pos, _, _, _)
-  | Pfxop (pos, _, _)
-  | Ident (pos, _)
-  | List (pos, _)
-  | Group (pos, _)
-  | Option (pos, _, _)
-  | Env_binding (pos, _, _, _) -> pos
+(* This was obtained by trial and error. We should improve the opam
+   parsing API to return better locations. *)
+let rec end_offset_of_opam_value : OpamParserTypes.value -> int =
+  function
+  | Bool ((_, _, ofs), b) -> ofs + String.length (string_of_bool b)
+  | Int ((_, _, ofs), x) -> ofs + String.length (string_of_int x)
+  | String ((_, _, ofs), _) -> ofs + 1
+  | Relop (_, _, _, v)
+  | Prefix_relop (_, _, v)
+  | Logop (_, _, _, v)
+  | Pfxop (_, _, v) -> end_offset_of_opam_value v
+  | Ident ((_, _, ofs), x) -> ofs + String.length x
+  | List ((_, _, ofs), _)
+  | Group ((_, _, ofs), _)
+  | Option ((_, _, ofs), _, _) -> ofs (* this is definitely wrong *)
+  | Env_binding ((_, _, ofs), _, _, _) -> ofs (* probably wrong *)
 
 let upgrade_opam_file todo fn =
   let open OpamParserTypes in
@@ -232,38 +231,45 @@ let upgrade_opam_file todo fn =
     ; pos_bol   = 0
     ; pos_cnum  = 0
     };
-  let t = Opam_file.parse lb in
-  let substs = ref [] in
-  let replace (_, line, col) old new_ =
-    let len = String.length old + 2 in
-    substs := ((line, col - len + 1), (Chars len, sprintf "%S" new_)) :: !substs
+  let t =
+    Opam_file.parse lb
+    |> Opam_file.absolutify_positions ~file_contents:s
   in
+  let substs = ref [] in
+  let add_subst start stop repl =
+    substs := (start, stop, repl) :: !substs
+  in
+  let replace_string (_, _, ofs) old repl =
+    let len = String.length old in
+    add_subst (ofs - len) ofs repl
+  in
+  let replace_jbuilder pos = replace_string pos "jbuilder" "dune" in
   let rec scan = function
-    | String (pos, ("jbuilder" as s)) ->
-      replace pos s "dune"
-    | Option ((_, line, _), String (_, "jbuilder"), _) ->
-      substs := ((line, 0), (All_line,
-                             sprintf {|  "dune" {build & >= "%s"}|}
-                               (Syntax.Version.to_string
-                                  !Dune_project.default_dune_language_version)))
-                :: !substs
-    | List ((_, line, col), (String (jpos, "jbuilder" as s)
-                             :: String (_, "subst") :: _ as l)) ->
-      let _, stop_line, stop_col = List.last_exn l |> pos_of_opam_value in
-      if stop_line = line then
-        substs := ((line, col), (Chars (stop_col - col),
-                                 {|"dune" "subst"|}))
-      else
-        replace jpos s "dune"
-    | List ((_, line, col), (String (jpos, "jbuilder" as s)
-                             :: String (_, ("build" | "runtest" as cmd))
-                             :: _ as l)) ->
-      let _, stop_line, stop_col = List.last_exn l |> pos_of_opam_value in
-      if stop_line = line then
-        substs := ((line, col), (Chars (stop_col - col),
-                                 sprintf {|"dune" %S "-p" name "-j" jobs|}))
-      else
-        replace jpos s "dune"
+    | String (jpos, "jbuilder") -> replace_jbuilder jpos
+    | Option (pos, String (jpos, "jbuilder"), l) ->
+      replace_jbuilder jpos;
+      let _, _, start = pos in
+      let stop = end_offset_of_opam_value (List.last l |> Option.value_exn) in
+      add_subst (start + 1) stop
+        (sprintf "build & >= %S"
+           (Syntax.Version.to_string
+              !Dune_project.default_dune_language_version))
+    | List (_, (String (jpos, "jbuilder")
+                :: String (arg_pos, "subst") :: _ as l)) ->
+      replace_jbuilder jpos;
+      let _, _, start = arg_pos in
+      let stop = end_offset_of_opam_value (List.last l |> Option.value_exn) in
+      let start = start + 1 in
+      if start < stop then add_subst start stop ""
+    | List (_, (String (jpos, "jbuilder")
+                :: String (arg_pos, ("build" | "runtest"))
+                :: _ as l)) ->
+      replace_jbuilder jpos;
+      let _, _, start = arg_pos in
+      let stop = end_offset_of_opam_value (List.last l |> Option.value_exn) in
+      let start = start + 1 in
+      let stop = if start < stop then stop else start in
+      add_subst start stop {| "-p" name "-j" jobs|}
     | Bool _ | Int _ | String _ | Relop _ | Logop _ | Pfxop _
     | Ident _ | Prefix_relop _ -> ()
     | List (_, l) | Group (_, l) ->
@@ -283,33 +289,16 @@ let upgrade_opam_file todo fn =
   List.iter t.file_contents ~f:scan_item;
   let substs = List.sort !substs ~compare in
   if not (List.is_empty substs) then begin
-    let rec to_absolute_offsets line bol substs =
-      match substs with
-      | [] -> []
-      | ((line', col), (kind, repl)) :: substs when
-          (assert (line' >= line); line' = line) ->
-        let ofs_start = bol + col in
-        let ofs_end =
-          match kind with
-          | Chars n -> ofs_start + n
-          | All_line ->
-            let i = String.index_from s ofs_start '\n' in
-            if s.[i - 1] = '\r' then i - 1 else i
-        in
-        (ofs_start, ofs_end, repl)
-        :: to_absolute_offsets line bol substs
-      | _ ->
-        advance_to_next_line line bol substs
-    and advance_to_next_line line ofs substs =
-      match s.[ofs] with
-      | '\n' ->
-        to_absolute_offsets (line + 1) (ofs + 1) substs
-      | _ -> advance_to_next_line line (ofs + 1) substs
-    in
-    let substs = to_absolute_offsets 1 0 substs in
     let buf = Buffer.create (String.length s + 128) in
     let ofs =
       List.fold_left substs ~init:0 ~f:(fun ofs (start, stop, repl) ->
+        if not (ofs <= start && start <= stop) then
+          Exn.code_error "Invalid text subsitution"
+            [ "ofs", Sexp.Encoder.int ofs
+            ; "start", Sexp.Encoder.int start
+            ; "stop", Sexp.Encoder.int stop
+            ; "repl", Sexp.Encoder.string repl
+            ];
         Buffer.add_substring buf s ofs (start - ofs);
         Buffer.add_string buf repl;
         stop)
