@@ -22,7 +22,10 @@
    (copy x y))
 
   $ cat foo.opam
-  build: [["dune" "build" "-p" name "-j" jobs]]
+  build: [
+    ["dune" "subst" "-p" name]
+    ["dune" "build"]
+  ]
   depends: [
     "dune" {build & >= "1.0"}
   ]
