@@ -231,6 +231,16 @@ module Var = struct
        | Some _ -> { t with payload = Some ".." })
 end
 
+let fold_vars =
+  let rec loop parts acc f =
+    match parts with
+    | [] -> acc
+    | Text _ :: parts -> loop parts acc f
+    | Var v :: parts -> loop parts (f v acc) f
+  in
+  fun t ~init ~f ->
+    loop t.template.parts init f
+
 type 'a expander = Var.t -> Syntax.Version.t -> 'a
 
 let partial_expand

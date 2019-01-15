@@ -65,6 +65,8 @@ module Var : sig
   val describe : t -> string
 end
 
+val fold_vars : t -> init:'a -> f:(Var.t -> 'a -> 'a) -> 'a
+
 type 'a expander = Var.t -> Syntax.Version.t -> 'a
 
 val expand
