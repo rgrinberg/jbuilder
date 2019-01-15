@@ -86,6 +86,9 @@ unreleased
 - Add `toplevel` stanza. This stanza is used to define toplevels with libraries
   already preloaded. (#1713, @rgrinberg)
 
+- Add the `%{os_type}` variable, which is a short-hand for
+  `%{ocaml-config:os_type}` (#1764, @diml)
+
 1.6.2 (05/12/2018)
 ------------------
 
