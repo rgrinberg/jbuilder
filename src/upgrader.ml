@@ -231,8 +231,7 @@ let upgrade_opam_file todo fn =
       substs := ((line, 0), (All_line,
                              sprintf {|  "dune" {build & >= "%s"}|}
                                (Syntax.Version.to_string
-                                  (Syntax.greatest_supported_version
-                                     Stanza.syntax))))
+                                  !Dune_project.default_dune_language_version)))
                 :: !substs
     | Bool _ | Int _ | String _ | Relop _ | Logop _ | Pfxop _
     | Ident _ | Prefix_relop _ -> ()
@@ -315,6 +314,7 @@ let upgrade_dir todo dir =
         upgrade_file todo fn sexps ~look_for_jbuild_ignore:(fn = path)))
 
 let upgrade ft =
+  Dune_project.default_dune_language_version := (1, 0);
   let todo =
     { to_rename_and_edit = []
     ; to_add = []

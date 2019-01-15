@@ -1,6 +1,6 @@
   $ dune upgrade
   Info: creating file dune-project with this contents:
-  | (lang dune 1.7)
+  | (lang dune 1.0)
   | (name foo)
   
   Upgrading foo.opam...
@@ -8,17 +8,21 @@
 
   $ cat dune
   (rule
-   (deps x y z)
+   (deps
+    (:< x)
+    y
+    z)
    (targets z)
    (action
     (with-stdout-to
      z
-     (run echo ${<}))))
+     (run echo %{<}))))
   
-  (rule copy x y)
+  (rule
+   (copy x y))
 
   $ cat foo.opam
   build: [["dune" "build" "-p" name "-j" jobs]]
   depends: [
-    "dune" {build & >= "1.7"}
+    "dune" {build & >= "1.0"}
   ]
