@@ -208,6 +208,20 @@ type replace_kind =
   | All_line
   | Chars of int
 
+let pos_of_opam_value : OpamParserTypes.value -> OpamParserTypes.pos = function
+  | Bool (pos, _)
+  | Int (pos, _)
+  | String (pos, _)
+  | Relop (pos, _, _, _)
+  | Prefix_relop (pos, _, _)
+  | Logop (pos, _, _, _)
+  | Pfxop (pos, _, _)
+  | Ident (pos, _)
+  | List (pos, _)
+  | Group (pos, _)
+  | Option (pos, _, _)
+  | Env_binding (pos, _, _, _) -> pos
+
 let upgrade_opam_file todo fn =
   let open OpamParserTypes in
   let s = Io.read_file fn ~binary:true in
@@ -233,6 +247,23 @@ let upgrade_opam_file todo fn =
                                (Syntax.Version.to_string
                                   !Dune_project.default_dune_language_version)))
                 :: !substs
+    | List ((_, line, col), (String (jpos, "jbuilder" as s)
+                             :: String (_, "subst") :: _ as l)) ->
+      let _, stop_line, stop_col = List.last_exn l |> pos_of_opam_value in
+      if stop_line = line then
+        substs := ((line, col), (Chars (stop_col - col),
+                                 {|"dune" "subst"|}))
+      else
+        replace jpos s "dune"
+    | List ((_, line, col), (String (jpos, "jbuilder" as s)
+                             :: String (_, ("build" | "runtest" as cmd))
+                             :: _ as l)) ->
+      let _, stop_line, stop_col = List.last_exn l |> pos_of_opam_value in
+      if stop_line = line then
+        substs := ((line, col), (Chars (stop_col - col),
+                                 sprintf {|"dune" %S "-p" name "-j" jobs|}))
+      else
+        replace jpos s "dune"
     | Bool _ | Int _ | String _ | Relop _ | Logop _ | Pfxop _
     | Ident _ | Prefix_relop _ -> ()
     | List (_, l) | Group (_, l) ->
