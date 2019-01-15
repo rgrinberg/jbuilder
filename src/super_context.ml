@@ -276,6 +276,7 @@ let create
       ~has_native:(Context.has_native context)
       ~ext_lib:context.ext_lib
       ~ext_obj:context.ext_obj
+      ~os_type:context.os_type
       internal_libs
   in
   let stanzas =

@@ -89,6 +89,9 @@ unreleased
 - Add the `%{os_type}` variable, which is a short-hand for
   `%{ocaml-config:os_type}` (#1764, @diml)
 
+- Allow `enabled_if` fields in `library` stanzas, restricted to the
+  `%{os_type}` variable (#1764, @diml)
+
 1.6.2 (05/12/2018)
 ------------------
 

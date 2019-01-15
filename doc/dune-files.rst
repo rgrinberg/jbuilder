@@ -203,6 +203,14 @@ to use the :ref:`include_subdirs` stanza.
 - ``(no_keep_locs)`` undocumented, it is a necessary hack until this
   is implemented: https://github.com/ocaml/dune/issues/921
 
+- ``(enabled_if <blang expression>)`` allows to conditionally disable
+  a library. A disabled library cannot be built and will not be
+  installed. The condition is specified using the blang_, and the
+  field allows for the ``%{os_type}`` variable, which is expanded to
+  the type of OS being targeted by the current build. Its value is
+  the same as the value of the ``os_type`` parameter in the output of
+  ``ocamlc -config``
+
 Note that when binding C libraries, dune doesn't provide special support for
 tools such as ``pkg-config``, however it integrates easily with configurator_ by
 using ``(c_flags (:include ...))`` and ``(c_library_flags (:include ...))``.

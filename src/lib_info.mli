@@ -27,6 +27,13 @@ module Virtual : sig
     | External of Lib_modules.t
 end
 
+module Enabled_status : sig
+  type t =
+    | Normal
+    | Optional
+    | Disabled_because_of_enabled_if
+end
+
 type t = private
   { loc              : Loc.t
   ; name             : Lib_name.t
@@ -45,7 +52,7 @@ type t = private
   ; requires         : Deps.t
   ; ppx_runtime_deps : (Loc.t * Lib_name.t) list
   ; pps              : (Loc.t * Lib_name.t) list
-  ; optional         : bool
+  ; enabled          : Enabled_status.t
   ; virtual_deps     : (Loc.t * Lib_name.t) list
   ; dune_version     : Syntax.Version.t option
   ; sub_systems      : Sub_system_info.t Sub_system_name.Map.t
@@ -61,6 +68,7 @@ val of_library_stanza
   -> has_native:bool
   -> ext_lib:string
   -> ext_obj:string
+  -> os_type:string
   -> Dune_file.Library.t
   -> t
 

@@ -28,6 +28,7 @@ module DB : sig
     -> has_native:bool
     -> ext_lib:string
     -> ext_obj:string
+    -> os_type:string
     -> (Path.t * Dune_file.Library.t) list
     -> t * Lib.DB.t
 

@@ -57,7 +57,7 @@ module DB = struct
         ]
 
   let create ~projects ~context ~installed_libs ~has_native ~ext_lib ~ext_obj
-        internal_libs =
+        ~os_type internal_libs =
     let projects_by_name =
       List.map projects ~f:(fun (project : Dune_project.t) ->
         (Dune_project.name project, project))
@@ -124,7 +124,7 @@ module DB = struct
           let libs = Option.value libs ~default:[] in
           let db =
             Lib.DB.create_from_library_stanzas libs ~has_native
-              ~parent:public_libs ~ext_lib ~ext_obj
+              ~parent:public_libs ~ext_lib ~ext_obj ~os_type
           in
           let root =
             Path.append_local build_context_dir (Dune_project.root project) in
