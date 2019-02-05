@@ -221,6 +221,7 @@ module Library : sig
     ; dune_version             : Syntax.Version.t
     ; virtual_modules          : Ordered_set_lang.t option
     ; implements               : (Loc.t * Lib_name.t) option
+    ; variant                  : Variant.t option
     ; private_modules          : Ordered_set_lang.t option
     ; stdlib                   : Stdlib.t option
     }

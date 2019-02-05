@@ -182,6 +182,7 @@ type t =
   ; resolved_selects  : Resolved_select.t list
   ; user_written_deps : Dune_file.Lib_deps.t
   ; implements        : t Or_exn.t option
+  ; variant           : Variant.t option
   ; (* This is mutable to avoid this error:
 
        {[
@@ -666,7 +667,9 @@ let rec instantiate db name (info : Lib_info.t) ~stack ~hidden =
         Error (Error (Error.Not_virtual_lib
                         { impl = info ; loc ; not_vlib = vlib.info })))
   in
-
+  let variant = 
+    Option.map info.variant ~f:(fun var -> var)
+  in
   let requires, pps, resolved_selects =
     resolve_user_deps db info.requires ~allow_private_deps ~pps:info.pps ~stack
   in
@@ -698,6 +701,7 @@ let rec instantiate db name (info : Lib_info.t) ~stack ~hidden =
     ; user_written_deps = Lib_info.user_written_deps info
     ; sub_systems       = Sub_system_name.Map.empty
     ; implements
+    ; variant
     }
   in
   t.sub_systems <-
@@ -1310,6 +1314,7 @@ let to_dune_lib ({ name ; info ; _ } as lib) ~lib_modules ~foreign_objects ~dir 
     ~ppx_runtime_deps:(add_loc (ppx_runtime_deps_exn lib))
     ~modes:info.modes
     ~implements:info.implements
+    ~variant:info.variant
     ~virtual_
     ~modules:(Some lib_modules)
     ~main_module_name:(to_exn (main_module_name lib))
