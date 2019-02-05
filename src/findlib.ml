@@ -194,7 +194,7 @@ module Package = struct
       ~orig_src_dir:None
       ~loc
       ~kind:Normal
-      ~name:(name t)
+      ~name:(name t) 
       ~synopsis:(description t)
       ~archives
       ~plugins:(plugins t)
@@ -206,6 +206,7 @@ module Package = struct
       ~ppx_runtime_deps:(List.map ~f:add_loc (ppx_runtime_deps t))
       ~virtual_:false
       ~implements:None
+      ~variant:None
       ~modules:None
       ~main_module_name:None (* XXX remove *)
       ~version:(version t)

@@ -22,6 +22,7 @@ module Lib : sig
   val plugins : _ t -> Path.t list Mode.Dict.t
   val jsoo_runtime : _ t -> Path.t list
   val implements : _ t -> (Loc.t * Lib_name.t) option
+  val variant : _ t -> Variant.t option
 
   val dir_of_name : Lib_name.t -> Path.Local.t
 
@@ -46,6 +47,7 @@ module Lib : sig
     -> requires:(Loc.t * Lib_name.t) list
     -> ppx_runtime_deps:(Loc.t * Lib_name.t) list
     -> implements:(Loc.t * Lib_name.t) option
+    -> variant: (Variant.t) option
     -> virtual_:bool
     -> modules:Lib_modules.t option
     -> modes:Mode.Dict.Set.t
