@@ -863,6 +863,7 @@ module Library = struct
     ; dune_version             : Syntax.Version.t
     ; virtual_modules          : Ordered_set_lang.t option
     ; implements               : (Loc.t * Lib_name.t) option
+    ; variant                  : Variant.t option
     ; private_modules          : Ordered_set_lang.t option
     ; stdlib                   : Stdlib.t option
     }
@@ -908,6 +909,10 @@ module Library = struct
          field_o "implements" (
            Syntax.since Stanza.syntax (1, 7)
            >>= fun () -> located Lib_name.decode)
+       and+ variant =
+         field_o "variant" (
+           Syntax.since Stanza.syntax (1, 7)
+           >>= fun () -> Variant.decode)
        and+ private_modules =
          field_o "private_modules" (
            Syntax.since Stanza.syntax (1, 2)
@@ -993,6 +998,7 @@ module Library = struct
        ; dune_version
        ; virtual_modules
        ; implements
+       ; variant
        ; private_modules
        ; stdlib
        })
