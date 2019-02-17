@@ -5,36 +5,80 @@ open Build.O
 let default_ocamlc_flags   = ["-g"]
 let default_ocamlopt_flags = ["-g"]
 
-let dev_mode_warnings =
-  "@a" ^
-  String.concat ~sep:""
-    (List.map ~f:(sprintf "-%d")
-       [ 4
-       ; 29
-       ; 40
-       ; 41
-       ; 42
-       ; 44
-       ; 45
-       ; 48
-       ; 58
-       ; 59
-       ; 60
-       ])
+module Warnings = struct
+  type w =
+    | Set of char
+    | W of int
 
-let default_warnings =
-  "-40"
+  type t =
+    { enabled : w list
+    ; fatal : w list
+    ; disabled : w list
+    }
+
+  let merge
+        { enabled = e1; fatal = f1; disabled = d1}
+        { enabled = e2; fatal = f2; disabled = d2}
+    =
+    { enabled = e1 @ e2
+    ; fatal = f1 @ f2
+    ; disabled = d1 @ d2
+    }
+
+  let default =
+    { enabled = []
+    ; fatal = []
+    ; disabled = [W 40]
+    }
+
+  let dev =
+    merge
+      default
+      { enabled = []
+      ; fatal = [Set 'a']
+      ; disabled =
+          [ 4
+          ; 29
+          ; 40
+          ; 41
+          ; 42
+          ; 44
+          ; 45
+          ; 48
+          ; 58
+          ; 59
+          ; 60
+          ; 3
+          ]
+          |> List.map ~f:(fun w -> W w)
+      }
+
+  let warn_list ~prefix warnings =
+    List.map warnings ~f:(function
+      | Set c -> sprintf "%c%c" prefix c
+      | W w -> sprintf "%c%i" prefix w)
+    |> String.concat ~sep:""
+
+  let to_args { enabled ; fatal; disabled } =
+    sprintf "%s%s%s"
+      (warn_list ~prefix:'@' fatal)
+      (warn_list ~prefix:'-' disabled)
+      (warn_list ~prefix:'+' enabled)
+
+  let dev = to_args dev
+  let default = to_args default
+end
 
 let default_flags ~profile =
   if profile = "dev" then
-    [ "-w"; dev_mode_warnings ^ default_warnings
+    [ "-w"; Warnings.dev
     ; "-strict-sequence"
     ; "-strict-formats"
     ; "-short-paths"
     ; "-keep-locs"
     ]
   else
-    [ "-w"; default_warnings ]
+    [ "-w"; Warnings.default ]
 
 type t =
   { common     : (unit, string list) Build.t
