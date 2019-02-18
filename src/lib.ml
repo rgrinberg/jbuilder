@@ -67,6 +67,14 @@ module Error = struct
       }
   end
 
+  module Multiple_solutions_for_implementation = struct
+    type t =
+      { lib             : Lib_info.t
+      ; given_variants  : Variant.Set.t
+      ; conflict        : Lib_info.t list
+      }
+  end
+
   module Private_deps_not_allowed = struct
     type t =
       { private_dep : Lib_info.t
@@ -83,15 +91,16 @@ module Error = struct
   end
 
   type t =
-    | Library_not_available        of Library_not_available.t
-    | No_solution_found_for_select of No_solution_found_for_select.t
-    | Dependency_cycle             of (Path.t * Lib_name.t) list
-    | Conflict                     of Conflict.t
-    | Overlap                      of Overlap.t
-    | Private_deps_not_allowed     of Private_deps_not_allowed.t
-    | Double_implementation        of Double_implementation.t
-    | No_implementation            of No_implementation.t
-    | Not_virtual_lib              of Not_virtual_lib.t
+    | Library_not_available                  of Library_not_available.t
+    | No_solution_found_for_select           of No_solution_found_for_select.t
+    | Dependency_cycle                       of (Path.t * Lib_name.t) list
+    | Conflict                               of Conflict.t
+    | Overlap                                of Overlap.t
+    | Private_deps_not_allowed               of Private_deps_not_allowed.t
+    | Double_implementation                  of Double_implementation.t
+    | No_implementation                      of No_implementation.t
+    | Not_virtual_lib                        of Not_virtual_lib.t
+    | Multiple_solutions_for_implementation  of Multiple_solutions_for_implementation.t
 end
 
 exception Error of Error.t
@@ -667,11 +676,10 @@ let rec instantiate db name (info : Lib_info.t) ~stack ~hidden =
         Error (Error (Error.Not_virtual_lib
                         { impl = info ; loc ; not_vlib = vlib.info })))
   in
-  let variant = 
-    Option.map info.variant ~f:(fun var -> var)
+  let variant = info.variant
   in
   let requires, pps, resolved_selects =
-    resolve_user_deps db info.requires ~allow_private_deps ~pps:info.pps ~stack
+    resolve_user_deps db info.requires ~allow_private_deps ~pps:info.pps ~stack ~variants:Variant.Set.empty
   in
   let requires =
     match implements with
@@ -740,6 +748,17 @@ and find_internal db (name : Lib_name.t) ~stack : status =
   match Hashtbl.find db.table name with
   | Some x -> x
   | None   -> resolve_name db name ~stack
+
+and lib_implements (impl : Lib_info.t) (virt : Lib_info.t) ~variants =
+  let name = impl.implements
+  and variant = impl.variant in
+  match name, variant with
+  | Some (_, name), Some variant ->
+                Printf.printf "Test dep: %s %s %s %s\n" (Lib_name.to_string impl.name) (Lib_name.to_string name) (Lib_name.to_string virt.name) (Variant.to_string variant);
+                Variant.Set.mem variants variant
+                 && String.equal (Lib_name.to_string name) (Lib_name.to_string virt.name)
+  | _ -> false
+
 
 and resolve_dep db (name : Lib_name.t) ~allow_private_deps ~loc ~stack : t Or_exn.t =
   match find_internal db name ~stack with
@@ -844,16 +863,67 @@ and resolve_complex_deps db deps ~allow_private_deps ~stack =
   in
   (res, resolved_selects)
 
-and resolve_deps db deps ~allow_private_deps ~stack =
-  match (deps : Lib_info.Deps.t) with
-  | Simple  names ->
-    (resolve_simple_deps db names ~allow_private_deps ~stack, [])
-  | Complex names ->
-    resolve_complex_deps ~allow_private_deps db names ~stack
+(* Try to find an implementation for virtual library. *)
+and resolve_virtual_dep db (virt : Lib_info.t) ~allow_private_deps ~stack ~variants =
+  Printf.printf "resolve virtual dep: %s\n" (Lib_name.to_string virt.name);
+  let rec explore_dbs db acc variants =
+    let names = Lazy.force db.all in
+    let result = List.filter_map names ~f:(fun name ->
+      match db.resolve name with
+      | Found lib when lib_implements lib virt ~variants -> Some lib
+      | _ -> None
+    )
+    in match db.parent with
+    | None -> (result@acc)
+    | Some db -> explore_dbs db (result@acc) variants
+  in
+  let options = match explore_dbs db [] variants, virt.default_variant with
+  | [], None -> []
+  | [], Some v -> explore_dbs db [] (Variant.Set.singleton v) (*Fallback to default variant.*)
+  | lst, _ -> lst
+  in match options with
+  | [] -> Ok [], []
+  | [lib] -> resolve_deps db (Lib_info.Deps.Simple [(virt.loc, lib.name)])  ~allow_private_deps ~stack ~variants
+  | multilib ->
+    let e = Error.Multiple_solutions_for_implementation {lib=virt; given_variants=variants; conflict=multilib}
+    in (Error (Error e)), []
 
-and resolve_user_deps db deps ~allow_private_deps ~pps ~stack =
+and resolve_deps db deps ~allow_private_deps ~stack ~variants =
+  (* Compute transitive closure *)
+  let libs, selects = match (deps : Lib_info.Deps.t) with
+    | Simple  names ->
+      (resolve_simple_deps db names ~allow_private_deps ~stack, [])
+    | Complex names ->
+      resolve_complex_deps db names ~allow_private_deps ~stack
+  in
+  (* Find implementations for virtual libraries. *)
+  match libs with
+  | Error _ -> libs, selects
+  | Ok result ->
+  begin
+    let libs_selects_impl = (List.map ~f:(fun lib ->
+      match lib.info.virtual_ with
+        | None -> Ok [], []
+        | Some _ -> resolve_virtual_dep db lib.info ~allow_private_deps ~stack ~variants) result
+      )
+    in
+    let selects_deps, impl_deps = List.split libs_selects_impl in
+    let impl_deps = List.flatten impl_deps @ selects in
+    let concat_two_results a b = match a,b with
+      | Ok a, Ok b -> Ok (a@b)
+      | Ok _, Error b -> Error b
+      | Error a, Ok _ -> Error a
+      | Error _, Error b -> Error b
+    in
+    let select_deps = List.fold_left ~f:(fun a b -> concat_two_results a b) ~init:(Ok result) selects_deps in
+    select_deps, impl_deps
+  end
+
+
+
+and resolve_user_deps db deps ~allow_private_deps ~pps ~stack ~variants =
   let deps, resolved_selects =
-    resolve_deps db deps ~allow_private_deps ~stack in
+    resolve_deps db deps ~allow_private_deps ~stack ~variants in
   let deps, pps =
     match pps with
     | [] -> (deps, Ok [])
@@ -1096,7 +1166,7 @@ module DB = struct
       Compile.for_lib t lib
 
   let resolve_user_written_deps_for_exes t exes
-        ?(allow_overlaps=false) deps ~pps =
+        ?(allow_overlaps=false) deps ~pps ~variants =
     let lib_deps_info =
       Compile.make_lib_deps_info
         ~user_written_deps:deps
@@ -1105,7 +1175,7 @@ module DB = struct
     in
     let res, pps, resolved_selects =
       resolve_user_deps t (Lib_info.Deps.of_lib_deps deps) ~pps
-        ~stack:Dep_stack.empty ~allow_private_deps:true
+        ~stack:Dep_stack.empty ~allow_private_deps:true ~variants
     in
     let requires_link = lazy (
       res
@@ -1181,6 +1251,19 @@ let report_lib_error ppf (e : Error.t) =
     Format.fprintf ppf "%a%a" lib info dep_path dp
   in
   match e with
+  | Multiple_solutions_for_implementation {lib; given_variants; conflict}  ->
+    Format.fprintf ppf
+      "@{<error>Error@}: Multiple solutions for the implementation \
+       of @,%a(%a)@ with given variants: %a@,\
+       @[<v>%a@]@\n"
+      Lib_name.pp lib.name
+      Variant.pp (match lib.default_variant with |Some x -> x |None -> Variant.make "no default variant")
+      Variant.Set.pp given_variants
+      (Format.pp_print_list (fun ppf (lib : Lib_info.t) ->
+         Format.fprintf ppf "-> %a(%a)"
+           Lib_name.pp lib.name Variant.pp (match lib.variant with |Some x -> x |None -> Variant.make "err")))
+      conflict
+
   | Double_implementation { impl1; impl2; vlib } ->
     Format.fprintf ppf
       "@[<v>@{<error>Error@}: \
@@ -1315,6 +1398,7 @@ let to_dune_lib ({ name ; info ; _ } as lib) ~lib_modules ~foreign_objects ~dir 
     ~modes:info.modes
     ~implements:info.implements
     ~variant:info.variant
+    ~default_variant:info.default_variant
     ~virtual_
     ~modules:(Some lib_modules)
     ~main_module_name:(to_exn (main_module_name lib))

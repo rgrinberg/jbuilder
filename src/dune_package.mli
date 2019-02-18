@@ -23,6 +23,7 @@ module Lib : sig
   val jsoo_runtime : _ t -> Path.t list
   val implements : _ t -> (Loc.t * Lib_name.t) option
   val variant : _ t -> Variant.t option
+  val default_variant : _ t -> Variant.t option
 
   val dir_of_name : Lib_name.t -> Path.Local.t
 
@@ -48,6 +49,7 @@ module Lib : sig
     -> ppx_runtime_deps:(Loc.t * Lib_name.t) list
     -> implements:(Loc.t * Lib_name.t) option
     -> variant: (Variant.t) option
+    -> default_variant: (Variant.t) option
     -> virtual_:bool
     -> modules:Lib_modules.t option
     -> modes:Mode.Dict.Set.t

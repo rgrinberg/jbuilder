@@ -73,6 +73,7 @@ type t =
   ; virtual_         : Lib_modules.t Source.t option
   ; implements       : (Loc.t * Lib_name.t) option
   ; variant          : Variant.t option
+  ; default_variant  : Variant.t option
   ; wrapped          : Wrapped.t Dune_file.Library.Inherited.t option
   ; main_module_name : Dune_file.Library.Main_module_name.t
   ; modes            : Mode.Dict.Set.t
@@ -176,6 +177,7 @@ let of_library_stanza ~dir ~has_native ~ext_lib ~ext_obj
   ; virtual_
   ; implements = conf.implements
   ; variant = conf.variant
+  ; default_variant = conf.default_variant
   ; main_module_name
   ; modes
   ; wrapped = Some conf.wrapped
@@ -221,6 +223,7 @@ let of_dune_lib dp =
   ; virtual_
   ; implements = Lib.implements dp
   ; variant = Lib.variant dp
+  ; default_variant = Lib.default_variant dp
   ; modes = Lib.modes dp
   ; wrapped
   }

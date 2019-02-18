@@ -651,6 +651,7 @@ module Buildable = struct
     { loc                      : Loc.t
     ; modules                  : Ordered_set_lang.t
     ; modules_without_implementation : Ordered_set_lang.t
+    ; variants                 : Variant.Set.t
     ; libraries                : Lib_dep.t list
     ; preprocess               : Preprocess_map.t
     ; preprocessor_deps        : Dep_conf.t list
@@ -666,7 +667,13 @@ module Buildable = struct
     let+ loc = loc
     and+ preprocess =
       field "preprocess" Preprocess_map.decode ~default:Preprocess_map.default
+<<<<<<< HEAD
     and+ preprocessor_deps =
+=======
+    and variants =
+      field "variants" ((list Variant.decode) >>| Variant.Set.of_list) ~default:Variant.Set.empty
+    and preprocessor_deps =
+>>>>>>> First implementation of library variants.
       field "preprocessor_deps" (list Dep_conf.decode) ~default:[]
     and+ lint = field "lint" Lint.decode ~default:Lint.default
     and+ modules = modules_field "modules"
@@ -687,6 +694,7 @@ module Buildable = struct
     ; lint
     ; modules
     ; modules_without_implementation
+    ; variants
     ; libraries
     ; flags
     ; ocamlc_flags
@@ -864,6 +872,7 @@ module Library = struct
     ; virtual_modules          : Ordered_set_lang.t option
     ; implements               : (Loc.t * Lib_name.t) option
     ; variant                  : Variant.t option
+    ; default_variant          : Variant.t option
     ; private_modules          : Ordered_set_lang.t option
     ; stdlib                   : Stdlib.t option
     }
@@ -911,6 +920,14 @@ module Library = struct
            >>= fun () -> located Lib_name.decode)
        and+ variant =
          field_o "variant" (
+           Syntax.since Stanza.syntax (1, 7)
+           >>= fun () -> Variant.decode)
+       and+ variant =
+         field_o "variant" (
+           Syntax.since Stanza.syntax (1, 7)
+           >>= fun () -> Variant.decode)
+       and+ default_variant = (*TODO: CHECKS *)
+         field_o "default_variant" (
            Syntax.since Stanza.syntax (1, 7)
            >>= fun () -> Variant.decode)
        and+ private_modules =
@@ -999,6 +1016,7 @@ module Library = struct
        ; virtual_modules
        ; implements
        ; variant
+       ; default_variant
        ; private_modules
        ; stdlib
        })
