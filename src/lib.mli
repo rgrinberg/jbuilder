@@ -128,6 +128,10 @@ module Error : sig
     type t
   end
 
+  module Multiple_solutions_for_implementation : sig
+    type t
+  end
+
   module Private_deps_not_allowed : sig
     type t
   end
@@ -145,15 +149,16 @@ module Error : sig
   end
 
   type t =
-    | Library_not_available        of Library_not_available.t
-    | No_solution_found_for_select of No_solution_found_for_select.t
-    | Dependency_cycle             of (Path.t * Lib_name.t) list
-    | Conflict                     of Conflict.t
-    | Overlap                      of Overlap.t
-    | Private_deps_not_allowed     of Private_deps_not_allowed.t
-    | Double_implementation        of Double_implementation.t
-    | No_implementation            of No_implementation.t
-    | Not_virtual_lib              of Not_virtual_lib.t
+    | Library_not_available                  of Library_not_available.t
+    | No_solution_found_for_select           of No_solution_found_for_select.t
+    | Dependency_cycle                       of (Path.t * Lib_name.t) list
+    | Conflict                               of Conflict.t
+    | Overlap                                of Overlap.t
+    | Private_deps_not_allowed               of Private_deps_not_allowed.t
+    | Double_implementation                  of Double_implementation.t
+    | No_implementation                      of No_implementation.t
+    | Not_virtual_lib                        of Not_virtual_lib.t
+    | Multiple_solutions_for_implementation  of Multiple_solutions_for_implementation.t
 end
 
 exception Error of Error.t
@@ -227,9 +232,14 @@ module DB : sig
   val create
     :  ?parent:t
     -> resolve:(Lib_name.t -> Resolve_result.t)
+    -> find_implementations:(Variant.t -> Lib_name.t -> Lib_info.t list)
     -> all:(unit -> Lib_name.t list)
     -> unit
     -> t
+
+  val create_variant_map
+    :  Lib_info.t list
+    -> Lib_info.t list Lib_name.Map.t Variant.Map.t
 
   (** Create a database from a list of library stanzas *)
   val create_from_library_stanzas
@@ -260,6 +270,8 @@ module DB : sig
       for libraries that are optional and not available as well. *)
   val get_compile_info : t -> ?allow_overlaps:bool -> Lib_name.t -> Compile.t
 
+  val find_implementations : t -> Variant.t -> Lib_name.t -> Lib_info.t list
+
   val resolve : t -> Loc.t * Lib_name.t -> lib Or_exn.t
 
   (** Resolve libraries written by the user in a jbuild file. The
@@ -273,6 +285,7 @@ module DB : sig
     -> ?allow_overlaps:bool
     -> Dune_file.Lib_dep.t list
     -> pps:(Loc.t * Lib_name.t) list
+    -> variants: Variant.Set.t
     -> Compile.t
 
   val resolve_pps

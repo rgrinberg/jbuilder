@@ -21,6 +21,7 @@ module Lib = struct
     ; virtual_         : bool
     ; implements       : (Loc.t * Lib_name.t) option
     ; variant          : Variant.t option
+    ; default_variant  : Variant.t option
     ; modules          : Lib_modules.t option
     ; main_module_name : Module.Name.t option
     ; requires         : (Loc.t * Lib_name.t) list
@@ -30,7 +31,7 @@ module Lib = struct
 
   let make ~loc ~kind ~name ~synopsis ~archives ~plugins ~foreign_objects
         ~foreign_archives ~jsoo_runtime ~main_module_name ~sub_systems
-        ~requires ~ppx_runtime_deps ~implements ~variant ~virtual_ ~modules ~modes
+        ~requires ~ppx_runtime_deps ~implements ~variant ~default_variant ~virtual_ ~modules ~modes
         ~version ~orig_src_dir ~dir =
     let map_path p = Path.relative dir (Path.basename p) in
     let map_list = List.map ~f:map_path in
@@ -50,6 +51,7 @@ module Lib = struct
     ; ppx_runtime_deps
     ; implements
     ; variant
+    ; default_variant
     ; version
     ; dir
     ; orig_src_dir
@@ -72,7 +74,7 @@ module Lib = struct
         { loc = _ ; kind ; synopsis ; name ; archives ; plugins
         ; foreign_objects ; foreign_archives ; jsoo_runtime ; requires
         ; ppx_runtime_deps ; sub_systems ; virtual_
-        ; implements ; variant ; main_module_name ; version = _; dir = _; orig_src_dir
+        ; implements ; variant ; default_variant ; main_module_name ; version = _; dir = _; orig_src_dir
         ; modules ; modes
         } =
     let open Dune_lang.Encoder in
@@ -96,7 +98,8 @@ module Lib = struct
     ; libs "requires" requires
     ; libs "ppx_runtime_deps" ppx_runtime_deps
     ; field_o "implements" (no_loc Lib_name.encode) implements
-    ; field_o "variant" Variant.encode variant  
+    ; field_o "variant" Variant.encode variant
+    ; field_o "default_variant" Variant.encode default_variant
     ; field_o "main_module_name" Module.Name.encode main_module_name
     ; field_l "modes" sexp (Mode.Dict.Set.encode modes)
     ; field_l "modules" sexp
@@ -120,6 +123,7 @@ module Lib = struct
       field_o "main_module_name" Module.Name.decode >>= fun main_module_name ->
       field_o "implements" (located Lib_name.decode) >>= fun implements ->
       field_o "variant" Variant.decode >>= fun variant ->
+      field_o "default_variant" Variant.decode >>= fun default_variant ->
       field "name" Lib_name.decode >>= fun name ->
       let dir = Path.append_local base (dir_of_name name) in
       let%map synopsis = field_o "synopsis" string
@@ -153,6 +157,7 @@ module Lib = struct
       ; ppx_runtime_deps
       ; implements
       ; variant
+      ; default_variant
       ; sub_systems
       ; main_module_name
       ; virtual_
@@ -182,6 +187,7 @@ module Lib = struct
   let requires t = t.requires
   let implements t = t.implements
   let variant t = t.variant
+  let default_variant t = t.variant
   let modes t = t.modes
 
   let compare_name x y = Lib_name.compare x.name y.name
