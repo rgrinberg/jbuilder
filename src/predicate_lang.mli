@@ -24,3 +24,8 @@ val union : t list -> t
 val diff : t -> t -> t
 
 val of_string_set : String.Set.t -> t
+
+module Map : sig
+  type t
+  val eval : t -> string ->
+end
