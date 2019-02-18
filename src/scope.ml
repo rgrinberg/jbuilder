@@ -114,6 +114,16 @@ module DB = struct
               Dune_project.Name.Map.find_exn !by_name_cell
                 (Dune_project.name project) in
             Redirect (Some scope.db, name))
+        ~find_implementations:(fun variant virt ->
+          Lib_name.Map.values public_libs
+          |> List.map ~f:(fun project ->
+              let scope =
+                Dune_project.Name.Map.find_exn !by_name_cell
+                  (Dune_project.name project)
+              in
+                Lib.DB.find_implementations scope.db variant virt)
+          |> List.flatten
+        )
         ~all:(fun () -> Lib_name.Map.keys public_libs)
     in
     let by_name =

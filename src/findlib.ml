@@ -218,7 +218,7 @@ module Package = struct
       ~orig_src_dir:None
       ~loc
       ~kind:Normal
-      ~name:(name t) 
+      ~name:(name t)
       ~synopsis:(description t)
       ~archives
       ~plugins:(plugins t)
@@ -231,6 +231,7 @@ module Package = struct
       ~virtual_:false
       ~implements:None
       ~variant:None
+      ~default_variant:None
       ~modules:None
       ~main_module_name:None (* XXX remove *)
       ~version:(version t)

@@ -123,6 +123,7 @@ module Buildable : sig
     { loc                      : Loc.t
     ; modules                  : Ordered_set_lang.t
     ; modules_without_implementation : Ordered_set_lang.t
+    ; variants                 : Variant.Set.t
     ; libraries                : Lib_dep.t list
     ; preprocess               : Preprocess_map.t
     ; preprocessor_deps        : Dep_conf.t list
@@ -222,6 +223,7 @@ module Library : sig
     ; virtual_modules          : Ordered_set_lang.t option
     ; implements               : (Loc.t * Lib_name.t) option
     ; variant                  : Variant.t option
+    ; default_variant          : Variant.t option
     ; private_modules          : Ordered_set_lang.t option
     ; stdlib                   : Stdlib.t option
     }
