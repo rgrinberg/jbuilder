@@ -210,6 +210,7 @@ type status =
 type db =
   { parent  : db option
   ; resolve : Lib_name.t -> resolve_result
+  ; find_implementations : Variant.t -> Lib_name.t -> Lib_info.t list
   ; table   : (Lib_name.t, status) Hashtbl.t
   ; all     : Lib_name.t list Lazy.t
   }
@@ -679,7 +680,7 @@ let rec instantiate db name (info : Lib_info.t) ~stack ~hidden =
   let variant = info.variant
   in
   let requires, pps, resolved_selects =
-    resolve_user_deps db info.requires ~allow_private_deps ~pps:info.pps ~stack ~variants:Variant.Set.empty
+    resolve_user_deps db info.requires ~allow_private_deps ~pps:info.pps ~stack ~variants:Variant.Set.empty ~user_written_deps:Lib_name.Set.empty
   in
   let requires =
     match implements with
@@ -748,17 +749,6 @@ and find_internal db (name : Lib_name.t) ~stack : status =
   match Hashtbl.find db.table name with
   | Some x -> x
   | None   -> resolve_name db name ~stack
-
-and lib_implements (impl : Lib_info.t) (virt : Lib_info.t) ~variants =
-  let name = impl.implements
-  and variant = impl.variant in
-  match name, variant with
-  | Some (_, name), Some variant ->
-                Printf.printf "Test dep: %s %s %s %s\n" (Lib_name.to_string impl.name) (Lib_name.to_string name) (Lib_name.to_string virt.name) (Variant.to_string variant);
-                Variant.Set.mem variants variant
-                 && String.equal (Lib_name.to_string name) (Lib_name.to_string virt.name)
-  | _ -> false
-
 
 and resolve_dep db (name : Lib_name.t) ~allow_private_deps ~loc ~stack : t Or_exn.t =
   match find_internal db name ~stack with
@@ -864,31 +854,35 @@ and resolve_complex_deps db deps ~allow_private_deps ~stack =
   (res, resolved_selects)
 
 (* Try to find an implementation for virtual library. *)
-and resolve_virtual_dep db (virt : Lib_info.t) ~allow_private_deps ~stack ~variants =
-  Printf.printf "resolve virtual dep: %s\n" (Lib_name.to_string virt.name);
-  let rec explore_dbs db acc variants =
-    let names = Lazy.force db.all in
-    let result = List.filter_map names ~f:(fun name ->
-      match db.resolve name with
-      | Found lib when lib_implements lib virt ~variants -> Some lib
-      | _ -> None
-    )
-    in match db.parent with
-    | None -> (result@acc)
-    | Some db -> explore_dbs db (result@acc) variants
+and resolve_virtual_dep db (virt : Lib_info.t) ~allow_private_deps ~stack ~variants ~user_written_deps =
+  let rec explore_dbs db variants =
+    let implementations =
+      variants
+      |> Variant.Set.fold ~init:[] ~f:(fun v acc -> db.find_implementations v virt.name @ acc)
+    in
+    let has_concrete_implementation =
+      implementations
+      |> List.exists ~f:(fun (lib : Lib_info.t) -> Lib_name.Set.mem user_written_deps lib.name)
+    in
+      match has_concrete_implementation, implementations, db.parent with
+      | true, _, _ -> None
+      | false, [], Some parent_db -> explore_dbs parent_db variants
+      | _ -> Some implementations
   in
-  let options = match explore_dbs db [] variants, virt.default_variant with
-  | [], None -> []
-  | [], Some v -> explore_dbs db [] (Variant.Set.singleton v) (*Fallback to default variant.*)
-  | lst, _ -> lst
+  let options = match explore_dbs db variants, virt.default_variant with
+  | None, _ -> []
+  | Some [], None -> []
+  | Some [], Some v -> explore_dbs db (Variant.Set.singleton v) |> (function | Some x -> x | _ -> assert false)(*Fallback to default variant.*)
+  | Some lst, _ -> lst
   in match options with
   | [] -> Ok [], []
-  | [lib] -> resolve_deps db (Lib_info.Deps.Simple [(virt.loc, lib.name)])  ~allow_private_deps ~stack ~variants
+  | [lib] -> resolve_deps db (Lib_info.Deps.Simple [(virt.loc, lib.name)])  ~allow_private_deps ~stack ~variants ~user_written_deps
   | multilib ->
     let e = Error.Multiple_solutions_for_implementation {lib=virt; given_variants=variants; conflict=multilib}
     in (Error (Error e)), []
 
-and resolve_deps db deps ~allow_private_deps ~stack ~variants =
+
+and resolve_deps db deps ~allow_private_deps ~stack ~variants ~user_written_deps =
   (* Compute transitive closure *)
   let libs, selects = match (deps : Lib_info.Deps.t) with
     | Simple  names ->
@@ -904,7 +898,7 @@ and resolve_deps db deps ~allow_private_deps ~stack ~variants =
     let libs_selects_impl = (List.map ~f:(fun lib ->
       match lib.info.virtual_ with
         | None -> Ok [], []
-        | Some _ -> resolve_virtual_dep db lib.info ~allow_private_deps ~stack ~variants) result
+        | Some _ -> resolve_virtual_dep db lib.info ~allow_private_deps ~stack ~variants ~user_written_deps) result
       )
     in
     let selects_deps, impl_deps = List.split libs_selects_impl in
@@ -921,9 +915,9 @@ and resolve_deps db deps ~allow_private_deps ~stack ~variants =
 
 
 
-and resolve_user_deps db deps ~allow_private_deps ~pps ~stack ~variants =
+and resolve_user_deps db deps ~allow_private_deps ~pps ~stack ~variants ~user_written_deps =
   let deps, resolved_selects =
-    resolve_deps db deps ~allow_private_deps ~stack ~variants in
+    resolve_deps db deps ~allow_private_deps ~stack ~variants ~user_written_deps in
   let deps, pps =
     match pps with
     | [] -> (deps, Ok [])
@@ -1066,15 +1060,28 @@ module DB = struct
 
   type t = db
 
-  let create ?parent ~resolve ~all () =
+  let create ?parent ~resolve ~find_implementations ~all () =
     { parent
     ; resolve
+    ; find_implementations
     ; table  = Hashtbl.create 1024
     ; all    = Lazy.from_fun all
     }
 
+  let create_variant_map lib_info_list = List.concat_map lib_info_list ~f:(fun (info : Lib_info.t) ->
+        match info.implements, info.variant with
+        | Some (_, virtual_lib), Some variant -> [(variant, (virtual_lib, [info]))]
+        | _, _ -> [])
+      |> List.map ~f:(fun (variant, content) -> (variant, Lib_name.Map.of_list_exn [content]))
+      |> Variant.Map.of_list_reduce ~f:(fun s1 s2 -> Lib_name.Map.union s1 s2 ~f:(fun _ a b -> Some (a@b)))
+
+
   let create_from_library_stanzas ?parent ~has_native ~ext_lib ~ext_obj
         stanzas =
+    let variant_map =
+      List.map ~f:(fun (dir, (conf : Dune_file.Library.t)) -> Lib_info.of_library_stanza ~dir ~has_native ~ext_lib ~ext_obj conf) stanzas
+      |> create_variant_map
+    in
     let map =
       List.concat_map stanzas ~f:(fun (dir, (conf : Dune_file.Library.t)) ->
         let info =
@@ -1117,9 +1124,22 @@ module DB = struct
         match Lib_name.Map.find map name with
         | None   -> Not_found
         | Some x -> x)
+      ~find_implementations:(fun variant virt ->
+        match Variant.Map.find variant_map variant with
+        | None   -> []
+        | Some x ->
+          match Lib_name.Map.find x virt with
+          | None -> []
+          | Some lst -> lst
+        )
       ~all:(fun () -> Lib_name.Map.keys map)
 
   let create_from_findlib ?(external_lib_deps_mode=false) findlib =
+    let variant_map =
+      Findlib.all_packages findlib
+      |> List.map ~f:Lib_info.of_dune_lib
+      |> create_variant_map
+    in
     create ()
       ~resolve:(fun name ->
         match Findlib.find findlib name with
@@ -1134,12 +1154,22 @@ module DB = struct
               Not_found
           | Hidden pkg ->
             Hidden (Lib_info.of_dune_lib pkg, "unsatisfied 'exist_if'"))
+      ~find_implementations:(fun variant virt ->
+        match Variant.Map.find variant_map variant with
+        | None   -> []
+        | Some x ->
+          match Lib_name.Map.find x virt with
+          | None -> []
+          | Some lst -> lst
+        )
       ~all:(fun () ->
         Findlib.all_packages findlib
         |> List.map ~f:Dune_package.Lib.name)
 
   let find = find
   let find_even_when_hidden = find_even_when_hidden
+
+  let find_implementations t = t.find_implementations
 
   let resolve t (loc, name) =
     match find t name with
@@ -1173,9 +1203,17 @@ module DB = struct
         ~pps
         ~kind:Required
     in
+    let user_written_deps =
+      Lib_info.Deps.of_lib_deps deps
+      |> (function
+      | Simple deps -> List.map ~f:(fun (_,a) -> a) deps
+      | Complex deps -> List.map ~f:(fun dune_file -> Dune_file.Lib_dep.to_lib_names dune_file) deps |> List.flatten) (* This is wrong, should do select resolution.. *)
+      |> Lib_name.Set.of_list
+    in
     let res, pps, resolved_selects =
       resolve_user_deps t (Lib_info.Deps.of_lib_deps deps) ~pps
-        ~stack:Dep_stack.empty ~allow_private_deps:true ~variants
+        ~stack:Dep_stack.empty ~allow_private_deps:true
+        ~variants ~user_written_deps
     in
     let requires_link = lazy (
       res
@@ -1252,15 +1290,23 @@ let report_lib_error ppf (e : Error.t) =
   in
   match e with
   | Multiple_solutions_for_implementation {lib; given_variants; conflict}  ->
+    let print_default_variant ppf () = match lib.default_variant with
+      | None -> Format.fprintf ppf ""
+      | Some x -> Format.fprintf ppf "(default variant %a)" Variant.pp x
+    in
+    let print_variants ppf () = match Variant.Set.is_empty given_variants with
+      | true -> Format.fprintf ppf ""
+      | false ->  Format.fprintf ppf "with variants %a" Variant.Set.pp given_variants
+    in
     Format.fprintf ppf
-      "@{<error>Error@}: Multiple solutions for the implementation \
-       of @,%a(%a)@ with given variants: %a@,\
+      "@{<error>Error@}: Multiple solutions for the implementation@ \
+       of %a %a@ %a@,\
        @[<v>%a@]@\n"
       Lib_name.pp lib.name
-      Variant.pp (match lib.default_variant with |Some x -> x |None -> Variant.make "no default variant")
-      Variant.Set.pp given_variants
+      print_default_variant ()
+      print_variants ()
       (Format.pp_print_list (fun ppf (lib : Lib_info.t) ->
-         Format.fprintf ppf "-> %a(%a)"
+         Format.fprintf ppf "-> %a (%a)"
            Lib_name.pp lib.name Variant.pp (match lib.variant with |Some x -> x |None -> Variant.make "err")))
       conflict
 
