@@ -302,6 +302,55 @@ Implement external virtual libraries with private modules
            run alias default
   Name: implement virtual module. Magic number: 42
 
+Test that trying to specify a default variant for a non-virtual library results
+in an appropriate error message.
+  $ dune build --root default-variant-not-virtual-lib
+  Entering directory 'default-variant-not-virtual-lib'
+  File "dune", line 4, characters 21-28:
+  4 |     (default_variant default))
+                           ^^^^^^^
+  Error: Only virtual libraries can specify a default variant.
+  [1]
+
+Test that trying to specify a variant for not an implementation results in an 
+appropriate error message.
+  $ dune build --root variant-not-implementation
+  Entering directory 'variant-not-implementation'
+  File "dune", line 4, characters 13-16:
+  4 |     (variant foo)
+                   ^^^
+  Error: Only implementations can specify a variant.
+  [1]
+
+Having multiple implementations of the same library with respect to selected 
+variants results in an appropriate error message.
+  $ dune build --root multiple-implementations-for-variants
+  Entering directory 'multiple-implementations-for-variants'
+  Error: Multiple solutions for the implementation of vlib 
+  with variants [ "default" ]
+  -> lib2_default ("default")
+  -> lib_default ("default")
+  -> required by executable bar in dune:2
+  [1]
+
+Basic sample using variants and a default library.
+  $ dune build --root variants-base
+  Entering directory 'variants-base'
+           bar alias default
+  hello from lib.test
+
+Basic sample selecting implementation according to default library.
+  $ dune build --root default-variant
+  Entering directory 'default-variant'
+           bar alias default
+  hi from lib.default
+
+Solving variant ambiguity by specifying a concrete implementation.
+  $ dune build --root variant-with-concrete-impl
+  Entering directory 'variant-with-concrete-impl'
+           bar alias default
+  hello from lib2.default
+
 Include variants and implementation information in dune-package
   $ dune build --root dune-package-info
   Entering directory 'dune-package-info'

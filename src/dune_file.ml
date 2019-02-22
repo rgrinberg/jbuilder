@@ -927,7 +927,7 @@ module Library = struct
          field_o "variant" (
            Syntax.since Stanza.syntax (1, 7)
            >>= fun () -> Variant.decode)
-       and+ default_variant = (*TODO: CHECKS *)
+       and+ default_variant =
          field_o "default_variant" (
            Syntax.since Stanza.syntax (1, 7)
            >>= fun () -> Variant.decode)
@@ -974,6 +974,14 @@ module Library = struct
             |> Option.value_exn)
            "A library cannot be both virtual and implement %s"
            (Lib_name.to_string impl));
+       match virtual_modules, default_variant with
+       | None, Some (loc, _) -> of_sexp_error loc "Only virtual libraries can specify a default variant."
+       | _ -> ();
+       match implements, variant with
+       | None, Some (loc, _) -> of_sexp_error loc "Only implementations can specify a variant."
+       | _ -> ();
+       let default_variant = Option.map default_variant ~f:(fun (_, v) -> v)
+       and variant = Option.map variant ~f:(fun (_, v) -> v) in
        let self_build_stubs_archive =
          let loc, self_build_stubs_archive = self_build_stubs_archive in
          let err =
