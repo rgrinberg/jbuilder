@@ -837,7 +837,7 @@ module Library = struct
     ; virtual_modules          : Ordered_set_lang.t option
     ; implements               : (Loc.t * Lib_name.t) option
     ; variant                  : Variant.t option
-    ; default_variant          : Variant.t option
+    ; default_implementation   : Lib_name.t option
     ; private_modules          : Ordered_set_lang.t option
     ; stdlib                   : Stdlib.t option
     }
@@ -887,10 +887,10 @@ module Library = struct
          field_o "variant" (
            Syntax.since Stanza.syntax (1, 7)
            >>= fun () -> located Variant.decode)
-       and default_variant =
-         field_o "default_variant" (
+       and default_implementation =
+         field_o "default_implementation" (
            Syntax.since Stanza.syntax (1, 7)
-           >>= fun () -> located Variant.decode)
+           >>= fun () -> located Lib_name.decode)
        and private_modules =
          field_o "private_modules" (
            Syntax.since Stanza.syntax (1, 2)
@@ -934,13 +934,13 @@ module Library = struct
             |> Option.value_exn)
            "A library cannot be both virtual and implement %s"
            (Lib_name.to_string impl));
-       match virtual_modules, default_variant with
-       | None, Some (loc, _) -> of_sexp_error loc "Only virtual libraries can specify a default variant."
+       match virtual_modules, default_implementation with
+       | None, Some (loc, _) -> of_sexp_error loc "Only virtual libraries can specify a default implementation."
        | _ -> ();
        match implements, variant with
        | None, Some (loc, _) -> of_sexp_error loc "Only implementations can specify a variant."
        | _ -> ();
-       let default_variant = Option.map default_variant ~f:(fun (_, v) -> v)
+       let default_implementation = Option.map default_implementation ~f:(fun (_, v) -> v)
        and variant = Option.map variant ~f:(fun (_, v) -> v) in
        let self_build_stubs_archive =
          let loc, self_build_stubs_archive = self_build_stubs_archive in
@@ -985,7 +985,7 @@ module Library = struct
        ; virtual_modules
        ; implements
        ; variant
-       ; default_variant
+       ; default_implementation
        ; private_modules
        ; stdlib
        })

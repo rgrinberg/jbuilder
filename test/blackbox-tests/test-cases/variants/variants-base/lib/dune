@@ -2,5 +2,5 @@
     (name vlib)
     (virtual_modules vlib)
     (wrapped false)
-    (default_variant default)
+    (default_implementation default)
 )

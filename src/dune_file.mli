@@ -213,7 +213,7 @@ module Library : sig
     ; virtual_modules          : Ordered_set_lang.t option
     ; implements               : (Loc.t * Lib_name.t) option
     ; variant                  : Variant.t option
-    ; default_variant          : Variant.t option
+    ; default_implementation   : Lib_name.t option
     ; private_modules          : Ordered_set_lang.t option
     ; stdlib                   : Stdlib.t option
     }

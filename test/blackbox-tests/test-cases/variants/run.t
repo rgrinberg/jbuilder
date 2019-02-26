@@ -302,14 +302,14 @@ Implement external virtual libraries with private modules
            run alias default
   Name: implement virtual module. Magic number: 42
 
-Test that trying to specify a default variant for a non-virtual library results
+Test that trying to specify a default implementation for a non-virtual library results
 in an appropriate error message.
-  $ dune build --root default-variant-not-virtual-lib
-  Entering directory 'default-variant-not-virtual-lib'
-  File "dune", line 4, characters 21-28:
-  4 |     (default_variant default))
-                           ^^^^^^^
-  Error: Only virtual libraries can specify a default variant.
+  $ dune build --root default-impl-not-virtual-lib
+  Entering directory 'default-impl-not-virtual-lib'
+  File "dune", line 4, characters 28-36:
+  4 |     (default_implementation lib.impl))
+                                  ^^^^^^^^
+  Error: Only virtual libraries can specify a default implementation.
   [1]
 
 Test that trying to specify a variant for not an implementation results in an 
@@ -340,8 +340,8 @@ Basic sample using variants and a default library.
   hello from lib.test
 
 Basic sample selecting implementation according to default library.
-  $ dune build --root default-variant
-  Entering directory 'default-variant'
+  $ dune build --root default-impl
+  Entering directory 'default-impl'
            bar alias default
   hi from lib.default
 
