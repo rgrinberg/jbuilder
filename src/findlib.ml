@@ -231,7 +231,7 @@ module Package = struct
       ~virtual_:false
       ~implements:None
       ~variant:None
-      ~default_variant:None
+      ~default_implementation:None
       ~modules:None
       ~main_module_name:None (* XXX remove *)
       ~version:(version t)

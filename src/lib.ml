@@ -853,6 +853,17 @@ and resolve_complex_deps db deps ~allow_private_deps ~stack =
   in
   (res, resolved_selects)
 
+and info_of_name db name = 
+  match db.resolve name, db.parent with
+  | Redirect (db', name'), _ -> 
+      let db' = Option.value db' ~default:db in
+      info_of_name db' name'
+  | Found info, _ -> Some info
+  | Not_found, None -> None
+  | Not_found, Some parent -> info_of_name parent name
+  | Hidden _, _ -> None
+
+
 (* Try to find an implementation for virtual library. *)
 and resolve_virtual_dep db (virt : Lib_info.t) ~allow_private_deps ~stack ~variants ~user_written_deps =
   let rec explore_dbs db variants =
@@ -869,10 +880,12 @@ and resolve_virtual_dep db (virt : Lib_info.t) ~allow_private_deps ~stack ~varia
       | false, [], Some parent_db -> explore_dbs parent_db variants
       | _ -> Some implementations
   in
-  let options = match explore_dbs db variants, virt.default_variant with
+  let options = match explore_dbs db variants, virt.default_implementation with
   | None, _ -> []
   | Some [], None -> []
-  | Some [], Some v -> explore_dbs db (Variant.Set.singleton v) |> (function | Some x -> x | _ -> assert false)(*Fallback to default variant.*)
+  | Some [], Some v -> (match info_of_name db v with 
+      | Some x -> [x]  (*Fallback to default implementation.*)
+      | _ -> failwith "default implementation not found." )
   | Some lst, _ -> lst
   in match options with
   | [] -> Ok [], []
@@ -1290,9 +1303,9 @@ let report_lib_error ppf (e : Error.t) =
   in
   match e with
   | Multiple_solutions_for_implementation {lib; given_variants; conflict}  ->
-    let print_default_variant ppf () = match lib.default_variant with
+    let print_default_implementation ppf () = match lib.default_implementation with
       | None -> Format.fprintf ppf ""
-      | Some x -> Format.fprintf ppf "(default variant %a)" Variant.pp x
+      | Some x -> Format.fprintf ppf "(default implementation %a)" Lib_name.pp x
     in
     let print_variants ppf () = match Variant.Set.is_empty given_variants with
       | true -> Format.fprintf ppf ""
@@ -1303,7 +1316,7 @@ let report_lib_error ppf (e : Error.t) =
        of %a %a@ %a@,\
        @[<v>%a@]@\n"
       Lib_name.pp lib.name
-      print_default_variant ()
+      print_default_implementation ()
       print_variants ()
       (Format.pp_print_list (fun ppf (lib : Lib_info.t) ->
          Format.fprintf ppf "-> %a (%a)"
@@ -1444,7 +1457,7 @@ let to_dune_lib ({ name ; info ; _ } as lib) ~lib_modules ~foreign_objects ~dir 
     ~modes:info.modes
     ~implements:info.implements
     ~variant:info.variant
-    ~default_variant:info.default_variant
+    ~default_implementation:info.default_implementation
     ~virtual_
     ~modules:(Some lib_modules)
     ~main_module_name:(to_exn (main_module_name lib))
