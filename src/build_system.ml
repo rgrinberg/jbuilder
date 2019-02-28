@@ -218,8 +218,6 @@ module Alias0 = struct
   let name t = t.name
   let dir  t = t.dir
 
-  let fully_qualified_name t = Path.relative t.dir t.name
-
   let stamp_file t =
     Path.relative (Path.insert_after_build_dir_exn t.dir ".aliases")
       (t.name ^ suffix)

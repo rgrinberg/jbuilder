@@ -113,8 +113,6 @@ module Alias : sig
   val name : t -> string
   val dir  : t -> Path.t
 
-  val fully_qualified_name : t -> Path.t
-
   val default     : dir:Path.t -> t
   val runtest     : dir:Path.t -> t
   val install     : dir:Path.t -> t
