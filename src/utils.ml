@@ -164,37 +164,6 @@ let line_directive ~filename:fn ~line_number =
 
 let local_bin p = Path.relative p ".bin"
 
-module type Persistent_desc = sig
-  type t
-  val name : string
-  val version : int
-end
-
-module Persistent(D : Persistent_desc) = struct
-  let magic = sprintf "DUNE-%sv%d:" D.name D.version
-
-  let to_out_string (v : D.t) =
-    magic ^ Marshal.to_string v []
-
-  let dump file (v : D.t) =
-    Io.with_file_out file ~f:(fun oc ->
-      output_string oc magic;
-      Marshal.to_channel oc v [])
-
-  let load file =
-    if Path.exists file then
-      Io.with_file_in file ~f:(fun ic ->
-        match really_input_string ic (String.length magic) with
-        | exception End_of_file -> None
-        | s ->
-          if s = magic then
-            Some (Marshal.from_channel ic : D.t)
-          else
-            None)
-    else
-      None
-end
-
 module Cached_digest = struct
   type file =
     { mutable digest            : Digest.t
@@ -209,7 +178,7 @@ module Cached_digest = struct
 
   let db_file = Path.relative Path.build_dir ".digest-db"
 
-  module P = Persistent(struct
+  module P = Persistent.Make(struct
       type nonrec t = t
       let name = "DIGEST-DB"
       let version = 1

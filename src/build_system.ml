@@ -13,7 +13,7 @@ let misc_dir = Path.(relative build_dir) ".misc"
 let () = Hooks.End_of_build.always Memo.reset
 
 module Promoted_to_delete = struct
-  module P = Utils.Persistent(struct
+  module P = Persistent.Make(struct
       type t = Path.Set.t
       let name = "PROMOTED-TO-DELETE"
       let version = 1
@@ -379,7 +379,7 @@ end = struct
 
   let file = Path.relative Path.build_dir ".db"
 
-  module P = Utils.Persistent(struct
+  module P = Persistent.Make(struct
       type nonrec t = t
       let name = "INCREMENTAL-DB"
       let version = 2

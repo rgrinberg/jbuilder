@@ -68,19 +68,6 @@ val line_directive : filename:string -> line_number:int -> string
     rules defined in [dir] *)
 val local_bin : Path.t -> Path.t
 
-module type Persistent_desc = sig
-  type t
-  val name : string
-  val version : int
-end
-
-(** Persistent value stored on disk *)
-module Persistent(D : Persistent_desc) : sig
-  val to_out_string : D.t -> string
-  val dump : Path.t -> D.t -> unit
-  val load : Path.t -> D.t option
-end
-
 (** Digest files with caching *)
 module Cached_digest : sig
   (** Digest the contents of the following file *)

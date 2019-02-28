@@ -56,7 +56,7 @@ struct
   (* XXX dune dump should make use of this *)
   let _t = T.encode
 
-  module P = Utils.Persistent(struct
+  module P = Persistent.Make(struct
       type nonrec t = t
       let name = "VFILE_KIND-" ^ T.name
       let version = 1
