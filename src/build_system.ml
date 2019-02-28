@@ -1721,17 +1721,22 @@ module Alias = struct
       x
     | Some x -> x
 
-  let add_deps t ?dyn_deps deps =
+  let add_deps ?dyn_deps ?(aliases=[]) ?(deps=Path.Set.empty) t =
     let build_system = get_build_system () in
     let def = get_alias_def build_system t in
-    def.deps <- Path.Set.union def.deps deps;
-    match dyn_deps with
+    def.deps <- (
+      let deps = Path.Set.union def.deps deps in
+      List.fold_left aliases ~init:deps ~f:(fun acc alias ->
+        Path.Set.add acc (stamp_file alias))
+    );
+    begin match dyn_deps with
     | None -> ()
     | Some build ->
       let open Build.O in
       def.dyn_deps <-
         Build.fanout def.dyn_deps build >>^ fun (a, b) ->
         Path.Set.union a b
+    end
 
   let add_action t ~context ~env ~loc ?(locks=[]) ~stamp action =
     let build_system = get_build_system () in

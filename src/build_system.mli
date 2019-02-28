@@ -127,10 +127,7 @@ module Alias : sig
       package *)
   val package_install : context:Context.t -> pkg:Package.Name.t -> t
 
-  (** Return the underlying stamp file *)
-  val stamp_file : t -> Path.t
-
-  (** [dep t = Build.path (stamp_file t)] *)
+  (** [dep t] depend on on alias *)
   val dep : t -> ('a, 'a) Build.t
 
   (** Implements [@@alias] on the command line *)
@@ -160,9 +157,10 @@ module Alias : sig
       [dyn_deps] and [deps] are built as part of the build of alias
       [alias]. *)
   val add_deps
-    :  t
-    -> ?dyn_deps:(unit, Path.Set.t) Build.t
-    -> Path.Set.t
+    :  ?dyn_deps:(unit, Path.Set.t) Build.t
+    -> ?aliases:t list
+    -> ?files:Path.Set.t
+    -> t
     -> unit
 
   (** [add_action store alias ~stamp action] arrange things so that

@@ -28,16 +28,16 @@ module Group = struct
       sprintf "lib-%s%s-all" (Lib_name.to_string name) (to_string t)
       |> Alias.make ~dir
 
-    let setup_alias t ~dir ~lib ~files =
+    let setup_alias ?files ?aliases t ~dir ~lib =
       Build_system.Alias.add_deps
+        ?files
+        ?aliases
         (alias t ~dir ~name:(Library.best_name lib))
-        files
 
     let setup_file_deps_group_alias t ~dir ~lib =
-      setup_alias t ~dir ~lib ~files:(
+      setup_alias t ~dir ~lib ~aliases:(
         List.map t ~f:(fun t ->
-          Alias.stamp_file (alias [t] ~dir ~name:(Library.best_name lib)))
-        |> Path.Set.of_list
+          alias [t] ~dir ~name:(Library.best_name lib))
       )
   end
 end
