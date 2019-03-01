@@ -1,0 +1,6 @@
+(library
+    (name test)
+    (virtual_modules test)
+    (wrapped false)
+    (default_implementation test_default)
+)

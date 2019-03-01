@@ -339,6 +339,32 @@ Basic sample using variants and a default library.
            bar alias default
   hello from lib.test
 
+Check that implementations are chosen according to manual specification, then 
+variants and finally default implementation.
+  $ dune build --root resolution-priority
+  Entering directory 'resolution-priority'
+           bar alias default
+  hi from direct.ocaml
+  hi from variant.c
+  hi from test.default
+
+
+Check that ambiguity is handled correctly.
+  $ dune build --root dependency-cycle
+  Entering directory 'dependency-cycle'
+  Error: Default implementation cycle detected between the following libraries:
+  -> "clock"
+  -> "clock_ocaml"
+  -> "async_ocaml"
+  -> "async"
+  -> "async_c"
+  -> "clock_c"
+  -> "clock"
+  -> "test_default"
+  -> "test"
+  -> required by executable bar in dune:2
+  [1]
+
 Basic sample selecting implementation according to default library.
   $ dune build --root default-impl
   Entering directory 'default-impl'
