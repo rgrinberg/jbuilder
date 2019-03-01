@@ -54,7 +54,7 @@ type t = private
   ; virtual_         : Lib_modules.t Source.t option
   ; implements       : (Loc.t * Lib_name.t) option
   ; variant          : Variant.t option
-  ; default_implementation  : Lib_name.t option
+  ; default_implementation  : (Loc.t * Lib_name.t) option
   ; wrapped          : Wrapped.t Dune_file.Library.Inherited.t option
   ; main_module_name : Dune_file.Library.Main_module_name.t
   ; modes            : Mode.Dict.Set.t

@@ -1,0 +1,5 @@
+(library
+    (name direct_default)
+    (implements direct)
+    (variant default)
+)
