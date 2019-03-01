@@ -128,7 +128,7 @@ module Error : sig
     type t
   end
 
-  module Multiple_solutions_for_implementation : sig
+  module Multiple_implementations_for_virtual_lib : sig
     type t
   end
 
@@ -148,6 +148,10 @@ module Error : sig
     type t
   end
 
+  module Default_implementation_cycle : sig
+    type t
+  end
+
   type t =
     | Library_not_available                  of Library_not_available.t
     | No_solution_found_for_select           of No_solution_found_for_select.t
@@ -158,7 +162,8 @@ module Error : sig
     | Double_implementation                  of Double_implementation.t
     | No_implementation                      of No_implementation.t
     | Not_virtual_lib                        of Not_virtual_lib.t
-    | Multiple_solutions_for_implementation  of Multiple_solutions_for_implementation.t
+    | Multiple_implementations_for_virtual_lib  of Multiple_implementations_for_virtual_lib.t
+    | Default_implementation_cycle           of Default_implementation_cycle.t
 end
 
 exception Error of Error.t
@@ -232,14 +237,10 @@ module DB : sig
   val create
     :  ?parent:t
     -> resolve:(Lib_name.t -> Resolve_result.t)
-    -> find_implementations:(Variant.t -> Lib_name.t -> Lib_info.t list)
+    -> find_implementations:(Lib_name.t -> Lib_info.t list Variant.Map.t)
     -> all:(unit -> Lib_name.t list)
     -> unit
     -> t
-
-  val create_variant_map
-    :  Lib_info.t list
-    -> Lib_info.t list Lib_name.Map.t Variant.Map.t
 
   (** Create a database from a list of library stanzas *)
   val create_from_library_stanzas
@@ -270,7 +271,7 @@ module DB : sig
       for libraries that are optional and not available as well. *)
   val get_compile_info : t -> ?allow_overlaps:bool -> Lib_name.t -> Compile.t
 
-  val find_implementations : t -> Variant.t -> Lib_name.t -> Lib_info.t list
+  val find_implementations : t -> Lib_name.t -> Lib_info.t list Variant.Map.t
 
   val resolve : t -> Loc.t * Lib_name.t -> lib Or_exn.t
 
