@@ -1,10 +1,10 @@
 Adding a library
 ----------------
 
-Can init a public library
+Can add a public library
 
-  $ dune init lib test_lib ./_test_lib_dir --public
-  Success: initialized library component named test_lib
+  $ dune add lib test_lib ./_test_lib_dir --public
+  Success: addition of library component named test_lib complete
 
 Can build the public library
 
@@ -22,10 +22,11 @@ Clean up the library tests
 
   $ rm -rf ./_test_lib_dir
 
-Can init library with a specified public name
+Can add library with a specified public name
 
-  $ dune init lib test_lib ./_test_lib_dir --public test_lib_public_name
-  Success: initialized library component named test_lib
+  $ dune add lib test_lib ./_test_lib_dir --public test_lib_public_name
+  Success: addition of library component named test_lib complete
+
   $ cat ./_test_lib_dir/dune
   (library
    (public_name test_lib_public_name)
@@ -37,8 +38,8 @@ Clean up library with specified public name
 
 Can add a library with inline tests
 
-  $ dune init lib test_lib ./_inline_tests_lib --inline-tests --ppx ppx_inline_tests
-  Success: initialized library component named test_lib
+  $ dune add lib test_lib ./_inline_tests_lib --inline-tests --ppx ppx_inline_tests
+  Success: addition of library component named test_lib complete
   $ cat ./_inline_tests_lib/dune
   (library
    (inline_tests)
@@ -53,10 +54,10 @@ Clean up library with inlines tests
 Adding an executable
 --------------------
 
-Can init a public executable
+Can add a public executable
 
-  $ dune init exe test_bin ./_test_bin_dir --public
-  Success: initialized executable component named test_bin
+  $ dune add exe test_bin ./_test_bin_dir --public
+  Success: addition of executable component named test_bin complete
 
 Can build an executable
 
@@ -78,10 +79,10 @@ Clean up the executable tests
 Adding tests
 ------------
 
-Can init tests
+Can add tests
 
-  $ dune init test test_tests ./_test_tests_dir --libs foo,bar
-  Success: initialized test component named test_tests
+  $ dune add test test_tests ./_test_tests_dir --libs foo,bar
+  Success: addition of test component named test_tests complete
   $ ls ./_test_tests_dir
   dune
   test_tests.ml
@@ -99,8 +100,8 @@ Adding componets to default and non-standard places
 
 Add a library in the current working directory
 
-  $ dune init lib test_lib
-  Success: initialized library component named test_lib
+  $ dune add lib test_lib
+  Success: addition of library component named test_lib complete
   $ cat dune
   (library
    (name test_lib))
@@ -111,8 +112,8 @@ Clean the library creation
 
 Add a library to a dune file in a specified directory
 
-  $ dune init lib test_lib ./_test_dir
-  Success: initialized library component named test_lib
+  $ dune add lib test_lib ./_test_dir
+  Success: addition of library component named test_lib complete
   $ ls ./_test_dir/dune
   ./_test_dir/dune
 
@@ -123,12 +124,12 @@ Clean up from the dune file created in ./test_dir
 Adding a library and an executable dependent on that library
 ------------------------------------------------------------
 
-Can init a library and dependent executable in a combo project
+Can add a library and dependent executable in a combo project
 
-  $ dune init lib test_lib ./_test_lib_exe_dir/src
-  Success: initialized library component named test_lib
-  $ dune init exe test_bin ./_test_lib_exe_dir/bin --libs test_lib --public
-  Success: initialized executable component named test_bin
+  $ dune add lib test_lib ./_test_lib_exe_dir/src
+  Success: addition of library component named test_lib complete
+  $ dune add exe test_bin ./_test_lib_exe_dir/bin --libs test_lib --public
+  Success: addition of executable component named test_bin complete
 
 Can build the combo project
 
@@ -152,10 +153,10 @@ Adding libraries in a single directory
 
 Can add multiple libraries in the same directory
 
-  $ dune init lib test_lib1 ./_test_lib --public
-  Success: initialized library component named test_lib1
-  $ dune init lib test_lib2 ./_test_lib --libs test_lib1
-  Success: initialized library component named test_lib2
+  $ dune add lib test_lib1 ./_test_lib --public
+  Success: addition of library component named test_lib1 complete
+  $ dune add lib test_lib2 ./_test_lib --libs test_lib1
+  Success: addition of library component named test_lib2 complete
   $ cat ./_test_lib/dune
   (library
    (public_name test_lib1)
@@ -182,8 +183,8 @@ Multiple ppxs and library dependencies
 
 Can add multiple library dependencies in one command
 
-  $ dune init lib test_lib ./_test_lib --libs foo,bar --ppx ppx_foo,ppx_bar
-  Success: initialized library component named test_lib
+  $ dune add lib test_lib ./_test_lib --libs foo,bar --ppx ppx_foo,ppx_bar
+  Success: addition of library component named test_lib complete
   $ cat _test_lib/dune
   (library
    (name test_lib)
@@ -200,16 +201,16 @@ Safety and Validation
 
 Will not overwrite existing files
 
-  $ dune init exe test_bin ./existing_project/bin
+  $ dune add exe test_bin ./existing_project/bin
   Warning: file existing_project/bin/main.ml was not created because it already exists
-  Success: initialized executable component named test_bin
-  $ cat ./existing_project/main.ml
+  Success: addition of executable component named test_bin complete
+  $ cat ./existing_project/bin/main.ml
   () = print_endline "Goodbye"
 
 Comments in dune files are preserved
 
-  $ dune init lib test_lib2 ./existing_project/src
-  Success: initialized library component named test_lib2
+  $ dune add lib test_lib2 ./existing_project/src
+  Success: addition of library component named test_lib2 complete
   $ cat ./existing_project/src/dune
   ; A comment
   
@@ -222,7 +223,7 @@ Comments in dune files are preserved
 
 Will not create components with invalid names
 
-  $ dune init lib invalid-component-name ./_test_lib
+  $ dune add lib invalid-component-name ./_test_lib
   A component named 'invalid-component-name' cannot be created because it is an invalid library name.
   Hint: library names must be non-empty and composed only of the following characters: 'A'..'Z',  'a'..'z', '_'  or '0'..'9'
   [1]
@@ -232,19 +233,19 @@ Will not create components with invalid names
 
 Will fail and inform user when invalid component command is given
 
-  $ dune init foo blah
-  dune: INIT_KIND argument: invalid value `foo', expected one of `exe', `lib'
-        or `test'
-  Usage: dune init [OPTION]... INIT_KIND NAME [PATH]
-  Try `dune init --help' or `dune --help' for more information.
+  $ dune add foo blah
+  dune: COMPONENT_KIND argument: invalid value `foo', expected one of `exe',
+        `lib' or `test'
+  Usage: dune add [OPTION]... COMPONENT_KIND NAME [PATH]
+  Try `dune add --help' or `dune --help' for more information.
   [1]
 
 Will fail and inform user when an invalid option is given to a component
 
-  $ dune init test test_foo --public
+  $ dune add test test_foo --public
   The test component does not support the public option
   [1]
-  $ dune init exe test_exe --inline-tests
+  $ dune add exe test_exe --inline-tests
   The executable component does not support the inline-tests option
   [1]
 
@@ -254,9 +255,9 @@ Adding fields to existing stanzas
 # TODO(shonfeder)
 Adding fields to existing stanzas is currently not supported
 
-  $ dune init exe test_bin ./_test_bin --libs test_lib1 --public
-  Success: initialized executable component named test_bin
-  $ dune init exe test_bin ./_test_bin --libs test_lib2
+  $ dune add exe test_bin ./_test_bin --libs test_lib1 --public
+  Success: addition of executable component named test_bin complete
+  $ dune add exe test_bin ./_test_bin --libs test_lib2
   Updating existing stanzas is not yet supported.
   A preexisting dune stanza conflicts with a generated stanza:
   

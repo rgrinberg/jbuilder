@@ -1,5 +1,14 @@
 
 (rule
+ (with-stdout-to dune-add.1
+  (run dune add --help=groff)))
+
+(install
+ (section man)
+ (package dune)
+ (files   dune-add.1))
+
+(rule
  (with-stdout-to dune-build.1
   (run dune build --help=groff)))
 
@@ -61,15 +70,6 @@
  (section man)
  (package dune)
  (files   dune-help.1))
-
-(rule
- (with-stdout-to dune-init.1
-  (run dune init --help=groff)))
-
-(install
- (section man)
- (package dune)
- (files   dune-init.1))
 
 (rule
  (with-stdout-to dune-install.1

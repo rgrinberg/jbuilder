@@ -1,7 +1,7 @@
-(** Initialize dune components *)
+(** Adding dune components *)
 open! Stdune
 
-(** Supported kinds of components for initialization *)
+(** Supported kinds of components for addition *)
 module Kind : sig
   type t =
     | Executable
@@ -13,8 +13,8 @@ module Kind : sig
   val commands : (string * t) list
 end
 
-(** The context in which the initialization is executed *)
-module Init_context : sig
+(** The context in which the addition is executed *)
+module Add_context : sig
   type t =
     { root : Path.t
     ; dir : Path.t
@@ -45,7 +45,7 @@ module Component : sig
     type test = ()
 
     type 'a t =
-      { context : Init_context.t
+      { context : Add_context.t
       ; common : common
       ; options : 'a }
   end
@@ -57,7 +57,7 @@ module Component : sig
 
   (** Create or update the component specified by the ['options t],
       where ['options] is *)
-  val init : 'options t -> unit
+  val add : 'options t -> unit
 end
 
 val validate_component_name : string -> unit

@@ -1,7 +1,7 @@
 open! Stdune
 open! Import
 
-(** Because the dune_init utility deals with the addition of stanzas and
+(** Because dune_add utility deals with the addition of stanzas and
     fields to dune projects and files, we need to inspect and manipulate the
     concrete syntax tree (CST) a good deal. *)
 module Cst = Dune_lang.Cst
@@ -23,7 +23,7 @@ module Kind = struct
     ; "test", Test ]
 end
 
-(** Abstractions around the kinds of files handled during initialization *)
+(** Abstractions around the kinds of files handled during component addition *)
 module File = struct
 
   type dune =
@@ -167,8 +167,8 @@ module File = struct
         Ok (Io.write_file ~binary:false path f.content)
 end
 
-(** The context in which the initialization is executed *)
-module Init_context = struct
+(** The context in which the component addition is executed *)
+module Add_context = struct
   type t =
     { root : Path.t
     ; dir : Path.t
@@ -213,7 +213,7 @@ module Component = struct
     type test = ()
 
     type 'options t =
-      { context : Init_context.t
+      { context : Add_context.t
       ; common : common
       ; options : 'options }
   end
@@ -353,7 +353,7 @@ module Component = struct
     File.create_dir target.dir;
     List.map ~f:File.write target.files
 
-  let init (type options) (t : options t) =
+  let add (type options) (t : options t) =
     let target = match t with
       | Executable params -> bin params
       | Library params    -> src params
@@ -371,5 +371,5 @@ let validate_component_name name =
 
 let print_completion kind name =
   Errors.kerrf ~f:print_to_console
-    "@{<ok>Success@}: initialized %s component named @{<kwd>%s@}\n"
+    "@{<ok>Success@}: addition of %s component named @{<kwd>%s@} complete\n"
     (Kind.to_string kind) name

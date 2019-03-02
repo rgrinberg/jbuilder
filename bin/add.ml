@@ -1,7 +1,7 @@
 open Stdune
 open Import
 
-open Dune.Dune_init
+open Dune.Dune_add
 
 (* TODO(shonfeder): Remove when nested subcommands are available *)
 let validate_component_options kind ~unsupported_options =
@@ -14,10 +14,12 @@ let validate_component_options kind ~unsupported_options =
   in
   List.iter ~f:report_invalid_option unsupported_options
 
-let doc = "Initialize dune components"
+let doc =
+  "Add dune components"
+
 let man =
   [ `S "DESCRIPTION"
-  ; `P {|$(b,dune init {lib,exe,test} NAME [PATH]) initialize a new dune
+  ; `P {|$(b,dune add {lib,exe,test} NAME [PATH]) add a new dune
          component of the specified kind, named $(b,NAME), with fields
          determined by the supplied options.|}
   ; `P {|If the optional $(b,PATH) is provided, the project will be created
@@ -29,31 +31,34 @@ let man =
 Define an executable component named 'myexe' in a dune file in the
 current directory:
 
-          dune init exe myexe
+          dune add exe myexe
 
 Define a library component named 'mylib' in a dune file in the ./src
 directory depending on the core and cmdliner libraries, the ppx_let
 and ppx_inline_test preprocessors, and declared as using inline tests:
 
-          dune init lib mylib src --libs core,cmdliner --ppx ppx_let,ppx_inline_test --inline-tests
+          dune add lib mylib src --libs core,cmdliner --ppx ppx_let,ppx_inline_test --inline-tests
 
 Define a library component named mytest in a dune file in the ./test
 directory that depends on mylib:
 
-        dune init test myexe test --libs mylib|}
+        dune add test myexe test --libs mylib|}
   ]
 
-let info = Term.info "init" ~doc ~man
+let info = Term.info "add" ~doc ~man
 
 let term =
   let%map common_term = Common.term
   and kind =
     (* TODO(shonfeder): Replace with nested subcommand once we have support for that *)
-    Arg.(required & pos 0 (some (enum Kind.commands)) None & info [] ~docv:"INIT_KIND")
+    Arg.(required & pos 0 (some (enum Kind.commands)) None
+         & info [] ~docv:"COMPONENT_KIND")
   and name =
-    Arg.(required & pos 1 (some string) None & info [] ~docv:"NAME")
+    Arg.(required & pos 1 (some string) None
+         & info [] ~docv:"NAME")
   and path =
-    Arg.(value & pos 2 (some string) None & info [] ~docv:"PATH" )
+    Arg.(value & pos 2 (some string) None
+         & info [] ~docv:"PATH" )
   and libraries =
     Arg.(value
          & opt (list string) []
@@ -89,24 +94,24 @@ let term =
 
   Common.set_common common_term ~targets:[];
   let open Component in
-  let context = Init_context.make common_term.root path in
+  let context = Add_context.make common_term.root path in
   let common : Options.common = { name; libraries; pps } in
   let given_public = Option.is_some public in
   begin match kind with
-  | Kind.Library -> init @@ Library { context; common; options = {public; inline_tests} }
+  | Kind.Library -> add @@ Library { context; common; options = {public; inline_tests} }
   | Kind.Executable ->
     let unsupported_options =
       ["inline-tests", inline_tests]
     in
     validate_component_options kind ~unsupported_options;
-    init @@ Executable { context; common; options = {public} }
+    add @@ Executable { context; common; options = {public} }
   | Kind.Test ->
     let unsupported_options =
       [ "public", given_public
       ; "inline-tests", inline_tests]
     in
     validate_component_options kind ~unsupported_options;
-    init @@ Test { context; common; options = () }
+    add @@ Test { context; common; options = () }
   end;
 
   print_completion kind name
