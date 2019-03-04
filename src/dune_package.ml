@@ -31,7 +31,8 @@ module Lib = struct
 
   let make ~loc ~kind ~name ~synopsis ~archives ~plugins ~foreign_objects
         ~foreign_archives ~jsoo_runtime ~main_module_name ~sub_systems
-        ~requires ~ppx_runtime_deps ~implements ~variant ~default_implementation ~virtual_ ~modules ~modes
+        ~requires ~ppx_runtime_deps ~implements ~variant
+        ~default_implementation ~virtual_ ~modules ~modes
         ~version ~orig_src_dir ~dir =
     let map_path p = Path.relative dir (Path.basename p) in
     let map_list = List.map ~f:map_path in
@@ -74,7 +75,8 @@ module Lib = struct
         { loc = _ ; kind ; synopsis ; name ; archives ; plugins
         ; foreign_objects ; foreign_archives ; jsoo_runtime ; requires
         ; ppx_runtime_deps ; sub_systems ; virtual_
-        ; implements ; variant ; default_implementation ; main_module_name ; version = _; dir = _; orig_src_dir
+        ; implements ; variant ; default_implementation
+        ; main_module_name ; version = _; dir = _; orig_src_dir
         ; modules ; modes
         } =
     let open Dune_lang.Encoder in
@@ -123,7 +125,8 @@ module Lib = struct
       field_o "main_module_name" Module.Name.decode >>= fun main_module_name ->
       field_o "implements" (located Lib_name.decode) >>= fun implements ->
       field_o "variant" Variant.decode >>= fun variant ->
-      field_o "default_implementation" (located Lib_name.decode) >>= fun default_implementation ->
+      field_o "default_implementation" (located Lib_name.decode)
+      >>= fun default_implementation ->
       field "name" Lib_name.decode >>= fun name ->
       let dir = Path.append_local base (dir_of_name name) in
       let%map synopsis = field_o "synopsis" string
