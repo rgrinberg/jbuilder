@@ -672,7 +672,8 @@ module Buildable = struct
     and+ preprocessor_deps =
 =======
     and variants =
-      field "variants" ((list Variant.decode) >>| Variant.Set.of_list) ~default:Variant.Set.empty
+      field "variants" ((list Variant.decode) >>| Variant.Set.of_list)
+            ~default:Variant.Set.empty
     and preprocessor_deps =
 >>>>>>> First implementation of library variants.
       field "preprocessor_deps" (list Dep_conf.decode) ~default:[]
@@ -975,10 +976,14 @@ module Library = struct
            "A library cannot be both virtual and implement %s"
            (Lib_name.to_string impl));
        match virtual_modules, default_implementation with
-       | None, Some (loc, _) -> of_sexp_error loc "Only virtual libraries can specify a default implementation."
+       | None, Some (loc, _) ->
+          of_sexp_error loc
+            "Only virtual libraries can specify a default implementation."
        | _ -> ();
        match implements, variant with
-       | None, Some (loc, _) -> of_sexp_error loc "Only implementations can specify a variant."
+       | None, Some (loc, _) ->
+          of_sexp_error loc
+            "Only implementations can specify a variant."
        | _ -> ();
        let variant = Option.map variant ~f:(fun (_, v) -> v) in
        let self_build_stubs_archive =
