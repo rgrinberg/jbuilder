@@ -286,7 +286,7 @@ module DB : sig
     -> ?allow_overlaps:bool
     -> Dune_file.Lib_dep.t list
     -> pps:(Loc.t * Lib_name.t) list
-    -> variants: Variant.Set.t
+    -> variants: (Loc.t * Variant.Set.t) option
     -> Compile.t
 
   val resolve_pps
