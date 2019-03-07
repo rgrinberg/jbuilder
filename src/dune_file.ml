@@ -666,9 +666,6 @@ module Buildable = struct
     let+ loc = loc
     and+ preprocess =
       field "preprocess" Preprocess_map.decode ~default:Preprocess_map.default
-    and+ variants =
-      field "variants" (list Variant.decode >>| Variant.Set.of_list)
-            ~default:Variant.Set.empty
     and+ preprocessor_deps =
       field "preprocessor_deps" (list Dep_conf.decode) ~default:[]
     and+ lint = field "lint" Lint.decode ~default:Lint.default
@@ -913,10 +910,6 @@ module Library = struct
          field_o "implements" (
            Syntax.since Stanza.syntax (1, 7)
            >>= fun () -> located Lib_name.decode)
-       and+ variant =
-         field_o "variant" (
-           Syntax.since Stanza.syntax (1, 7)
-           >>= fun () -> Variant.decode)
        and+ variant =
          field_o "variant" (
            Syntax.since Stanza.syntax (1, 8)
