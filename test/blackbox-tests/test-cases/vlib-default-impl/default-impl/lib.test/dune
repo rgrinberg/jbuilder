@@ -1,4 +1,4 @@
 (library
-    (name lib_test)
-    (implements vlib)
-    (variant test))
+ (name lib_test)
+ (implements vlib)
+ (variant test))

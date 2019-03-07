@@ -1,7 +1,6 @@
 (executable
  (name bar)
- (libraries vlib)
- (variants test))
+ (libraries async_ocaml clock_c test))
 
 (alias
  (name default)

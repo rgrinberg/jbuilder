@@ -1,4 +1,4 @@
 (library
-    (name lib)
-    (wrapped false)
-    (default_implementation lib.impl))
+ (name lib)
+ (wrapped false)
+ (default_implementation lib.impl))

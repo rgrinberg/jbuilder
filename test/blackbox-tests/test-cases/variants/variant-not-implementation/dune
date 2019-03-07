@@ -1,5 +1,4 @@
 (library
-    (name lib)
-    (wrapped false)
-    (variant foo)
-)
+ (name lib)
+ (wrapped false)
+ (variant foo))
