@@ -663,11 +663,12 @@ end = struct
       Ok closure
 end
 
-
-type vlib_status =
-  | No_implementation
-  | Implemented_by of Lib_name.t
-  | Too_many_impl of Lib_name.t list
+module Vlib_status = struct
+  type t=
+    | No_implementation
+    | Implemented_by of Lib_name.t
+    | Too_many_impl of Lib_name.t list
+end
 
 (* Find implementation that matches given variants *)
 let find_implementation_for db lib ~variants =
@@ -699,18 +700,17 @@ let handle_vlibs lib virtual_status =
     begin match Lib_name.Map.find !virtual_status lib.name with
     | None ->
       virtual_status :=
-        Lib_name.Map.add !virtual_status lib.name No_implementation;
+        Lib_name.Map.add !virtual_status lib.name Vlib_status.No_implementation;
       Ok ()
     | Some _ -> Ok ()
     end
   | None, Some (_, implements) ->
     (* Implementation: find the corresponding virtual library *)
-    begin
-      match Lib_name.Map.find !virtual_status implements with
-      | Some No_implementation
-      | None -> Ok (Implemented_by lib.name)
-      | Some (Implemented_by x) ->  Ok (Too_many_impl [lib.name; x])
-      | Some (Too_many_impl lst) ->  Ok (Too_many_impl (lib.name :: lst))
+    begin match Lib_name.Map.find !virtual_status implements with
+    | Some No_implementation
+    | None -> Ok (Vlib_status.Implemented_by lib.name)
+    | Some (Implemented_by x) ->  Ok (Too_many_impl [lib.name; x])
+    | Some (Too_many_impl lst) ->  Ok (Too_many_impl (lib.name :: lst))
     end
     >>= fun impl ->
     virtual_status := Lib_name.Map.add !virtual_status implements impl;
@@ -1292,14 +1292,11 @@ module DB = struct
     in
     create () ?parent
       ~resolve:(fun name ->
-        match Lib_name.Map.find map name with
-        | None   -> Not_found
-        | Some x -> x)
+        Lib_name.Map.find map name
+        |> Option.value ~default:Not_found)
       ~find_implementations:(fun virt ->
-        match Lib_name.Map.find variant_map virt with
-        | Some x -> x
-        | None -> Variant.Map.empty
-      )
+        Lib_name.Map.find variant_map virt
+        |> Option.value ~default:Variant.Map.empty)
       ~all:(fun () -> Lib_name.Map.keys map)
 
   let create_from_findlib ?(external_lib_deps_mode=false) findlib =
@@ -1323,10 +1320,8 @@ module DB = struct
           | Hidden pkg ->
             Hidden (Lib_info.of_dune_lib pkg, "unsatisfied 'exist_if'"))
       ~find_implementations:(fun virt ->
-        match Lib_name.Map.find variant_map virt with
-        | Some x -> x
-        | None -> Variant.Map.empty
-      )
+        Lib_name.Map.find variant_map virt
+        |> Option.value ~default:Variant.Map.empty)
       ~all:(fun () ->
         Findlib.all_packages findlib
         |> List.map ~f:Dune_package.Lib.name)
