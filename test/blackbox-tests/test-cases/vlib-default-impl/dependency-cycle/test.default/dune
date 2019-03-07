@@ -1,5 +1,5 @@
 (library
  (name test_default)
  (implements test)
- (libraries direct)
+ (libraries clock)
  (variant default))
