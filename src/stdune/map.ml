@@ -144,6 +144,13 @@ module Make(Key : Comparable.S) : S with type key = Key.t = struct
 
   let superpose a b =
     union a b ~f:(fun _ _ y -> Some y)
+
+  module Multi = struct
+    type nonrec 'a t = 'a list t
+
+    let rev_union m1 m2 =
+      union m1 m2 ~f:(fun _ l1 l2 -> Some (List.rev_append l1 l2))
+  end
 end
 
 let to_sexp to_list f g t =

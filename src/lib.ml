@@ -1244,8 +1244,7 @@ module DB = struct
       | _, _ -> [])
     |> List.map ~f:(fun (virtual_lib, content) ->
       (virtual_lib, Variant.Map.of_list_exn [content]))
-    |> Lib_name.Map.of_list_reduce ~f:(fun s1 s2 ->
-      Variant.Map.union s1 s2 ~f:(fun _ a b -> Some (a @ b)))
+    |> Lib_name.Map.of_list_reduce ~f:Variant.Map.Multi.rev_union
 
   let create_from_library_stanzas ?parent ~has_native ~ext_lib ~ext_obj
         stanzas =
