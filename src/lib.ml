@@ -694,27 +694,25 @@ let find_implementation_for db lib ~variants =
 let handle_vlibs lib virtual_status =
   match lib.info.virtual_, lib.info.implements with
   | Some _, Some _ -> assert false
-  | None, None -> Ok ()
+  | None, None -> ()
   | Some _, None ->
     (* Virtual library: add it in the map if it doesn't exist yet. *)
     begin match Lib_name.Map.find !virtual_status lib.name with
     | None ->
       virtual_status :=
         Lib_name.Map.add !virtual_status lib.name Vlib_status.No_implementation;
-      Ok ()
-    | Some _ -> Ok ()
+    | Some _ -> ()
     end
   | None, Some (_, implements) ->
     (* Implementation: find the corresponding virtual library *)
-    begin match Lib_name.Map.find !virtual_status implements with
-    | Some No_implementation
-    | None -> Ok (Vlib_status.Implemented_by lib.name)
-    | Some (Implemented_by x) ->  Ok (Too_many_impl [lib.name; x])
-    | Some (Too_many_impl lst) ->  Ok (Too_many_impl (lib.name :: lst))
-    end
-    >>= fun impl ->
-    virtual_status := Lib_name.Map.add !virtual_status implements impl;
-    Ok ()
+    let impl =
+      match Lib_name.Map.find !virtual_status implements with
+      | Some No_implementation
+      | None -> Vlib_status.Implemented_by lib.name
+      | Some (Implemented_by x) ->  Too_many_impl [lib.name; x]
+      | Some (Too_many_impl lst) ->  Too_many_impl (lib.name :: lst)
+    in
+    virtual_status := Lib_name.Map.add !virtual_status implements impl
 
 let rec instantiate db name (info : Lib_info.t) ~stack ~hidden =
   let id, stack =
@@ -1107,7 +1105,7 @@ and closure_with_overlap_checks db ts ~stack:orig_stack ~linking ~variants =
       Dep_stack.push stack (to_id t) >>= fun new_stack ->
       t.requires >>=
       fun deps ->
-      handle_vlibs t virtual_status >>= fun () ->
+      handle_vlibs t virtual_status;
       Result.List.iter deps ~f:(loop ~stack:new_stack) >>| fun () ->
       res := (t, stack) :: !res
   in
