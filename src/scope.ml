@@ -67,15 +67,13 @@ module DB = struct
       Redirect (Some scope.db, name)
 
   let find_implementations by_name_cell public_libs virt =
-    Lib_name.Map.values public_libs
-    |> List.map ~f:(fun project ->
+    Lib_name.Map.fold public_libs ~init:Variant.Map.empty ~f:(fun project acc ->
       let scope =
         Dune_project.name project
         |> Dune_project.Name.Map.find_exn !by_name_cell
       in
-      Lib.DB.find_implementations scope.db virt)
-    |> List.fold_left ~init:Variant.Map.empty ~f:(fun acc impls ->
-      Variant.Map.union acc impls ~f:(fun _ a b -> Some (a @ b)))
+      Lib.DB.find_implementations scope.db virt
+      |> Variant.Map.Multi.rev_union acc)
 
   let create ~projects ~context ~installed_libs ~has_native ~ext_lib ~ext_obj
         internal_libs =
