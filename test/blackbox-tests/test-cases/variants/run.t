@@ -37,3 +37,38 @@ variants and finally default implementation.
   hi from variant.c
   hi from test.default
 
+Check that variant data is installed in the dune package file.
+
+  $ dune build --root dune-package
+  Entering directory 'dune-package'
+  $ cat  dune-package/_build/install/default/lib/a/dune-package
+  (lang dune 1.8)
+  (name a)
+  (library
+   (name a)
+   (kind normal)
+   (archives (byte a.cma) (native a.cmxa))
+   (plugins (byte a.cma) (native a.cmxs))
+   (foreign_archives (native a$ext_lib))
+   (requires b)
+   (implements b)
+   (variant test)
+   (main_module_name B)
+   (modes byte native)
+   (modules
+    (alias_module (name B__a__) (obj_name b__a__) (visibility public) (impl))
+    (main_module_name B)
+    (modules ((name X) (obj_name b__X) (visibility public) (impl)))
+    (wrapped true)))
+
+Test variants for an external library
+
+First we create an external library and implementation
+  $ dune build --root external/lib @install
+  Entering directory 'external/lib'
+
+Then we make sure that it works fine.
+  $ env OCAMLPATH=external/lib/_build/install/default/lib dune build --root external/exe --debug-dependency-path
+  Entering directory 'external/exe'
+           bar alias default
+  hey

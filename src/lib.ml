@@ -672,25 +672,26 @@ module Vlib_status = struct
 end
 
 (* Find implementation that matches given variants *)
-let find_implementation_for db lib ~variants =
+let rec find_implementation_for db lib ~variants =
   match variants with
   | None -> Ok None
-  | Some (loc, variants) ->
+  | Some (loc, variants_set) ->
     let available_implementations = db.find_implementations lib.name in
-    Variant.Set.fold variants
+    Variant.Set.fold variants_set
       ~init:[]
       ~f:(fun variant acc ->
         Variant.Map.find available_implementations variant
         |> Option.value ~default:[]
         |> fun x -> x @ acc )
-    |> function
-    | [] -> Ok None
-    | [elem] -> Ok (Some elem)
-    | conflict ->
+    |> fun x -> match x, db.parent with
+    | [], None -> Ok None
+    | [], Some db -> find_implementation_for db lib ~variants
+    | [elem], _ -> Ok (Some elem)
+    | conflict, _ ->
       Error (Error (Multiple_implementations_for_virtual_lib
                       { lib = lib.info
                       ; loc
-                      ; given_variants = variants
+                      ; given_variants = variants_set
                       ; conflict
                       }))
 
