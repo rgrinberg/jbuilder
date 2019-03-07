@@ -288,7 +288,7 @@ module Executables : sig
     ; link_deps  : Dep_conf.t list
     ; modes      : Link_mode.Set.t
     ; buildable  : Buildable.t
-    ; variants   : Variant.Set.t
+    ; variants   : (Loc.t * Variant.Set.t) option
     }
 end
 
@@ -399,7 +399,7 @@ module Toplevel : sig
   type t =
     { name : string
     ; libraries : (Loc.t * Lib_name.t) list
-    ; variants : Variant.Set.t
+    ; variants : (Loc.t * Variant.Set.t) option
     ; loc : Loc.t
     }
 end

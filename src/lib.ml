@@ -673,23 +673,26 @@ end
 
 (* Find implementation that matches given variants *)
 let find_implementation_for db lib ~variants =
-  let available_implementations = db.find_implementations lib.name in
-  Variant.Set.fold variants
-    ~init:[]
-    ~f:(fun variant acc ->
-      Variant.Map.find available_implementations variant
-      |> Option.value ~default:[]
-      |> fun x -> x @ acc )
-  |> function
-  | [] -> Ok None
-  | [elem] -> Ok (Some elem)
-  | conflict ->
-    Error (Error (Multiple_implementations_for_virtual_lib
-                    { lib = lib.info
-                    ; loc = lib.info.loc
-                    ; given_variants = variants
-                    ; conflict
-                    }))
+  match variants with
+  | None -> Ok None
+  | Some (loc, variants) ->
+    let available_implementations = db.find_implementations lib.name in
+    Variant.Set.fold variants
+      ~init:[]
+      ~f:(fun variant acc ->
+        Variant.Map.find available_implementations variant
+        |> Option.value ~default:[]
+        |> fun x -> x @ acc )
+    |> function
+    | [] -> Ok None
+    | [elem] -> Ok (Some elem)
+    | conflict ->
+      Error (Error (Multiple_implementations_for_virtual_lib
+                      { lib = lib.info
+                      ; loc
+                      ; given_variants = variants
+                      ; conflict
+                      }))
 
 (* Update the variant status map according to `lib` which is being added to the
    closure. *)
@@ -942,7 +945,7 @@ and resolve_user_deps db deps ~allow_private_deps ~pps ~stack =
         resolve_simple_deps db pps ~allow_private_deps:true ~stack
         >>= fun pps ->
         closure_with_overlap_checks None pps ~stack ~linking:true
-          ~variants:Variant.Set.empty
+          ~variants:None
       in
       let deps =
         deps >>= fun init ->
@@ -1155,7 +1158,7 @@ and closure_with_overlap_checks db ts ~stack:orig_stack ~linking ~variants =
 let closure_with_overlap_checks db l ~variants =
   closure_with_overlap_checks db l ~stack:Dep_stack.empty ~variants
 
-let closure l = closure_with_overlap_checks None l ~variants:Variant.Set.empty
+let closure l = closure_with_overlap_checks None l ~variants:None
 
 let to_exn res =
   match res with
@@ -1195,7 +1198,7 @@ module Compile = struct
       t.requires >>= closure_with_overlap_checks
                        db
                        ~linking:false
-                       ~variants:Variant.Set.empty
+                       ~variants:None
     ) in
     { direct_requires   = t.requires
     ; requires_link

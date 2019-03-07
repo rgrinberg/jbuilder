@@ -1391,7 +1391,7 @@ module Executables = struct
     ; link_deps  : Dep_conf.t list
     ; modes      : Link_mode.Set.t
     ; buildable  : Buildable.t
-    ; variants   : Variant.Set.t
+    ; variants   : (Loc.t * Variant.Set.t) option
     }
 
   let common =
@@ -1401,8 +1401,7 @@ module Executables = struct
     and+ link_deps = field "link_deps" (list Dep_conf.decode) ~default:[]
     and+ link_flags = field_oslu "link_flags"
     and+ modes = field "modes" Link_mode.Set.decode ~default:Link_mode.Set.default
-    and+ variants = field "variants" (list Variant.decode >>| Variant.Set.of_list)
-                     ~default:Variant.Set.empty
+    and+ variants = field_o "variants" (located (list Variant.decode >>| Variant.Set.of_list))
     and+ () = map_validate (
       field "inline_tests" (repeat junk >>| fun _ -> true) ~default:false)
       ~f:(function
@@ -1868,8 +1867,7 @@ module Tests = struct
       (let+ buildable = Buildable.decode
        and+ link_flags = field_oslu "link_flags"
        and+ variants =
-         field "variants" (list Variant.decode >>| Variant.Set.of_list)
-           ~default:Variant.Set.empty
+         field_o "variants" (located (list Variant.decode >>| Variant.Set.of_list))
        and+ names = names
        and+ package = field_o "package" Pkg.decode
        and+ locks = field "locks" (list String_with_vars.decode) ~default:[]
@@ -1908,7 +1906,7 @@ module Toplevel = struct
   type t =
     { name : string
     ; libraries : (Loc.t * Lib_name.t) list
-    ; variants : Variant.Set.t
+    ; variants : (Loc.t * Variant.Set.t) option
     ; loc : Loc.t
     }
 
@@ -1917,8 +1915,8 @@ module Toplevel = struct
     record (
       let+ loc = loc
       and+ name = field "name" string
-      and+ variants = field "variants"
-        (list Variant.decode >>| Variant.Set.of_list) ~default:Variant.Set.empty
+      and+ variants = field_o "variants"
+        (located (list Variant.decode >>| Variant.Set.of_list))
       and+ libraries =
         field "libraries" (list (located Lib_name.decode)) ~default:[]
       in
