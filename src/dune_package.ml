@@ -106,7 +106,8 @@ module Lib = struct
     ; libs "ppx_runtime_deps" ppx_runtime_deps
     ; field_o "implements" (no_loc Lib_name.encode) implements
     ; field_o "variant" Variant.encode variant
-    ; field_o "default_implementation" (no_loc Lib_name.encode) default_implementation
+    ; field_o "default_implementation"
+        (no_loc Lib_name.encode) default_implementation
     ; field_o "main_module_name" Module.Name.encode main_module_name
     ; field_l "modes" sexp (Mode.Dict.Set.encode modes)
     ; field_l "modules" sexp

@@ -124,7 +124,8 @@ module DB = struct
               (Loc.to_file_colon_line loc2)
       in
       let resolve = resolve by_name_cell public_libs in
-      let find_implementations = find_implementations by_name_cell public_libs in
+      let find_implementations =
+        find_implementations by_name_cell public_libs in
       Lib.DB.create ()
         ~parent:installed_libs
         ~resolve
