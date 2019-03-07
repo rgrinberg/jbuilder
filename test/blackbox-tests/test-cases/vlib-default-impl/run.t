@@ -36,3 +36,36 @@ Solving variant ambiguity by specifying a concrete implementation.
   Usage: dune build [OPTION]... [TARGET]...
   Try `dune build --help' or `dune --help' for more information.
   [1]
+
+Check that default implementation data is installed in the dune package file.
+  $ dune build --root dune-package
+  Entering directory 'dune-package'
+  $ cat dune-package/_build/install/default/lib/a/dune-package
+  (lang dune 1.8)
+  (name a)
+  (library
+   (name a)
+   (kind normal)
+   (virtual)
+   (foreign_archives (native a$ext_lib))
+   (default_implementation a-default)
+   (main_module_name A)
+   (modes byte native)
+   (modules
+    (alias_module (name A) (obj_name a) (visibility public) (impl))
+    (main_module_name A)
+    (modules
+     ((name X) (obj_name a__X) (visibility public) (kind virtual) (intf)))
+    (wrapped true)))
+
+Test default implementation for an external library
+
+First we create an external library and implementation
+  $ dune build --root external/lib @install
+  Entering directory 'external/lib'
+
+Then we make sure that it works fine.
+  $ env OCAMLPATH=external/lib/_build/install/default/lib dune build --root external/exe --debug-dependency-path
+  Entering directory 'external/exe'
+           bar alias default
+  hey
