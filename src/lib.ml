@@ -70,6 +70,7 @@ module Error = struct
   module Multiple_implementations_for_virtual_lib = struct
     type t =
       { lib             : Lib_info.t
+      ; loc             : Loc.t
       ; given_variants  : Variant.Set.t
       ; conflict        : Lib_info.t list
       }
@@ -685,6 +686,7 @@ let find_implementation_for db lib ~variants =
   | conflict ->
     Error (Error (Multiple_implementations_for_virtual_lib
                     { lib = lib.info
+                    ; loc = lib.info.loc
                     ; given_variants = variants
                     ; conflict
                     }))
@@ -1449,7 +1451,7 @@ let report_lib_error ppf (e : Error.t) =
          Format.fprintf ppf "-> %a"
            Lib_name.pp_quoted info.name))
       cycle
-  | Multiple_implementations_for_virtual_lib {lib; given_variants; conflict}  ->
+  | Multiple_implementations_for_virtual_lib {lib; loc; given_variants; conflict}  ->
     let print_default_implementation ppf () =
       match lib.default_implementation with
       | None -> Format.fprintf ppf ""
@@ -1463,9 +1465,10 @@ let report_lib_error ppf (e : Error.t) =
         Format.fprintf ppf "with variants %a" Variant.Set.pp given_variants
     in
     Format.fprintf ppf
-      "@{<error>Error@}: Multiple solutions for the implementation@ \
+      "%a@{<error>Error@}: Multiple solutions for the implementation@ \
        of %a %a@ %a@,\
        @[<v>%a@]@\n"
+      Errors.print loc
       Lib_name.pp lib.name
       print_default_implementation ()
       print_variants ()

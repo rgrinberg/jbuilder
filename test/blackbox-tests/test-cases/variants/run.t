@@ -12,8 +12,13 @@ Having multiple implementations of the same library with respect to selected
 variants results in an appropriate error message.
   $ dune build --root multiple-implementations-for-variants
   Entering directory 'multiple-implementations-for-variants'
-  Error: Multiple solutions for the implementation of vlib 
-  with variants [ "default" ]
+  File "lib/dune", line 1, characters 0-63:
+  1 | (library
+  2 |  (name vlib)
+  3 |  (virtual_modules vlib)
+  4 |  (wrapped false))
+  Error: Multiple solutions for the implementation
+  of vlib  with variants [ "default" ]
   -> lib2_default ("default")
   -> lib_default ("default")
   -> required by executable bar in dune:2
