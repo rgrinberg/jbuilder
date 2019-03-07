@@ -672,7 +672,7 @@ module Buildable = struct
     and+ preprocessor_deps =
 =======
     and variants =
-      field "variants" ((list Variant.decode) >>| Variant.Set.of_list)
+      field "variants" (list Variant.decode >>| Variant.Set.of_list)
             ~default:Variant.Set.empty
     and preprocessor_deps =
 >>>>>>> First implementation of library variants.
@@ -926,11 +926,11 @@ module Library = struct
            >>= fun () -> Variant.decode)
        and+ variant =
          field_o "variant" (
-           Syntax.since Stanza.syntax (1, 7)
+           Syntax.since Stanza.syntax (1, 8)
            >>= fun () -> located Variant.decode)
        and+ default_implementation =
          field_o "default_implementation" (
-           Syntax.since Stanza.syntax (1, 7)
+           Syntax.since Stanza.syntax (1, 8)
            >>= fun () -> located Lib_name.decode)
        and+ private_modules =
          field_o "private_modules" (
