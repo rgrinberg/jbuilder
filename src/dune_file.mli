@@ -392,6 +392,7 @@ module Toplevel : sig
   type t =
     { name : string
     ; libraries : (Loc.t * Lib_name.t) list
+    ; variants : Variant.Set.t
     ; loc : Loc.t
     }
 end

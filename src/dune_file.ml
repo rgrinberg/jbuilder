@@ -1860,6 +1860,7 @@ module Tests = struct
        and+ package = field_o "package" Pkg.decode
        and+ locks = field "locks" (list String_with_vars.decode) ~default:[]
        and+ modes = field "modes" Executables.Link_mode.Set.decode
+                     ~default:Executables.Link_mode.Set.default
        and+ deps =
          field "deps" (Bindings.decode Dep_conf.decode) ~default:Bindings.empty
        and+ enabled_if = enabled_if
@@ -1893,6 +1894,7 @@ module Toplevel = struct
   type t =
     { name : string
     ; libraries : (Loc.t * Lib_name.t) list
+    ; variants : Variant.Set.t
     ; loc : Loc.t
     }
 
@@ -1901,12 +1903,15 @@ module Toplevel = struct
     record (
       let+ loc = loc
       and+ name = field "name" string
+      and+ variants = field "variants"
+        (list Variant.decode >>| Variant.Set.of_list) ~default:Variant.Set.empty
       and+ libraries =
         field "libraries" (list (located Lib_name.decode)) ~default:[]
       in
       { name
       ; libraries
       ; loc
+      ; variants
       }
     )
 end
