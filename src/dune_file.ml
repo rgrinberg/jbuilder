@@ -50,6 +50,11 @@ let relative_file =
     else
       of_sexp_errorf loc "relative filename expected")
 
+let variants_field =
+  field_o "variants" (
+    Syntax.since Stanza.syntax (1, 9) >>= fun () ->
+    located (list Variant.decode >>| Variant.Set.of_list))
+
 (* Parse and resolve "package" fields *)
 module Pkg = struct
   let listing packages =
@@ -913,11 +918,11 @@ module Library = struct
            >>= fun () -> located Lib_name.decode)
        and+ variant =
          field_o "variant" (
-           Syntax.since Stanza.syntax (1, 8)
+           Syntax.since Stanza.syntax (1, 9)
            >>= fun () -> located Variant.decode)
        and+ default_implementation =
          field_o "default_implementation" (
-           Syntax.since Stanza.syntax (1, 8)
+           Syntax.since Stanza.syntax (1, 9)
            >>= fun () -> located Lib_name.decode)
        and+ private_modules =
          field_o "private_modules" (
@@ -1401,7 +1406,7 @@ module Executables = struct
     and+ link_deps = field "link_deps" (list Dep_conf.decode) ~default:[]
     and+ link_flags = field_oslu "link_flags"
     and+ modes = field "modes" Link_mode.Set.decode ~default:Link_mode.Set.default
-    and+ variants = field_o "variants" (located (list Variant.decode >>| Variant.Set.of_list))
+    and+ variants = variants_field
     and+ () = map_validate (
       field "inline_tests" (repeat junk >>| fun _ -> true) ~default:false)
       ~f:(function
@@ -1866,8 +1871,7 @@ module Tests = struct
     record
       (let+ buildable = Buildable.decode
        and+ link_flags = field_oslu "link_flags"
-       and+ variants =
-         field_o "variants" (located (list Variant.decode >>| Variant.Set.of_list))
+       and+ variants = variants_field
        and+ names = names
        and+ package = field_o "package" Pkg.decode
        and+ locks = field "locks" (list String_with_vars.decode) ~default:[]
@@ -1915,8 +1919,7 @@ module Toplevel = struct
     record (
       let+ loc = loc
       and+ name = field "name" string
-      and+ variants = field_o "variants"
-        (located (list Variant.decode >>| Variant.Set.of_list))
+      and+ variants = variants_field
       and+ libraries =
         field "libraries" (list (located Lib_name.decode)) ~default:[]
       in

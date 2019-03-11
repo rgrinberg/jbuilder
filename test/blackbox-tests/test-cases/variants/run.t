@@ -42,7 +42,7 @@ Check that variant data is installed in the dune package file.
   $ dune build --root dune-package
   Entering directory 'dune-package'
   $ cat  dune-package/_build/install/default/lib/a/dune-package
-  (lang dune 1.8)
+  (lang dune 1.9)
   (name a)
   (library
    (name a)
@@ -72,3 +72,9 @@ Then we make sure that it works fine.
   Entering directory 'external/exe'
            bar alias default
   hey
+
+Solving variant ambiguity by specifying a concrete implementation.
+  $ dune build --root variant-with-concrete-impl
+  Entering directory 'variant-with-concrete-impl'
+           bar alias default
+  hello from lib2.default
