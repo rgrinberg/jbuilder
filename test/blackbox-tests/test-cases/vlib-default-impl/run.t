@@ -30,18 +30,11 @@ Check that ambiguity is handled correctly.
   -> required by executable bar in dune:2
   [1]
 
-Solving variant ambiguity by specifying a concrete implementation.
-  $ dune build --root variant-with-concrete-impl
-  dune: option `--root': no `variant-with-concrete-impl' directory
-  Usage: dune build [OPTION]... [TARGET]...
-  Try `dune build --help' or `dune --help' for more information.
-  [1]
-
 Check that default implementation data is installed in the dune package file.
   $ dune build --root dune-package
   Entering directory 'dune-package'
   $ cat dune-package/_build/install/default/lib/a/dune-package
-  (lang dune 1.8)
+  (lang dune 1.9)
   (name a)
   (library
    (name a)
