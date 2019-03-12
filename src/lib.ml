@@ -269,7 +269,7 @@ let main_module_name t =
   match t.info.main_module_name with
   | This mmn -> Ok mmn
   | From _ ->
-    Option.value_exn t.implements >>| fun vlib ->
+    let+ vlib = Option.value_exn t.implements in
     match vlib.info.main_module_name with
     | This x -> x
     | From _ -> assert false
@@ -279,7 +279,7 @@ let wrapped t =
   | None -> Ok None
   | Some (This wrapped) -> Ok (Some wrapped)
   | Some (From _) ->
-    Option.value_exn t.implements >>| fun vlib ->
+    let+ vlib = Option.value_exn t.implements in
     match vlib.info.wrapped with
     | Some (From _) (* can't inherit this value in virtual libs *)
     | None -> assert false (* will always be specified in dune package *)
@@ -594,7 +594,7 @@ end = struct
             | None, Some _ ->
               loop (Map.add acc lib (No_impl stack)) libs
             | Some vlib, None ->
-              vlib >>= fun vlib ->
+              let* vlib = vlib in
               begin match Map.find acc vlib with
               | None ->
                 (* we've already traversed the virtual library because
@@ -644,21 +644,19 @@ end = struct
         Ok ()
       else begin
         visited := Id.Set.add !visited t.unique_id;
-        t.requires >>= fun deps ->
-        Result.List.iter deps ~f:loop >>| fun () ->
+        let* deps = t.requires in
+        let+ () = Result.List.iter deps ~f:loop in
         res := t :: !res
       end
     in
-    Result.List.iter ts ~f:loop >>| fun () ->
+    let+ () = Result.List.iter ts ~f:loop in
     List.rev !res
 
   let associate closure ~orig_stack ~linking =
-    Table.Partial.make closure ~orig_stack
-    >>= fun impls ->
+    let* impls = Table.Partial.make closure ~orig_stack in
     let closure = List.map closure ~f:fst in
     if linking && not (Table.Partial.is_empty impls) then
-      Table.make impls ~orig_stack
-      >>= fun impls ->
+      let* impls = Table.make impls ~orig_stack in
       second_step_closure closure impls
     else
       Ok closure
@@ -736,7 +734,7 @@ let rec instantiate db name (info : Lib_info.t) ~stack ~hidden =
 
   let implements =
     Option.map info.implements ~f:(fun ((loc,  _) as name) ->
-      resolve name >>= fun vlib ->
+      let* vlib = resolve name in
       match vlib.info.virtual_ with
       | Some _ -> Ok vlib
       | None ->
@@ -750,8 +748,8 @@ let rec instantiate db name (info : Lib_info.t) ~stack ~hidden =
     match implements with
     | None -> requires
     | Some impl ->
-      impl >>= fun impl ->
-      requires >>| fun requires ->
+      let* impl = impl in
+      let+ requires = requires in
       impl :: requires
   in
   let ppx_runtime_deps =
@@ -943,18 +941,17 @@ and resolve_user_deps db deps ~allow_private_deps ~pps ~stack =
         { (fst first) with stop = (fst last).stop }
       in
       let pps =
-        resolve_simple_deps db pps ~allow_private_deps:true ~stack
-        >>= fun pps ->
+        let* pps = resolve_simple_deps db pps ~allow_private_deps:true ~stack in
         closure_with_overlap_checks None pps ~stack ~linking:true
           ~variants:None
       in
       let deps =
-        deps >>= fun init ->
+        let* init = deps in
         pps >>=
         Result.List.fold_left ~init ~f:(fun init pp ->
           pp.ppx_runtime_deps >>=
           Result.List.fold_left ~init ~f:(fun acc rt ->
-            check_private_deps rt ~loc ~allow_private_deps >>| fun rt ->
+            let+ rt = check_private_deps rt ~loc ~allow_private_deps in
             rt :: acc))
       in
       (deps, pps)
@@ -979,38 +976,37 @@ and resolve_default_libraries db libraries ~variants =
   let avoid_direct_parent vlib (impl : lib) =
     match impl.implements with
     | None -> Ok true
-    | Some x -> x >>| fun x -> x.name <> vlib.name
+    | Some x -> let+ x = x in x.name <> vlib.name
   in
   (* Either by variants or by default. *)
   let get_default_implementation virtual_library =
     find_implementation_for db virtual_library ~variants
-    >>= function
-    | Some x -> Ok (Some (x.loc, x.name))
-    | None -> Ok virtual_library.info.default_implementation
+    >>| function
+    | Some x -> (Some (x.loc, x.name))
+    | None -> virtual_library.info.default_implementation
   in
   let impl_different_from_vlib_default vlib (impl : lib) =
     get_default_implementation vlib >>| function
     | None -> true
     | Some (_, x) -> x <> impl.name
   in
-  let name_to_lib name loc = resolve_dep db name ~allow_private_deps:true ~loc
-                               ~stack:Dep_stack.empty
+  let name_to_lib (loc, name) =
+    resolve_dep db name ~allow_private_deps:true ~loc
+      ~stack:Dep_stack.empty
   in
   let library_is_default lib =
     match Lib_name.Map.find !vlib_default_parent lib.name with
     | Some (_ :: _) -> None
     | None
     | Some [] ->
-      Option.bind lib.info.default_implementation ~f:(fun (loc, name) ->
-        match name_to_lib name loc with
-        | Error _ -> None
-        | Ok lib -> Some lib)
+      Option.bind lib.info.default_implementation ~f:(fun name ->
+        Result.to_option (name_to_lib name))
   in
   (* Gather vlibs that are transitively implemented by another
      vlib's default implementation. *)
   let rec visit ~stack ancestor_vlib = function
     | [] -> Ok ()
-    | lib::next ->
+    | lib :: next ->
       begin
         match Lib_name.Map.find !vlib_dfs_status lib.name with
         | Some (Some ()) ->
@@ -1024,40 +1020,45 @@ and resolve_default_libraries db libraries ~variants =
             vlib_dfs_status :=
               Lib_name.Map.add !vlib_dfs_status lib.name (Some ());
             (* Visit direct dependencies *)
-            lib.requires >>= fun deps ->
-            (List.filter ~f:(fun x ->
-               match avoid_direct_parent x lib with
-               | Ok x -> x
-               | Error _ -> false) deps)
-            |> visit ~stack:(lib.info::stack) ancestor_vlib
-            >>= fun () ->
+            let* deps = lib.requires in
+            let* () =
+              List.filter deps ~f:(fun x ->
+                match avoid_direct_parent x lib with
+                | Ok x -> x
+                | Error _ -> false)
+              |> visit ~stack:(lib.info :: stack) ancestor_vlib
+            in
             (* If the library is an implementation of some virtual library that
                overrides default, add a link in the graph. *)
-            Option.map lib.implements
-              ~f:(fun vlib ->
-                vlib >>= fun vlib ->
-                impl_different_from_vlib_default vlib lib >>= function res ->
-                match (res, ancestor_vlib) with
-                | true, None ->
-                  (* Recursion: no ancestor, vlib is explored *)
-                  visit ~stack:(lib.info::stack) None [vlib]
-                | true, Some ancestor ->
-                  vlib_default_parent := Lib_name.Map.update
-                                           !vlib_default_parent
-                                           lib.name
-                                           ~f:(merge ancestor.name);
-                  visit ~stack:(lib.info::stack) None [vlib]
-                | false, _ ->
-                  (* If lib is the default implementation,
-                     we'll manage it when handling virtual lib. *)
-                  Ok ())
-            |> Option.value ~default:(Ok ()) >>= fun () ->
+            let* () =
+              Option.map lib.implements
+                ~f:(fun vlib ->
+                  let* vlib = vlib in
+                  let* res = impl_different_from_vlib_default vlib lib in
+                  match (res, ancestor_vlib) with
+                  | true, None ->
+                    (* Recursion: no ancestor, vlib is explored *)
+                    visit ~stack:(lib.info::stack) None [vlib]
+                  | true, Some ancestor ->
+                    vlib_default_parent := Lib_name.Map.update
+                                            !vlib_default_parent
+                                            lib.name
+                                            ~f:(merge ancestor.name);
+                    visit ~stack:(lib.info::stack) None [vlib]
+                  | false, _ ->
+                    (* If lib is the default implementation,
+                      we'll manage it when handling virtual lib. *)
+                    Ok ())
+              |> Option.value ~default:(Ok ())
+            in
             (* If the library has an implementation according to variants. *)
-            get_default_implementation lib >>= fun default_implementation ->
-            Option.map default_implementation ~f:(fun (loc,name) ->
-              name_to_lib name loc >>= fun default_impl ->
-              visit ~stack:(lib.info::stack) (Some lib) [default_impl])
-            |> Option.value ~default:(Ok ()) >>= fun () ->
+            let* default_implementation = get_default_implementation lib in
+            let* () =
+              Option.map default_implementation ~f:(fun name ->
+                let* default_impl = name_to_lib name in
+                visit ~stack:(lib.info :: stack) (Some lib) [default_impl])
+              |> Option.value ~default:(Ok ())
+            in
             (* If the library is a virtual library with a default
                implementation. *)
             vlib_dfs_status := Lib_name.Map.add !vlib_dfs_status lib.name None;
@@ -1067,8 +1068,8 @@ and resolve_default_libraries db libraries ~variants =
   in
   (* For each virtual library we know which vlibs will be implemented when
      enabling its default implementation. *)
-  visit ~stack:[] None libraries >>= fun () ->
-  Ok (List.filter_map ~f:library_is_default libraries)
+  let+ () = visit ~stack:[] None libraries in
+  List.filter_map ~f:library_is_default libraries
 
 and closure_with_overlap_checks db ts ~stack:orig_stack ~linking ~variants =
   let name_to_lib name loc =
@@ -1091,58 +1092,58 @@ and closure_with_overlap_checks db ts ~stack:orig_stack ~linking ~variants =
                            }))
     | None ->
       visited := Lib_name.Map.add !visited t.name (t, stack);
-      (match db with
-       | None -> Ok ()
-       | Some db ->
-         match find_internal db t.name ~stack with
-         | St_found t' ->
-           if t.unique_id = t'.unique_id then
-             Ok ()
-           else begin
-             let req_by = Dep_stack.to_required_by stack ~stop_at:orig_stack in
-             Error
-               (Error (Overlap
-                         { in_workspace = t'.info
-                         ; installed    = (t.info, req_by)
-                         }))
-           end
-         | _ -> assert false)
-      >>= fun () ->
-      Dep_stack.push stack (to_id t) >>= fun new_stack ->
-      t.requires >>=
-      fun deps ->
+      let* () =
+        match db with
+        | None -> Ok ()
+        | Some db ->
+          match find_internal db t.name ~stack with
+          | St_found t' ->
+            if t.unique_id = t'.unique_id then
+              Ok ()
+            else begin
+              let req_by = Dep_stack.to_required_by stack ~stop_at:orig_stack in
+              Error
+                (Error (Overlap
+                          { in_workspace = t'.info
+                          ; installed    = (t.info, req_by)
+                          }))
+            end
+          | _ -> assert false
+      in
+      let* new_stack = Dep_stack.push stack (to_id t) in
+      let* deps = t.requires in
       handle_vlibs t virtual_status;
-      Result.List.iter deps ~f:(loop ~stack:new_stack) >>| fun () ->
+      let+ () = Result.List.iter deps ~f:(loop ~stack:new_stack) in
       res := (t, stack) :: !res
   in
   (* Closure loop with virtual libraries/variants selection*)
   let rec handle ts ~stack =
-    Result.List.iter ts ~f:(loop ~stack) >>= fun () ->
+    let* () = Result.List.iter ts ~f:(loop ~stack) in
     if not linking then
       Ok ()
     else begin
       (* Virtual libraries: find implementations according to variants. *)
-      Lib_name.Map.foldi !virtual_status ~init:(Ok ([], []))
-        ~f:(fun name status acc ->
-          match status with
-          | Implemented_by _
-          | Too_many_impl _ -> acc
-          | No_implementation ->
-            acc >>= begin fun (lst,def) ->
+      let* (lst, with_default_impl) =
+        Lib_name.Map.foldi !virtual_status ~init:(Ok ([], []))
+          ~f:(fun name status acc ->
+            match status with
+            | Implemented_by _
+            | Too_many_impl _ -> acc
+            | No_implementation ->
+              let* (lst, def) = acc in
               let (lib, _) = Lib_name.Map.find_exn !visited name in
-              find_implementation_for (Option.value_exn db) lib ~variants
-              >>= fun impl ->
+              let* impl =
+                find_implementation_for (Option.value_exn db) lib ~variants in
               match impl, lib.info.default_implementation with
               | None, Some _ ->
                 Ok (lst, (lib :: def))
               | None, None ->
                 Ok (lst, def)
               | Some (impl_info : Lib_info.t), _ ->
-                name_to_lib impl_info.name impl_info.loc
-                >>= fun impl -> Ok (impl::lst, def)
-            end)
+                let* impl = name_to_lib impl_info.name impl_info.loc in
+                Ok (impl :: lst, def))
+      in
       (* Manage unimplemented libraries that have a default implementation. *)
-      >>= fun (lst, with_default_impl) ->
       match lst, with_default_impl with
       | [], [] ->
         Ok ()
@@ -1153,7 +1154,7 @@ and closure_with_overlap_checks db ts ~stack:orig_stack ~linking ~variants =
         handle lst ~stack
     end
   in
-  handle ts ~stack:orig_stack >>= fun () ->
+  let* () = handle ts ~stack:orig_stack in
   Virtual_libs.associate (List.rev !res) ~linking ~orig_stack
 
 let closure_with_overlap_checks db l ~variants =
