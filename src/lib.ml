@@ -200,6 +200,7 @@ type t =
   ; resolved_selects  : Resolved_select.t list
   ; user_written_deps : Dune_file.Lib_deps.t
   ; implements        : t Or_exn.t option
+  ; default_implementation : t Or_exn.t option
   ; (* This is mutable to avoid this error:
 
        {[
@@ -743,6 +744,8 @@ let rec instantiate db name (info : Lib_info.t) ~stack ~hidden =
         Error (Error (Error.Not_virtual_lib
                         { impl = info ; loc ; not_vlib = vlib.info })))
   in
+  let default_implementation =
+    Option.map info.default_implementation ~f:resolve in
   let requires, pps, resolved_selects =
     resolve_user_deps db info.requires ~allow_private_deps ~pps:info.pps ~stack
   in
@@ -774,6 +777,7 @@ let rec instantiate db name (info : Lib_info.t) ~stack ~hidden =
     ; user_written_deps = Lib_info.user_written_deps info
     ; sub_systems       = Sub_system_name.Map.empty
     ; implements
+    ; default_implementation
     }
   in
   t.sub_systems <-
@@ -981,20 +985,22 @@ and resolve_default_libraries db libraries ~variants =
     | None -> Ok true
     | Some x -> x >>| fun x -> x.name <> vlib.name
   in
+  let name_to_lib name loc = resolve_dep db name ~allow_private_deps:true ~loc
+                               ~stack:Dep_stack.empty
+  in
   (* Either by variants or by default. *)
   let get_default_implementation virtual_library =
     find_implementation_for db virtual_library ~variants
     >>= function
-    | Some x -> Ok (Some (x.loc, x.name))
-    | None -> Ok virtual_library.info.default_implementation
+    | Some x -> Ok (Some (name_to_lib x.name x.loc))
+    | None -> Ok virtual_library.default_implementation
   in
   let impl_different_from_vlib_default vlib (impl : lib) =
-    get_default_implementation vlib >>| function
-    | None -> true
-    | Some (_, x) -> x <> impl.name
-  in
-  let name_to_lib name loc = resolve_dep db name ~allow_private_deps:true ~loc
-                               ~stack:Dep_stack.empty
+    get_default_implementation vlib >>= function
+    | None -> Ok true
+    | Some lib ->
+      lib >>| fun lib ->
+      compare lib impl <> Ordering.Eq
   in
   let library_is_default lib =
     match Lib_name.Map.find !vlib_default_parent lib.name with
@@ -1054,8 +1060,8 @@ and resolve_default_libraries db libraries ~variants =
             |> Option.value ~default:(Ok ()) >>= fun () ->
             (* If the library has an implementation according to variants. *)
             get_default_implementation lib >>= fun default_implementation ->
-            Option.map default_implementation ~f:(fun (loc,name) ->
-              name_to_lib name loc >>= fun default_impl ->
+            Option.map default_implementation ~f:(fun default_impl ->
+              default_impl >>= fun default_impl ->
               visit ~stack:(lib.info::stack) (Some lib) [default_impl])
             |> Option.value ~default:(Ok ()) >>= fun () ->
             (* If the library is a virtual library with a default
