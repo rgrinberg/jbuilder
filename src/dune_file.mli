@@ -154,6 +154,7 @@ module Mode_conf : sig
     | Byte
     | Native
     | Best (** [Native] if available and [Byte] if not *)
+    | Js
 
   val decode : t Dune_lang.Decoder.t
   val compare : t -> t -> Ordering.t
@@ -273,6 +274,7 @@ module Executables : sig
     val object_       : t
     val shared_object : t
     val byte          : t
+    val js            : t
     val native        : t
 
     val compare : t -> t -> Ordering.t

@@ -47,12 +47,20 @@ let executables_rules ~sctx ~dir ~dir_kind ~expander
                   Module.Name.pp mod_name)
   in
 
+  let has_js = Dune_file.Executables.Link_mode.(Set.mem exes.modes js) in
+
   let linkages =
     let module L = Dune_file.Executables.Link_mode in
     let ctx = SC.context sctx in
+    let modes =
+      if has_js then
+        L.Set.remove (L.Set.add exes.modes L.byte) L.js
+      else
+        exes.modes
+    in
     let l =
       let has_native = Option.is_some ctx.ocamlopt in
-      List.filter_map (L.Set.to_list exes.modes) ~f:(fun (mode : L.t) ->
+      List.filter_map (L.Set.to_list modes) ~f:(fun (mode : L.t) ->
         match has_native, mode.mode with
         | false, Native ->
           None
@@ -97,12 +105,19 @@ let executables_rules ~sctx ~dir ~dir_kind ~expander
   in
 
   let requires_compile = Compilation_context.requires_compile cctx in
+  let explicit_js_mode = Dune_project.explicit_js_mode (Scope.project scope) in
+  let js_of_ocaml =
+    if not explicit_js_mode || has_js then
+      Some exes.buildable.js_of_ocaml
+    else
+      None
+  in
 
   Exe.build_and_link_many cctx
     ~programs
     ~linkages
     ~link_flags
-    ~js_of_ocaml:exes.buildable.js_of_ocaml;
+    ?js_of_ocaml;
 
   (cctx,
    Merlin.make ()

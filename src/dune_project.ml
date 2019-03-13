@@ -167,6 +167,7 @@ type t =
   ; implicit_transitive_deps : bool
   ; dune_version    : Syntax.Version.t
   ; allow_approx_merlin : bool
+  ; explicit_js_mode : bool;
   }
 
 let equal = (==)
@@ -180,11 +181,12 @@ let stanza_parser t = t.stanza_parser
 let file t = t.project_file.file
 let implicit_transitive_deps t = t.implicit_transitive_deps
 let allow_approx_merlin t = t.allow_approx_merlin
+let explicit_js_mode t = t.explicit_js_mode
 
 let pp fmt { name ; root ; version ; project_file ; parsing_context = _
            ; extension_args = _; stanza_parser = _ ; packages
            ; implicit_transitive_deps ; dune_version
-           ; allow_approx_merlin } =
+           ; allow_approx_merlin; explicit_js_mode } =
   Fmt.record fmt
     [ "name", Fmt.const Name.pp name
     ; "root", Fmt.const Path.Local.pp root
@@ -199,6 +201,8 @@ let pp fmt { name ; root ; version ; project_file ; parsing_context = _
     ; "dune_version", Fmt.const Syntax.Version.pp dune_version
     ; "allow_approx_merlin"
     , Fmt.const Format.pp_print_bool allow_approx_merlin
+    ; "explicit_js_mode",
+      Fmt.const Format.pp_print_bool explicit_js_mode
     ]
 
 let find_extension_args t key =
@@ -439,7 +443,7 @@ let key =
     (fun { name; root; version; project_file
          ; stanza_parser = _; packages = _ ; extension_args = _
          ; parsing_context ; implicit_transitive_deps ; dune_version
-         ; allow_approx_merlin } ->
+         ; allow_approx_merlin ; explicit_js_mode } ->
       Sexp.Encoder.record
         [ "name", Name.to_sexp name
         ; "root", Path.Local.to_sexp root
@@ -450,6 +454,7 @@ let key =
         ; "dune_version", Syntax.Version.to_sexp dune_version
         ; "allow_approx_merlin"
         , Sexp.Encoder.bool allow_approx_merlin
+        ; "explicit_js_mode", Sexp.Encoder.bool explicit_js_mode
         ])
 
 let set t = Dune_lang.Decoder.set key t
@@ -491,6 +496,7 @@ let anonymous = lazy (
   ; parsing_context
   ; dune_version = lang.version
   ; allow_approx_merlin = true
+  ; explicit_js_mode = false
   })
 
 let default_name ~dir ~packages =
@@ -538,6 +544,8 @@ let parse ~dir ~lang ~packages ~file =
          ~check:(Syntax.since Stanza.syntax (1, 7))
      and+ allow_approx_merlin =
        field_o_b "allow_approximate_merlin"
+     and+ explicit_js_mode =
+       field_o_b "explicit_js_mode"
          ~check:(Syntax.since Stanza.syntax (1, 9))
      and+ () = Versioned_file.no_more_lang
      in
@@ -555,6 +563,9 @@ let parse ~dir ~lang ~packages ~file =
      in
      let allow_approx_merlin =
        Option.value ~default:false allow_approx_merlin in
+     let explicit_js_mode =
+       Option.value explicit_js_mode ~default:false
+     in
      { name
      ; root = get_local_path dir
      ; version
@@ -566,6 +577,7 @@ let parse ~dir ~lang ~packages ~file =
      ; implicit_transitive_deps
      ; dune_version = lang.version
      ; allow_approx_merlin
+     ; explicit_js_mode
      })
 
 let load_dune_project ~dir packages =
@@ -596,6 +608,7 @@ let make_jbuilder_project ~dir packages =
   ; implicit_transitive_deps = true
   ; dune_version = lang.version
   ; allow_approx_merlin = true
+  ; explicit_js_mode = false
   }
 
 let read_name file =

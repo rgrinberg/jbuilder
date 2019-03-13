@@ -32,3 +32,8 @@ let contramap t ~f ~map_id =
   }
 
 let pp fmt t = Dyn.pp fmt (to_dyn t)
+
+let all () =
+  { id = lazy (Atom "all")
+  ; f = Fn.const true
+  }

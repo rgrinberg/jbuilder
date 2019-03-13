@@ -71,6 +71,7 @@ module Gen(P : sig val sctx : Super_context.t end) = struct
         { Dir_with_dune. src_dir; ctx_dir; data = stanzas
         ; scope; kind = dir_kind ; dune_version = _ } =
     let expander = Super_context.expander sctx ~dir:ctx_dir in
+    let project = Scope.project scope in
     let for_stanza stanza =
       let dir = ctx_dir in
       match stanza with
@@ -146,8 +147,7 @@ module Gen(P : sig val sctx : Super_context.t end) = struct
             |> For_stanza.rev
     in
     let allow_approx_merlin =
-      let dune_project = Scope.project scope in
-      Dune_project.allow_approx_merlin dune_project in
+      Dune_project.allow_approx_merlin project in
     Option.iter (Merlin.merge_all ~allow_approx_merlin merlins)
       ~f:(fun m ->
         let more_src_dirs =
@@ -191,15 +191,18 @@ module Gen(P : sig val sctx : Super_context.t end) = struct
       | _ -> ());
     let dyn_deps =
       let pred =
-        let id = lazy (
-          let open Sexp.Encoder in
-          constr "exclude" (List.map ~f:Path.to_sexp js_targets)
-        ) in
-        List.iter js_targets ~f:(fun js_target ->
-          assert (Path.equal (Path.parent_exn js_target) ctx_dir));
-        Predicate.create ~id ~f:(fun basename ->
-          not (List.exists js_targets ~f:(fun js_target ->
-            String.equal (Path.basename js_target) basename)))
+        if Dune_project.explicit_js_mode project then
+          Predicate.all ()
+        else
+          let id = lazy (
+            let open Sexp.Encoder in
+            constr "exclude" (List.map ~f:Path.to_sexp js_targets)
+          ) in
+          List.iter js_targets ~f:(fun js_target ->
+            assert (Path.equal (Path.parent_exn js_target) ctx_dir));
+          Predicate.create ~id ~f:(fun basename ->
+            not (List.exists js_targets ~f:(fun js_target ->
+              String.equal (Path.basename js_target) basename)))
       in
       File_selector.create ~dir:ctx_dir pred
       |> Build.paths_matching ~loc:Loc.none
@@ -344,4 +347,3 @@ let gen ~contexts
     (String.Map.map map ~f:(fun (module M : Gen) -> M.gen_rules));
   String.Map.iter map ~f:(fun (module M : Gen) -> M.init ());
   String.Map.map map ~f:(fun (module M : Gen) -> M.sctx)
-

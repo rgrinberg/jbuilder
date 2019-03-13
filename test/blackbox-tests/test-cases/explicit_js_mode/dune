@@ -1,0 +1,27 @@
+(rule (with-stdout-to foo.ml (echo "")))
+(rule (with-stdout-to bar.ml (echo "")))
+(rule (with-stdout-to cha.ml (echo "")))
+(rule (with-stdout-to zzz.ml (echo "")))
+(rule (with-stdout-to zzz2.ml (echo "")))
+
+(library
+ (name zzz)
+ (modes js)
+ (modules zzz))
+
+(library
+ (name zzz2)
+ (modules zzz2))
+
+(executable
+ (name foo)
+ (modules foo))
+
+(executable
+ (name bar)
+ (modes js)
+ (modules bar))
+
+(test
+ (name cha)
+ (modules cha))

@@ -396,6 +396,14 @@
    (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
 
 (alias
+ (name explicit_js_mode)
+ (deps (package dune) (source_tree test-cases/explicit_js_mode))
+ (action
+  (chdir
+   test-cases/explicit_js_mode
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name external-lib-deps)
  (deps (package dune) (source_tree test-cases/external-lib-deps))
  (action
@@ -1673,6 +1681,6 @@
 
 (alias (name runtest-disabled) (deps (alias envs-and-contexts)))
 
-(alias (name runtest-js) (deps (alias js_of_ocaml)))
+(alias (name runtest-js) (deps (alias explicit_js_mode) (alias js_of_ocaml)))
 
 (alias (name runtest-coq) (deps (alias coq)))

@@ -338,6 +338,11 @@ module Gen (P : sig val sctx : Super_context.t end) = struct
     let modules = Compilation_context.modules cctx in
     let js_of_ocaml = lib.buildable.js_of_ocaml in
     let vimpl = Compilation_context.vimpl cctx in
+    let explicit_js_mode =
+      Compilation_context.scope cctx
+      |> Scope.project
+      |> Dune_project.explicit_js_mode
+    in
     let modules =
       match lib.stdlib with
       | Some { exit_module = Some name; _ } -> begin
@@ -387,7 +392,8 @@ module Gen (P : sig val sctx : Super_context.t end) = struct
        build_lib lib ~expander ~flags ~dir ~mode ~top_sorted_modules
          ~modules));
     (* Build *.cma.js *)
-    if modes.byte then
+    if Mode_conf.(Set.mem lib.modes Js)
+    || (not explicit_js_mode && modes.byte) then
       SC.add_rules sctx ~dir (
         let src =
           Library.archive lib ~dir

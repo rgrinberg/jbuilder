@@ -30,3 +30,5 @@ val test : 'a t -> 'a -> bool
 val contramap : 'a t -> f:('b -> 'a) -> map_id:(Sexp.t -> Sexp.t) -> 'b t
 
 val pp : _ t Fmt.t
+
+val all : unit -> _ t

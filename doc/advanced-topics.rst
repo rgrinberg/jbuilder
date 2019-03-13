@@ -251,3 +251,14 @@ this the default mode eventually.
 Note that you must use ``threads.posix`` instead of ``threads`` when using this
 mode. This is not an important limitation as ``threads.vm`` are deprecated
 anyways.
+
+Explicit JS Mode
+================
+
+By default, dune generates js targets for every executable and library.
+Specifically, these are the ``.bc.js`` target for every executable, and
+``.cma.js`` for every library. These targets are usually harmless, but can
+sometimes get in the way by being accidentally picked up as dependencies. For
+example, when adding a glob dependency. Dune now provides an option to disable
+these implicit js targets. This can be done by adding ``(explicit_js_mode)`` to
+the ``dune-project`` file.

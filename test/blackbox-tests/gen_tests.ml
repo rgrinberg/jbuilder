@@ -123,9 +123,10 @@ end
 let exclusions =
   let open Test in
   let odoc = make ~external_deps:true ~skip_ocaml:"4.02.3" in
-  [ make "js_of_ocaml" ~external_deps:true ~js:true
-      ~env:("NODE", Sexp.parse "%{bin:node}")
-  ; make "coq" ~external_deps:true ~coq:true
+  let jsoo = make ~external_deps:true ~js:true in
+  [ make "coq" ~external_deps:true ~coq:true
+  ; jsoo "js_of_ocaml" ~env:("NODE", Sexp.parse "%{bin:node}")
+  ; jsoo "explicit_js_mode"
   ; make "github25" ~env:("OCAMLPATH", Dune_lang.atom "./findlib-packages")
   ; odoc "odoc"
   ; odoc "odoc-unique-mlds"

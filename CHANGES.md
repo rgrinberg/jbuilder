@@ -28,6 +28,9 @@ unreleased
 - Do not list private modules in the generated index. (#2009, fix #2008,
   @rgrinberg)
 
+- Add `(explicit_js_mode)` option to `dune-project`. This option allows to
+  disable the implicit js targets created by dune. (#1941, fixes #1675, @nojb)
+
 1.8.2 (10/03/2019)
 ------------------
 

@@ -7,7 +7,6 @@ type t =
   | Exe
   | Object
   | Shared_object
-  | Js
 
 include Dune_lang.Conv with type t := t
 

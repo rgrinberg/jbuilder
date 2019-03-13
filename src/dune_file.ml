@@ -745,6 +745,7 @@ module Mode_conf = struct
       | Byte
       | Native
       | Best
+      | Js
     let compare (a : t) b = compare a b
   end
   include T
@@ -754,12 +755,14 @@ module Mode_conf = struct
       [ "byte"  , Byte
       ; "native", Native
       ; "best"  , Best
+      ; "js"    , Js
       ]
 
   let to_string = function
     | Byte -> "byte"
     | Native -> "native"
     | Best -> "best"
+    | Js -> "js"
 
   let pp fmt t =
     Format.pp_print_string fmt (to_string t)
@@ -776,7 +779,7 @@ module Mode_conf = struct
 
     let eval t ~has_native =
       let has_best = mem t Best in
-      let byte = mem t Byte || (has_best && (not has_native)) in
+      let byte = mem t Js || mem t Byte || (has_best && (not has_native)) in
       let native = has_native && (mem t Native || has_best) in
       { Mode.Dict.byte; native }
   end
@@ -1309,6 +1312,7 @@ module Executables = struct
     let shared_object = make Best Shared_object
 
     let byte_exe           = make Byte Exe
+    let js                 = make Js Exe
 
     let native_exe           = make Native Exe
     let native_object        = make Native Object
@@ -1326,6 +1330,7 @@ module Executables = struct
       ; "shared_object" , shared_object
       ; "byte"          , byte
       ; "native"        , native
+      ; "js"            , js
       ]
 
     let simple =
@@ -1447,6 +1452,7 @@ module Executables = struct
             match mode.mode with
             | Native | Best -> ".exe"
             | Byte -> ".bc"
+            | Js -> ".bc.js"
           in
           Names.install_conf names ~ext
       in

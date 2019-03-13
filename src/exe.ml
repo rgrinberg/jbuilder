@@ -60,25 +60,25 @@ module Linkage = struct
       | Byte   -> Byte
       | Native -> Native
       | Best   -> Native
+      | Js     -> Byte
     in
     let real_mode : Mode.t =
       match m.mode with
       | Byte   -> Byte
       | Native -> Native
       | Best   -> if Option.is_some ctx.ocamlopt then Native else Byte
+      | Js     -> Byte
     in
     let ext =
       match wanted_mode, m.kind with
       | Byte   , C             -> ".bc.c"
       | Native , C             -> Errors.fail m.loc "C file generation only supports bytecode!"
-      | Byte   , Exe           -> ".bc"
+      | Byte   , Exe           -> if m.mode = Js then ".bc.js" else ".bc"
       | Native , Exe           -> ".exe"
       | Byte   , Object        -> ".bc"  ^ ctx.ext_obj
       | Native , Object        -> ".exe" ^ ctx.ext_obj
       | Byte   , Shared_object -> ".bc"  ^ ctx.ext_dll
       | Native , Shared_object ->          ctx.ext_dll
-      | Byte   , Js            -> ".bc.js"
-      | Native , Js            -> Errors.fail m.loc "Javascript generation only supports bytecode!"
     in
     let flags =
       match m.kind with
@@ -107,7 +107,6 @@ module Linkage = struct
         | Byte ->
           so_flags
         end
-      | Js -> []
     in
     { ext
     ; mode = real_mode
@@ -125,7 +124,7 @@ let link_exe
       ~top_sorted_modules
       ~arg_spec_for_requires
       ?(link_flags=Build.arr (fun _ -> []))
-      ?(js_of_ocaml=Dune_file.Js_of_ocaml.default)
+      ?js_of_ocaml
       cctx
   =
   let sctx     = CC.super_context cctx in
@@ -177,29 +176,38 @@ let link_exe
        ; Dyn (fun (cm_files, _, _) -> Deps cm_files)
        ]);
   if linkage.ext = ".bc" then
-    let rules =
-      Js_of_ocaml_rules.build_exe cctx ~js_of_ocaml ~src:exe
-    in
-    let cm_and_flags =
-      Build.fanout
-        (modules_and_cm_files >>^ snd)
-        (Expander.expand_and_eval_set expander
-           js_of_ocaml.flags
-           ~standard:(Build.return (Js_of_ocaml_rules.standard sctx)))
-    in
-    SC.add_rules ~dir sctx (List.map rules ~f:(fun r -> cm_and_flags >>> r))
+    Option.iter ~f:(fun js_of_ocaml ->
+      let rules = Js_of_ocaml_rules.build_exe cctx ~js_of_ocaml ~src:exe in
+      let cm_and_flags =
+        Build.fanout
+          (modules_and_cm_files >>^ snd)
+          (Expander.expand_and_eval_set expander
+             js_of_ocaml.flags
+             ~standard:(Build.return (Js_of_ocaml_rules.standard sctx)))
+      in
+      SC.add_rules ~dir sctx (List.map rules ~f:(fun r -> cm_and_flags >>> r))
+    ) js_of_ocaml
 
 let build_and_link_many
       ~programs
       ~linkages
       ?link_flags
-      ?(js_of_ocaml=Dune_file.Js_of_ocaml.default)
+      ?js_of_ocaml
       cctx
   =
   let dep_graphs = Ocamldep.rules cctx in
 
+  let explicit_js_mode =
+    Dune_project.explicit_js_mode (Scope.project (CC.scope cctx))
+  in
+  let js_of_ocaml =
+    match explicit_js_mode, js_of_ocaml with
+    | false, None -> Some Dune_file.Js_of_ocaml.default
+    | _ -> js_of_ocaml
+  in
+
   (* CR-someday jdimino: this should probably say [~dynlink:false] *)
-  Module_compilation.build_modules cctx ~js_of_ocaml ~dep_graphs;
+  Module_compilation.build_modules cctx ?js_of_ocaml ~dep_graphs;
 
   List.iter programs ~f:(fun { Program.name; main_module_name ; loc } ->
     let top_sorted_modules =
@@ -219,7 +227,7 @@ let build_and_link_many
         ~name
         ~linkage
         ~top_sorted_modules
-        ~js_of_ocaml
+        ?js_of_ocaml
         ~arg_spec_for_requires
         ?link_flags))
 
