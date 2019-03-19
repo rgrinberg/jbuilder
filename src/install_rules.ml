@@ -10,7 +10,6 @@ module type Params = sig
 end
 
 module Gen(P : Params) = struct
-  module Alias = Build_system.Alias
   module SC = Super_context
   open P
 
@@ -308,7 +307,7 @@ module Gen(P : Params) = struct
     in
     let files = Install.files entries in
     Build_system.Alias.add_deps
-      (Alias.package_install ~context:ctx ~pkg:package_name)
+      (Build_system.Alias.package_install ~context:ctx ~pkg:package_name)
       files
       ~dyn_deps:
         (Build_system.package_deps package_name files
@@ -316,7 +315,7 @@ module Gen(P : Params) = struct
          Package.Name.Set.to_list packages
          |> List.map ~f:(fun pkg ->
            Build_system.Alias.package_install ~context:ctx ~pkg
-           |> Build_system.Alias.stamp_file)
+           |> Alias.stamp_file)
          |> Path.Set.of_list);
     SC.add_rule sctx ~dir:pkg_build_dir
       ~mode:(if promote_install_file then

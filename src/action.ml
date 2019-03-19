@@ -199,8 +199,9 @@ let chdirs =
   fun t -> loop Path.Set.empty t
 
 let symlink_managed_paths sandboxed deps =
+  let stamps _ = assert false in
   let steps =
-    Path.Set.fold (Dep.Set.paths deps)
+    Path.Set.fold (Dep.Set.paths deps ~stamps)
       ~init:[]
       ~f:(fun path acc ->
         if Path.is_managed path then

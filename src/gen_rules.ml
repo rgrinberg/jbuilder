@@ -1,3 +1,4 @@
+module A = Alias
 open! Stdune
 open Import
 module Menhir_rules = Menhir
@@ -131,8 +132,7 @@ module Gen(P : Install_rules.Params) = struct
           let src_expanded = Expander.expand_str expander src in
           Path.relative ctx_dir src_expanded)
         |> Path.Set.of_list
-        |> Build_system.Alias.add_deps
-             (Build_system.Alias.all ~dir:ctx_dir);
+        |> Build_system.Alias.add_deps (A.all ~dir:ctx_dir);
         For_stanza.empty_none
       | _ ->
         For_stanza.empty_none
@@ -188,7 +188,7 @@ module Gen(P : Install_rules.Params) = struct
     Build_system.Alias.add_deps
       ~dyn_deps:(Build.paths_matching ~dir:ctx_dir ~loc:Loc.none (fun p ->
         not (List.exists js_targets ~f:(Path.equal p))))
-      (Build_system.Alias.all ~dir:ctx_dir) Path.Set.empty;
+      (A.all ~dir:ctx_dir) Path.Set.empty;
     cctxs
 
   let gen_rules dir_contents cctxs ~dir : (Loc.t * Compilation_context.t) list =

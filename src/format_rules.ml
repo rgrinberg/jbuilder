@@ -46,8 +46,8 @@ let gen_rules sctx (config : Dune_file.Auto_format.t) ~dir =
   let source_dir = Path.drop_build_context_exn dir in
   let subdir = ".formatted" in
   let output_dir = Path.relative dir subdir in
-  let alias = Build_system.Alias.fmt ~dir in
-  let alias_formatted = Build_system.Alias.fmt ~dir:output_dir in
+  let alias = Alias.fmt ~dir in
+  let alias_formatted = Alias.fmt ~dir:output_dir in
   let resolve_program =
     Super_context.resolve_program ~dir sctx ~loc:(Some loc) in
   let ocamlformat_deps =
@@ -105,5 +105,5 @@ let gen_rules sctx (config : Dune_file.Auto_format.t) ~dir =
       File_tree.files_of (Super_context.file_tree sctx) source_dir
       |> Path.Set.iter ~f:setup_formatting);
   Build_system.Alias.add_deps alias
-    (Path.Set.singleton (Build_system.Alias.stamp_file alias_formatted));
+    (Path.Set.singleton (Alias.stamp_file alias_formatted));
   Build_system.Alias.add_deps alias_formatted Path.Set.empty

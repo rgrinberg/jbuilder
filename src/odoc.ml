@@ -67,9 +67,9 @@ end
 
 module Dep = struct
   let html_alias ctx m =
-    Build_system.Alias.doc ~dir:(Paths.html ctx m)
+    Alias.doc ~dir:(Paths.html ctx m)
 
-  let alias = Build_system.Alias.make ".odoc-all"
+  let alias = Alias.make ".odoc-all"
 
   let deps ctx requires =
     Build.of_result_map requires ~f:(fun libs ->
@@ -77,7 +77,7 @@ module Dep = struct
         List.fold_left libs ~init:Path.Set.empty ~f:(fun acc (lib : Lib.t) ->
           if Lib.is_local lib then
             let dir = Paths.odocs ctx (Lib lib) in
-            Path.Set.add acc (Build_system.Alias.stamp_file (alias ~dir))
+            Path.Set.add acc (Alias.stamp_file (alias ~dir))
           else
             acc)))
 

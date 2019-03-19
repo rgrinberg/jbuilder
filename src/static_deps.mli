@@ -39,4 +39,4 @@ val rule_deps : t -> Dep.Set.t
 val action_deps : t -> Dep.Set.t
 
 (** Return the paths deps, both for the rule deps and the action deps. *)
-val paths : t -> Path.Set.t
+val paths : t -> stamps:(Dep.Alias.t -> Path.Set.t) -> Path.Set.t

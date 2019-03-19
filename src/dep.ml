@@ -1,37 +1,33 @@
 open Stdune
 
+module Dune_alias = Alias
+
 module Alias = struct
   type t =
-    { name : string
-    ; dir : Path.t
+    { alias : Alias.t
     ; rec_ : bool
     }
 
-  let to_dyn { name ; dir ; rec_ } =
+  let to_dyn { alias ; rec_ } =
     let open Dyn in
     Record
-      [ "name", String name
-      ; "dir", Path.to_dyn dir
+      [ "alias", Alias.to_dyn alias
       ; "rec_", Bool rec_
       ]
 
   let pp fmt t = Dyn.pp fmt (to_dyn t)
 
-  let encode {name ; dir; rec_ } =
+  let encode { alias ; rec_ } =
     let open Dune_lang.Encoder in
     record
-      [ "name", string name
-      ; "dir", Path_dune_lang.encode dir
+      [ "alias", Alias.encode alias
       ; "rec_", bool rec_
       ]
 
   let compare x y =
-    match String.compare x.name y.name with
+    match Alias.compare x.alias y.alias with
     | Gt | Lt as x -> x
-    | Eq ->
-      match Path.compare x.dir y.dir with
-      | Gt | Lt as x -> x
-      | Eq -> Bool.compare x.rec_ y.rec_
+    | Eq -> Bool.compare x.rec_ y.rec_
 end
 
 module T = struct
@@ -44,6 +40,7 @@ module T = struct
   let env e = Env e
   let file f = File f
   let universe = Universe
+  let alias a = Alias a
 
   let compare x y =
     match x, y with
@@ -101,7 +98,8 @@ module Set = struct
 
   let has_universe t = mem t Universe
 
-  let trace t ~env = List.map (to_list t) ~f:(trace ~env)
+  let trace t ~env ~stamps =
+    List.concat_map (to_list t) ~f:(trace ~env ~stamps)
 
   let pp fmt (t : t) =
     Format.fprintf fmt "Deps %a" (Fmt.list pp) (to_list t)
@@ -127,7 +125,8 @@ module Set = struct
     fold t ~init:Path.Set.empty ~f:(fun f acc ->
       match f with
       | File f -> Path.Set.add acc (Path.parent_exn f)
-      | Alias { Alias. dir; _ } -> Path.Set.add acc dir
+      | Alias { alias; rec_ = _ } ->
+        Path.Set.add acc (Dune_alias.dir alias) (* TODO WRONG*)
       | Universe
       | Env _ -> acc)
 end

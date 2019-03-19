@@ -1,6 +1,5 @@
 open Stdune
 open Dune_file
-open Build_system
 
 module Group = struct
   type t =

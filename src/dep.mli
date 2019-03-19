@@ -4,16 +4,15 @@ type t
 
 module Alias : sig
   type t =
-    { name : string
-    ; dir : Path.t
+    { alias : Alias.t
     ; rec_ : bool
     }
 end
 
+val alias : Alias.t -> t
 val file : Path.t -> t
 val env : Env.Var.t -> t
 val universe : t
-val alias : Alias.t -> t
 
 val compare : t -> t -> Ordering.t
 
@@ -24,7 +23,7 @@ module Set : sig
 
   val has_universe : t -> bool
 
-  val paths : t -> Path.Set.t
+  val paths : t -> stamps:(Alias.t -> Path.Set.t) -> Path.Set.t
 
   val encode : t -> Dune_lang.t
 

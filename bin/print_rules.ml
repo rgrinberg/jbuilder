@@ -36,7 +36,8 @@ let print_rule_makefile ppf (rule : Build_system.Rule.t) =
        Format.pp_print_string ppf (Path.to_string p)))
     (Path.Set.to_list rule.targets)
     (fun ppf ->
-       Path.Set.iter (Dep.Set.paths rule.deps) ~f:(fun dep ->
+       let stamps _ = Exn.code_error "cannot print aliases" [] in
+       Path.Set.iter (Dep.Set.paths rule.deps ~stamps) ~f:(fun dep ->
          Format.fprintf ppf "@ %s" (Path.to_string dep)))
     Pp.pp
     (Action_to_sh.pp action)

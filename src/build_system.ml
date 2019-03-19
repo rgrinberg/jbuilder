@@ -182,75 +182,21 @@ module File_spec = struct
 end
 
 module Alias0 = struct
-  module T : sig
-    type t = private
-      { dir : Path.t
-      ; name : string
-      }
-    val make : string -> dir:Path.t -> t
-    val of_user_written_path : loc:Loc.t -> Path.t -> t
-  end = struct
-    type t =
-      { dir : Path.t
-      ; name : string
-      }
+  include Alias
 
-    let make name ~dir =
-      if not (Path.is_in_build_dir dir) || String.contains name '/' then
-        Exn.code_error "Alias0.make: Invalid alias"
-          [ "name", Sexp.Encoder.string name
-          ; "dir", Path.to_sexp dir
-          ];
-      { dir; name }
+  let package_install ~(context : Context.t) ~pkg =
+    Alias.make (sprintf ".%s-files" (Package.Name.to_string pkg))
+      ~dir:context.build_dir
 
-    let of_user_written_path ~loc path =
-      if not (Path.is_in_build_dir path) then
-        Errors.fail loc "Invalid alias!\n\
-                         Tried to reference path outside build dir: %S"
-          (Path.to_string_maybe_quoted path);
-      { dir = Path.parent_exn path
-      ; name = Path.basename path
-      }
-  end
-  include T
-
-  let pp fmt t = Path.pp fmt (Path.relative t.dir t.name)
-
-  let suffix = "-" ^ String.make 32 '0'
-
-  let name t = t.name
-  let dir  t = t.dir
-
-  let fully_qualified_name t = Path.relative t.dir t.name
-
-  let stamp_file t =
-    Path.relative (Path.insert_after_build_dir_exn t.dir ".aliases")
-      (t.name ^ suffix)
-
-  let dep t = Build.path (stamp_file t)
-
-  let find_dir_specified_on_command_line ~dir ~file_tree =
-    match File_tree.find_dir file_tree dir with
-    | None ->
-      die "From the command line:\n\
-           @{<error>Error@}: Don't know about directory %s!"
-        (Path.to_string_maybe_quoted dir)
-    | Some dir -> dir
+  let dep t = Build.path (Alias.stamp_file t)
 
   let dep_multi_contexts ~dir ~name ~file_tree ~contexts =
     ignore
-      (find_dir_specified_on_command_line ~dir ~file_tree : File_tree.Dir.t);
+      (Alias.find_dir_specified_on_command_line ~dir ~file_tree
+       : File_tree.Dir.t);
     Build.paths (List.map contexts ~f:(fun ctx ->
       let dir = Path.append (Path.(relative build_dir) ctx) dir in
-      stamp_file (make ~dir name)))
-
-  let standard_aliases = Hashtbl.create 7
-
-  let is_standard = Hashtbl.mem standard_aliases
-
-  let make_standard name =
-    Hashtbl.add standard_aliases name ();
-    make name
+      Alias.stamp_file (Alias.make ~dir name)))
 
   open Build.O
 
@@ -260,56 +206,43 @@ module Alias0 = struct
         ~init:(Build.return true)
         ~f:(fun dir acc ->
           let path = Path.append ctx_dir (File_tree.Dir.path dir) in
-          let fn = stamp_file (make ~dir:path name) in
-          acc
+          let fn = Alias.stamp_file (Alias.make ~dir:path name) in acc
           >>>
           Build.if_file_exists fn
             ~then_:(Build.path fn >>^ Fn.const false)
             ~else_:(Build.arr Fn.id))))
 
   let dep_rec t ~loc ~file_tree =
-    let ctx_dir, src_dir = Path.extract_build_context_dir_exn t.dir in
+    let ctx_dir, src_dir = Path.extract_build_context_dir_exn (Alias.dir t) in
     match File_tree.find_dir file_tree src_dir with
     | None ->
       Build.fail { fail = fun () ->
         Errors.fail loc "Don't know about directory %s!"
           (Path.to_string_maybe_quoted src_dir) }
     | Some dir ->
-      dep_rec_internal ~name:t.name ~dir ~ctx_dir
+      let name = Alias.name t in
+      dep_rec_internal ~name ~dir ~ctx_dir
       >>^ fun is_empty ->
-      if is_empty && not (is_standard t.name) then
+      if is_empty && not (Alias.is_standard name) then
         Errors.fail loc
           "This alias is empty.\n\
            Alias %S is not defined in %s or any of its descendants."
-          t.name (Path.to_string_maybe_quoted src_dir)
+          name (Path.to_string_maybe_quoted src_dir)
 
   let dep_rec_multi_contexts ~dir:src_dir ~name ~file_tree ~contexts =
     let open Build.O in
-    let dir = find_dir_specified_on_command_line ~dir:src_dir ~file_tree in
+    let dir =
+      Alias.find_dir_specified_on_command_line ~dir:src_dir ~file_tree in
     Build.all (List.map contexts ~f:(fun ctx ->
       let ctx_dir = Path.(relative build_dir) ctx in
       dep_rec_internal ~name ~dir ~ctx_dir))
     >>^ fun is_empty_list ->
     let is_empty = List.for_all is_empty_list ~f:Fn.id in
-    if is_empty && not (is_standard name) then
+    if is_empty && not (Alias.is_standard name) then
       die "From the command line:\n\
            @{<error>Error@}: Alias %S is empty.\n\
            It is not defined in %s or any of its descendants."
         name (Path.to_string_maybe_quoted src_dir)
-
-  let default     = make_standard "default"
-  let runtest     = make_standard "runtest"
-  let install     = make_standard "install"
-  let doc         = make_standard "doc"
-  let private_doc = make_standard "doc-private"
-  let lint        = make_standard "lint"
-  let all         = make_standard "all"
-  let check       = make_standard "check"
-  let fmt         = make_standard "fmt"
-
-  let package_install ~(context : Context.t) ~pkg =
-    make (sprintf ".%s-files" (Package.Name.to_string pkg))
-      ~dir:context.build_dir
 end
 
 module Dir_status = struct
@@ -924,7 +857,7 @@ and load_dir_step2_exn t ~dir ~collector ~lazy_generators =
                  in
                  (rule :: rules, Path.Set.add deps path))
         in
-        let path = Path.extend_basename base_path ~suffix:Alias0.suffix in
+        let path = Path.extend_basename base_path ~suffix:Alias.suffix in
         (Pre_rule.make
            ~context:None
            ~env:None
