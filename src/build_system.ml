@@ -409,7 +409,7 @@ module Dir_status = struct
     (** state transition diagram:
         pending -> loading -> frozen *)
 
-    val create_pending : unit -> t
+    val create_pending : info:Sexp.t -> unit -> t
     val start_loading :
       t ->
       (unit, [`Already_loading]) Result.t
@@ -418,20 +418,31 @@ module Dir_status = struct
     val rules : frozen -> Build_interpret.Rule.t list
     val aliases : frozen -> Alias.frozen String.Map.t
 
+    type freeze_block
+    val forbid_freeze : t -> freeze_block
+    val unforbid : freeze_block -> unit
+
     val add_rule : t -> Build_interpret.Rule.t -> unit
     val modify_alias : t -> string -> f:(Alias.t -> unit) -> unit
   end = struct
+
+    type freeze_block = bool ref
+
     type t =
       { mutable rules   : Build_interpret.Rule.t list
       ; mutable aliases : Alias.t String.Map.t
       ; mutable stage   : collection_stage
+      ; mutable forbids : freeze_block list
+      ; info : Sexp.t
       }
     type frozen = t
 
-    let create_pending () =
+    let create_pending ~info () =
       { rules   = []
       ; aliases = String.Map.empty
       ; stage   = Pending
+      ; forbids = []
+      ; info
       }
 
     let rules t = t.rules
@@ -444,6 +455,14 @@ module Dir_status = struct
         ()
       | Loading ->
         ()
+
+    let forbid_freeze t =
+      assert_not_frozen t "forbid_freeze";
+      let r = ref false in
+      t.forbids <- r :: t.forbids;
+      r
+
+    let unforbid b = b := true
 
     let add_rule t rule =
       assert_not_frozen t "add_rule";
@@ -474,6 +493,14 @@ module Dir_status = struct
       | Frozen ->
         Exn.code_error "Rules_collector.freeze called twice" []
       | Loading ->
+        List.iter t.forbids ~f:(fun b ->
+          if not (!b) then
+            Exn.code_error
+              "tried to freeze with some pending modifications"
+              ["pending-modifications", Atom ""
+              ; "info", t.info
+              ]
+        );
         t.stage <- Frozen;
         (String.Map.iter t.aliases ~f:(fun x -> ignore (Alias.freeze x));
          t)
@@ -633,7 +660,7 @@ let get_dir_status t ~dir =
         Dir_status.Loaded Path.Set.empty
       else
         Collecting_rules
-          (Dir_status.Rules_collector.create_pending ())
+          (Dir_status.Rules_collector.create_pending ~info:(Path.to_sexp dir) ())
     end)
 
 module Target = Build_interpret.Target
@@ -641,13 +668,13 @@ module Pre_rule = Build_interpret.Rule
 
 let get_file : type a. t -> Path.t -> a File_kind.t -> a File_spec.t =
   fun t fn kind ->
-  match Path.Table.find t.files fn with
-  | None ->
-    let loc = Rule_fn.loc () in
-    Errors.fail_opt loc "no rule found for %s" (Path.to_string fn)
-  | Some (File_spec.T file) ->
-    let Type_eq.T = File_kind.eq_exn kind file.kind in
-    file
+    match Path.Table.find t.files fn with
+    | None ->
+      let loc = Rule_fn.loc () in
+      Errors.fail_opt loc "no rule found for %s" (Path.to_string fn)
+    | Some (File_spec.T file) ->
+      let Type_eq.T = File_kind.eq_exn kind file.kind in
+      file
 
 let vfile_to_string (type a) (module K : Vfile_kind.S with type t = a) _fn x =
   K.to_string x
@@ -896,6 +923,52 @@ let no_rule_found =
           ctx
           (hint ctx (String.Map.keys t.contexts))
 
+module Thunk_with_backtrace = struct
+  type t = {
+    thunk : unit -> unit;
+    ran : unit option ref;
+  }
+
+  let run t =
+    match !(t.ran) with
+    | Some _last_run ->
+      (* CR-someday aalekseyev: this should either be disallowed, or
+         the individual collector operations should become idempotent *)
+      () (* Exn.code_error "same thunk ran multiple times" [
+            "thunk-created", Sexp.Atom (Printexc.raw_backtrace_to_string t.backtrace);
+            "last-run", Sexp.Atom (Printexc.raw_backtrace_to_string last_run)
+            ] *)
+    | None ->
+      t.ran := Some ();
+      match Exn_with_backtrace.try_with t.thunk with
+      | Error exn ->
+        Exn.code_error "thunk raised"
+          [ "exn", Exn_with_backtrace.to_sexp exn
+          ]
+      | Ok ok ->
+        ok
+
+  let create thunk =
+    { thunk; ran = ref None }
+end
+
+type rule_collection_implicit_output = Thunk_with_backtrace.t Appendable_list.t
+let rule_collection_implicit_output =
+  Memo.Implicit_output.add (module struct
+    type t = rule_collection_implicit_output
+
+    let union x y = Appendable_list.(@) x y
+    let name = "rule collection"
+  end)
+
+let handle_add_rule_effects f =
+  let res, effects =
+    Memo.Implicit_output.collect_sync rule_collection_implicit_output f
+  in
+  Option.iter effects ~f:(fun l ->
+    List.iter (Appendable_list.to_list l) ~f:(Thunk_with_backtrace.run));
+  res
+
 let rec compile_rule t ?(copy_source=false) pre_rule =
   let { Pre_rule.
         context
@@ -1006,7 +1079,9 @@ and load_dir_step2_exn t ~dir ~collector =
       These String.Set.empty
     else
       let gen_rules = String.Map.find_exn (Fdecl.get t.gen_rules) context_name in
-      gen_rules ~dir (Path.explode_exn sub_dir)
+      handle_add_rule_effects
+        (fun () ->
+           gen_rules ~dir (Path.explode_exn sub_dir))
   in
   let collector = Dir_status.Rules_collector.freeze collector in
   let rules = Dir_status.Rules_collector.rules collector in
@@ -1031,12 +1106,12 @@ and load_dir_step2_exn t ~dir ~collector =
           | Some dir ->
             String.Map.add aliases "default"
               { deps = Path.Set.empty
-                 ; dyn_deps =
-                     (Alias0.dep_rec_internal ~name:"install" ~dir ~ctx_dir
-                      >>^ fun (_ : bool) ->
-                      Path.Set.empty)
-                 ; actions = []
-                 }
+              ; dyn_deps =
+                  (Alias0.dep_rec_internal ~name:"install" ~dir ~ctx_dir
+                   >>^ fun (_ : bool) ->
+                   Path.Set.empty)
+              ; actions = []
+              }
     in
     String.Map.foldi aliases ~init:([], Path.Set.empty)
       ~f:(fun name { Dir_status.Alias.deps; dyn_deps; actions } (rules, alias_stamp_files) ->
@@ -1681,6 +1756,14 @@ let get_collector t ~dir =
       ; "load_dir_stack", Sexp.Encoder.list Path.to_sexp t.load_dir_stack
       ]
 
+let produce_rule_collection collector f =
+  let forbiddance = Dir_status.Rules_collector.forbid_freeze collector in
+  Memo.Implicit_output.produce rule_collection_implicit_output (
+    Appendable_list.singleton (
+      Thunk_with_backtrace.create (fun () ->
+        f ();
+        Dir_status.Rules_collector.unforbid forbiddance)))
+
 let add_rule (rule : Build_interpret.Rule.t) =
   let t = t () in
   let rule =
@@ -1688,7 +1771,7 @@ let add_rule (rule : Build_interpret.Rule.t) =
     | None -> rule
     | Some prefix -> { rule with build = Build.O.(>>>) prefix rule.build } in
   let collector = get_collector t ~dir:rule.dir in
-  Dir_status.Rules_collector.add_rule collector rule
+  produce_rule_collection collector (fun () -> Dir_status.Rules_collector.add_rule collector rule)
 
 let prefix_rules' t prefix ~f =
   let old_prefix = t.prefix in
@@ -1722,7 +1805,8 @@ module Alias = struct
 
   let modify_alias build_system t ~f =
     let collector = get_collector build_system ~dir:t.dir in
-    Dir_status.Rules_collector.modify_alias ~f collector t.name
+    produce_rule_collection collector (fun () ->
+      Dir_status.Rules_collector.modify_alias ~f collector t.name)
 
   let add_deps t ?dyn_deps deps =
     let build_system = get_build_system () in
