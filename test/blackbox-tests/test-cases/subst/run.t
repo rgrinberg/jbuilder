@@ -1,5 +1,5 @@
   $ sed 's/%_%/%%/g' file.ml.in > file.ml
-  $ git init --quiet
+  $ git init
   $ git add .
   $ git commit -am _ --quiet
   $ git tag -a 1.0 -m 1.0
