@@ -346,6 +346,10 @@ let clear_cache () =
 
 let () = Hooks.End_of_build.always clear_cache
 
+let check_no_qualified loc qualif_mode =
+  if qualif_mode = Include_subdirs.Qualified then
+    Errors.fail loc "(include_subdirs qualified) is not supported yet"
+
 let rec get sctx ~dir =
   match Hashtbl.find cache dir with
   | Some t -> t
@@ -389,8 +393,8 @@ let rec get sctx ~dir =
           (* Filled while scanning the group root *)
           Hashtbl.find_exn cache dir
       end
-    | Group_root (ft_dir, d) ->
-      let rec walk ft_dir ~dir acc =
+    | Group_root (ft_dir, qualif_mode, d) ->
+      let rec walk ft_dir ~dir ~local acc =
         match
           Dir_status.DB.get dir_status_db ~dir
         with
@@ -400,20 +404,22 @@ let rec get sctx ~dir =
             | None -> File_tree.Dir.files ft_dir
             | Some d -> load_text_files sctx ft_dir d
           in
-          walk_children ft_dir ~dir ((dir, files) :: acc)
+          walk_children ft_dir ~dir ~local ((dir, local, files) :: acc)
         | _ -> acc
-      and walk_children ft_dir ~dir acc =
+      and walk_children ft_dir ~dir ~local acc =
         String.Map.foldi (File_tree.Dir.sub_dirs ft_dir) ~init:acc
           ~f:(fun name ft_dir acc ->
             let dir = Path.relative dir name in
-            walk ft_dir ~dir acc)
+            let local = if qualif_mode = Qualified then local @ [name] else local in
+            walk ft_dir ~dir ~local acc)
       in
       let files = load_text_files sctx ft_dir d in
-      let subdirs = walk_children ft_dir ~dir [] in
+      let subdirs = walk_children ft_dir ~dir ~local:[] [] in
       let modules = lazy (
+        check_no_qualified Loc.none qualif_mode;
         let modules =
-          List.fold_left ((dir, files) :: subdirs) ~init:Module.Name.Map.empty
-            ~f:(fun acc (dir, files) ->
+          List.fold_left ((dir, [], files) :: subdirs) ~init:Module.Name.Map.empty
+            ~f:(fun acc (dir, _local, files) ->
               let modules = modules_of_files ~dir ~files in
               Module.Name.Map.union acc modules ~f:(fun name x y ->
                 Errors.fail (Loc.in_file
@@ -432,11 +438,12 @@ let rec get sctx ~dir =
         Modules.make d ~modules)
       in
       let c_sources = lazy (
+        check_no_qualified Loc.none qualif_mode;
         let dune_version = d.dune_version in
         let init = C.Kind.Dict.make String.Map.empty in
         let c_sources =
-          List.fold_left ((dir, files) :: subdirs) ~init
-            ~f:(fun acc (dir, files) ->
+          List.fold_left ((dir, [], files) :: subdirs) ~init
+            ~f:(fun acc (dir, _local, files) ->
               let sources = C_sources.load_sources ~dir ~dune_version ~files in
               let f acc sources =
                 String.Map.union acc sources ~f:(fun name x y ->
@@ -461,7 +468,7 @@ let rec get sctx ~dir =
       ) in
       let t =
         { kind = Group_root
-                   (lazy (List.map subdirs ~f:(fun (dir, _) -> get sctx ~dir)))
+                   (lazy (List.map subdirs ~f:(fun (dir, _, _) -> get sctx ~dir)))
         ; dir
         ; text_files = files
         ; modules
@@ -470,7 +477,7 @@ let rec get sctx ~dir =
         }
       in
       Hashtbl.add cache dir t;
-      List.iter subdirs ~f:(fun (dir, files) ->
+      List.iter subdirs ~f:(fun (dir, _, files) ->
         Hashtbl.add cache dir
           { kind = Group_part t
           ; dir

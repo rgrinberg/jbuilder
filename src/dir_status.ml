@@ -10,6 +10,7 @@ module T = struct
        generated ones. *)
 
     | Group_root of File_tree.Dir.t
+                    * Include_subdirs.qualification
                     * Stanza.t list Dir_with_dune.t
     (* Directory with [(include_subdirs x)] where [x] is not [no] *)
 
@@ -86,8 +87,8 @@ module DB = struct
           Is_component_of_a_group_but_not_the_root None
       | Some d ->
         match get_include_subdirs d.data with
-        | Some Unqualified ->
-          Group_root (ft_dir, d)
+        | Some (Include mode) ->
+          Group_root (ft_dir, mode, d)
         | Some No ->
           Standalone (Some (ft_dir, Some d))
         | None ->

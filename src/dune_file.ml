@@ -1924,12 +1924,15 @@ module Documentation = struct
 end
 
 module Include_subdirs = struct
-  type t = No | Unqualified
+
+  type qualification = Unqualified | Qualified
+  type t = No | Include of qualification
 
   let decode =
     enum
       [ "no", No
-      ; "unqualified", Unqualified
+      ; "unqualified", Include Unqualified
+      ; "qualified", Include Qualified
       ]
 end
 
