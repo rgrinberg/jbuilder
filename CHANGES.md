@@ -1,6 +1,9 @@
 unreleased
 ----------
 
+- [coq] Basic support for theory dependencies on Coq theories using
+  new field `(theories ...)` (#2053, @ejgallego, review by @rgrinberg)
+
 - [coq] Rename `(coqlib ...)` to `(coq.theory ...)`, support for
   `coqlib` will be dropped in the 1.0 version of the Coq language
   (#2055, @ejgallego)

@@ -509,6 +509,11 @@ module Lib_dep = struct
   let direct x = Direct x
 
   let of_lib_name (loc, pp) = Direct (loc, pp)
+
+  let get_loc = function
+    | Direct (loc,_) -> loc
+    | Select s -> s.loc
+
 end
 
 module Lib_deps = struct
@@ -1842,6 +1847,8 @@ module Coq = struct
     ; flags      : Ordered_set_lang.Unexpanded.t
     ; libraries  : Lib_dep.t list
     (** ocaml libraries *)
+    ; theories   : Lib_dep.t list
+    (** coq libraries *)
     ; loc        : Loc.t
     ; enabled_if : Blang.t
     }
@@ -1861,11 +1868,14 @@ module Coq = struct
        and+ flags = field_oslu "flags"
        and+ modules = modules_field "modules"
        and+ libraries = field "libraries" Lib_deps.decode ~default:[]
+       and+ theories = field "theories" Lib_deps.decode ~default:[]
        and+ enabled_if = enabled_if
        in
        let name =
          let (loc, res) = name in
-         (loc, Lib_name.Local.validate (loc, res) ~wrapped:None)
+         match res with
+         | Ok t | Warn t -> (loc, t)
+         | Invalid -> Errors.fail loc "%s" Lib_name.Local.invalid_message
        in
        { name
        ; public
@@ -1873,6 +1883,7 @@ module Coq = struct
        ; modules
        ; flags
        ; libraries
+       ; theories
        ; loc
        ; enabled_if
        })

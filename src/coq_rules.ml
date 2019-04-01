@@ -26,7 +26,7 @@ type coq_context =
   ; coqpp  : Action.program
   }
 
-let parse_coqdep ~coq_module (lines : string list) =
+let parse_coqdep ~dir ~coq_module (lines : string list) =
   if coq_debug then Format.eprintf "Parsing coqdep @\n%!";
   let source = Coq_module.source coq_module in
   let invalid p =
@@ -45,8 +45,8 @@ let parse_coqdep ~coq_module (lines : string list) =
   | Some (basename,deps) ->
     let ff = List.hd @@ String.extract_blank_separated_words basename in
     let depname, _ = Filename.split_extension ff in
-    let modname =
-      Coq_module.(String.concat ~sep:"/" (prefix coq_module @ [name coq_module])) in
+    let modname = String.concat ~sep:"/" Coq_module.(prefix coq_module @ [name coq_module]) in
+    let modname = Path.(to_string (relative (drop_build_context_exn dir) modname)) in
     if coq_debug
     then Format.eprintf "depname / modname: %s / %s@\n%!" depname modname;
     if depname <> modname then invalid "basename";
@@ -55,8 +55,13 @@ let parse_coqdep ~coq_module (lines : string list) =
     then Format.eprintf "deps for %a: %a@\n%!" Path.pp source Fmt.(list text) deps;
     deps
 
-let setup_rule ~expander ~dir ~cc ~source_rule ~wrapper_name
-      ~coq_flags ~ml_iflags ~mlpack_rule coq_module =
+let setup_theory_flag lib =
+  let wrapper = Lib_name.to_string (Coq_lib.name lib) in
+  let dir = Coq_lib.src_root lib in
+  Arg_spec.[A "-Q"; Path dir; A wrapper]
+
+let setup_rule ~expander ~base_dir ~dir ~cc ~source_rule ~wrapper_name
+      ~coq_flags ~theories_libs ~ml_iflags ~mlpack_rule coq_module =
 
   if coq_debug
   then Format.eprintf "gen_rule coq_module: %a@\n%!" Coq_module.pp coq_module;
@@ -66,37 +71,35 @@ let setup_rule ~expander ~dir ~cc ~source_rule ~wrapper_name
   let stdout_to = Coq_module.obj_file ~obj_dir ~ext:".v.d" coq_module in
   let object_to = Coq_module.obj_file ~obj_dir ~ext:".vo"  coq_module in
 
-  let iflags = Arg_spec.As ["-R"; "."; wrapper_name] in
+  let th_flags = List.concat_map theories_libs ~f:setup_theory_flag in
+  let file_flags =
+    th_flags @ Arg_spec.[ A "-R"; Path obj_dir; A wrapper_name; ml_iflags; Dep source ] in
+
   let cd_arg : (string list, _) Arg_spec.t list =
-    Arg_spec.[ As ["-dyndep"; "opt"]; iflags; ml_iflags; Dep source ] in
+    Arg_spec.[ As ["-dyndep"; "opt"] ] @ file_flags in
 
   (* coqdep needs the full source + plugin's mlpack to be present :( *)
   let coqdep_rule =
     (* This is weird stuff in order to adapt the rule so we can reuse
        ml_iflags :( I wish we had more flexible typing. *)
     ((fun () -> []) ^>> source_rule &&& mlpack_rule) >>^ fst >>>
-    Build.run ~dir ~stdout_to cc.coqdep cd_arg
+    Build.run ~dir:base_dir ~stdout_to cc.coqdep cd_arg
   in
 
   (* Process coqdep and generate rules *)
   let deps_of = Build.dyn_paths (
     Build.lines_of stdout_to >>^
-    parse_coqdep ~coq_module >>^
-    List.map ~f:(Path.relative dir)
+    parse_coqdep ~dir ~coq_module >>^
+    List.map ~f:(Path.relative base_dir)
   ) in
 
-  let cc_arg = Arg_spec.[
-    iflags;
-    ml_iflags;
-    Dep source;
-    Hidden_targets [object_to] ]
-  in
+  let cc_arg = file_flags @ [ Arg_spec.Hidden_targets [object_to] ] in
 
   (* Rules for the files *)
   [coqdep_rule;
    deps_of >>>
    Expander.expand_and_eval_set expander coq_flags ~standard:(Build.return []) >>>
-   Build.run ~dir cc.coqc (Dyn (fun flags -> As flags) :: cc_arg)
+   Build.run ~dir:base_dir cc.coqc (Dyn (fun flags -> As flags) :: cc_arg)
   ]
 
 (* TODO: remove; rgrinberg points out:
@@ -112,14 +115,15 @@ let create_ccoq sctx ~dir =
   }
 
 (* get_libraries from Coq's ML dependencies *)
-let libs_of_coq_deps ~loc ~scope libs =
-  let lib_db = Scope.libs scope in
-  List.concat_map ~f:Dune_file.Lib_dep.to_lib_names libs
-  |> Lib.DB.find_many ~loc lib_db
-  |> Result.ok_exn
+let libs_of_coq_deps ~lib_db =
+  List.concat_map ~f:(fun lib_dep ->
+    let loc = Dune_file.Lib_dep.get_loc lib_dep in
+    Dune_file.Lib_dep.to_lib_names lib_dep
+    |> Lib.DB.find_many lib_db ~loc
+    |> Result.ok_exn)
 
 (* compute include flags and mlpack rules *)
-let setup_ml_deps ~scope ~loc libs =
+let setup_ml_deps ~lib_db libs =
 
   (* coqdep expects an mlpack file next to the sources otherwise it
    * will omit the cmxs deps *)
@@ -134,7 +138,7 @@ let setup_ml_deps ~scope ~loc libs =
 
   (* Pair of include flags and paths to mlpack *)
   let ml_iflags, mlpack =
-    let libs = libs_of_coq_deps ~loc ~scope libs in
+    let libs = libs_of_coq_deps ~lib_db libs in
     Util.include_flags libs, List.concat_map ~f:ml_pack_files libs
   in
 
@@ -144,40 +148,59 @@ let setup_ml_deps ~scope ~loc libs =
 let coqlib_wrapper_name (s : Dune_file.Coq.t) =
   Lib_name.Local.to_string (snd s.name)
 
+let coq_modules_of_dep ~sctx lib =
+  let name = Coq_lib.name lib in
+  let dir = Coq_lib.src_root lib in
+  let dir_contents = Dir_contents.get_without_rules sctx ~dir in
+  Dir_contents.coq_modules_of_library dir_contents ~name
+
+let coq_theories_of_lib_deps ~coq_lib_db =
+  List.concat_map ~f:(fun lib_dep ->
+    let loc = Dune_file.Lib_dep.get_loc lib_dep in
+    Dune_file.Lib_dep.to_lib_names lib_dep
+    |> Coq_lib.DB.find_many coq_lib_db ~loc
+    |> Result.ok_exn)
+
 let setup_rules ~sctx ~dir ~dir_contents (s : Dune_file.Coq.t) =
 
-  let scope = SC.find_scope_by_dir sctx dir in
-
-  if coq_debug then begin
-    let scope = SC.find_scope_by_dir sctx dir in
-    Format.eprintf "[gen_rules] @[dir: %a@\nscope: %a@]@\n%!"
-      Path.pp dir Path.pp (Scope.root scope)
-  end;
-
   let cc = create_ccoq sctx ~dir in
+  let scope = SC.find_scope_by_dir sctx dir in
+  let lib_db = Scope.libs scope in
+  let coq_lib_db = Scope.coq_libs scope in
+
   let name = Dune_file.Coq.best_name s in
+
   let coq_modules = Dir_contents.coq_modules_of_library dir_contents ~name in
 
+  let theories_libs = coq_theories_of_lib_deps ~coq_lib_db s.theories in
+  let theories_modules =
+    List.concat_map theories_libs ~f:(coq_modules_of_dep ~sctx) in
+
   (* coqdep requires all the files to be in the tree to produce correct
-     dependencies *)
-  let source_rule = Build.paths (List.map ~f:Coq_module.source coq_modules) in
+     dependencies, including those of dependencies *)
+  let source_rule =
+    List.rev_map ~f:Coq_module.source theories_modules
+    |> List.rev_map_append ~f:Coq_module.source coq_modules
+    |> Build.paths in
+
   let coq_flags = s.flags in
   let expander = SC.expander sctx ~dir in
   let wrapper_name = coqlib_wrapper_name s in
 
-  let ml_iflags, mlpack_rule =
-    setup_ml_deps ~scope ~loc:s.loc s.libraries in
+  let ml_iflags, mlpack_rule = setup_ml_deps ~lib_db s.libraries in
+  let base_dir = Scope.root scope in
 
   let coq_rules =
     List.concat_map
-      ~f:(setup_rule ~expander ~dir ~cc ~source_rule ~wrapper_name ~coq_flags
-            ~ml_iflags ~mlpack_rule) coq_modules in
+      ~f:(setup_rule ~expander ~base_dir ~dir ~cc ~source_rule ~wrapper_name ~coq_flags
+            ~theories_libs ~ml_iflags ~mlpack_rule) coq_modules in
   coq_rules
 
 (* This is here for compatibility with Coq < 8.11, which expects
    plugin files to be in the folder containing the `.vo` files *)
 let coq_plugins_install_rules ~scope ~package ~dst_dir (s : Dune_file.Coq.t) =
-  let ml_libs = libs_of_coq_deps ~scope ~loc:s.loc s.libraries in
+  let lib_db = Scope.libs scope in
+  let ml_libs = libs_of_coq_deps ~lib_db s.libraries in
   let rules_for_lib lib =
     (* Don't install libraries that don't belong to this package *)
     if Option.equal Package.Name.equal

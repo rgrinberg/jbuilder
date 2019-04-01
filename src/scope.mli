@@ -12,6 +12,7 @@ val project : t -> Dune_project.t
 
 (** Return the library database associated to this scope *)
 val libs : t -> Lib.DB.t
+val coq_libs : t -> Coq_lib.DB.t
 
 (** Scope databases *)
 module DB : sig
@@ -27,6 +28,7 @@ module DB : sig
     -> installed_libs:Lib.DB.t
     -> lib_config:Lib_config.t
     -> (Path.t * Dune_file.Library.t) list
+    -> (Path.t * Dune_file.Coq.t) list
     -> t * Lib.DB.t
 
   val find_by_dir  : t -> Path.t              -> scope

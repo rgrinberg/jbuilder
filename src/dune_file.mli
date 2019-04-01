@@ -78,6 +78,7 @@ module Lib_dep : sig
   val to_lib_names : t -> Lib_name.t list
   val direct : Loc.t * Lib_name.t -> t
   val of_lib_name : Loc.t * Lib_name.t -> t
+  val get_loc : t -> Loc.t
 end
 
 module Lib_deps : sig
@@ -363,6 +364,8 @@ module Coq : sig
     ; flags      : Ordered_set_lang.Unexpanded.t
     ; libraries  : Lib_dep.t list
     (** ocaml libraries *)
+    ; theories   : Lib_dep.t list
+    (** coq libraries *)
     ; loc        : Loc.t
     ; enabled_if : Blang.t
     }

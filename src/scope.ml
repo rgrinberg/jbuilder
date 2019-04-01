@@ -4,6 +4,7 @@ open Import
 type t =
   { project : Dune_project.t
   ; db      : Lib.DB.t
+  ; coq_db  : Coq_lib.DB.t
   ; root    : Path.t (* Path inside the build directory *)
   }
 
@@ -11,6 +12,7 @@ let root t = t.root
 let name t = Dune_project.name t.project
 let project t = t.project
 let libs t = t.db
+let coq_libs t = t.coq_db
 
 module DB = struct
   type scope = t
@@ -101,7 +103,7 @@ module DB = struct
       ~all:(fun () -> Lib_name.Map.keys public_libs)
 
   let sccopes_by_name ~context ~projects ~lib_config ~public_libs
-        internal_libs =
+        internal_libs coq_internal_libs =
     let build_context_dir = Path.relative Path.build_dir context in
     let projects_by_name =
       List.map projects ~f:(fun (project : Dune_project.t) ->
@@ -130,15 +132,19 @@ module DB = struct
         let libs = Option.value libs ~default:[] in
         let db = Lib.DB.create_from_library_stanzas libs
                    ~parent:public_libs ~lib_config in
+        let coq_db =
+          Coq_lib.DB.create_from_coqlib_stanzas coq_internal_libs in
         let root =
           Path.append_local build_context_dir (Dune_project.root project) in
-        Some { project; db; root })
+        Some { project; db; coq_db; root })
 
-  let create ~projects ~context ~installed_libs ~lib_config internal_libs =
+  let create ~projects ~context ~installed_libs ~lib_config
+        internal_libs coq_internal_libs =
     let t = Fdecl.create () in
     let public_libs = public_libs t ~installed_libs internal_libs in
     let by_name =
-      sccopes_by_name ~context ~projects ~lib_config ~public_libs internal_libs
+      sccopes_by_name ~context ~projects ~lib_config ~public_libs
+        internal_libs coq_internal_libs
     in
     let by_dir =
       Dune_project.Name.Map.values by_name
