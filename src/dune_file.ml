@@ -1842,6 +1842,8 @@ module Coq = struct
     ; flags      : Ordered_set_lang.Unexpanded.t
     ; libraries  : (Loc.t * Lib_name.t) list
     (** ocaml libraries *)
+    ; theories   : (Loc.t * Lib_name.t) list
+    (** coq libraries *)
     ; loc        : Loc.t
     ; enabled_if : Blang.t
     }
@@ -1862,11 +1864,15 @@ module Coq = struct
        and+ modules = modules_field "modules"
        and+ libraries =
          field "libraries" (list (located Lib_name.decode)) ~default:[]
+       and+ theories =
+         field "theories" (list (located Lib_name.decode)) ~default:[]
        and+ enabled_if = enabled_if
        in
        let name =
          let (loc, res) = name in
-         (loc, Lib_name.Local.validate (loc, res) ~wrapped:None)
+         match res with
+         | Ok t | Warn t -> (loc, t)
+         | Invalid -> Errors.fail loc "%s" Lib_name.Local.invalid_message
        in
        { name
        ; public
@@ -1874,6 +1880,7 @@ module Coq = struct
        ; modules
        ; flags
        ; libraries
+       ; theories
        ; loc
        ; enabled_if
        })

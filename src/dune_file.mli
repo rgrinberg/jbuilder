@@ -363,6 +363,8 @@ module Coq : sig
     ; flags      : Ordered_set_lang.Unexpanded.t
     ; libraries  : (Loc.t * Lib_name.t) list
     (** ocaml libraries *)
+    ; theories   : (Loc.t * Lib_name.t) list
+    (** coq libraries *)
     ; loc        : Loc.t
     ; enabled_if : Blang.t
     }

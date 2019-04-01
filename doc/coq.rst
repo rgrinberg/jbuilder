@@ -8,7 +8,8 @@ Dune is also able to build Coq developments. A Coq project is a mix of
 Coq ``.v`` files and (optionally) OCaml libraries linking to the Coq
 API (in which case we say the project is a *Coq plugin*). To enable
 Coq support in a dune project, the language version should be selected
-in the ``dune-project`` file. For example:
+in the ``dune-project`` file. As of today, the only version supported
+is ``0.1`` and is experimental:
 
 .. code:: scheme
 
@@ -32,11 +33,12 @@ The basic form for defining Coq libraries is very similar to the OCaml form:
      (synopsis <text>)
      (modules <ordered_set_lang>)
      (libraries <ocaml_libraries>)
+     (theories <coq_libraries>)
      (flags <coq_flags>))
 
 The stanza will build all `.v` files on the given directory. The semantics of fields is:
 
-- ``<module_prefix>>`` will be used as the default Coq library prefix ``-R``,
+- ``<module_prefix>`` will be used as the default Coq library prefix ``-R``,
 - the ``modules`` field does allow to constraint the set of modules
   included in the library, similarly to its OCaml counterpart,
 - ``public_name`` will make Dune generate install rules for the `.vo`
@@ -47,7 +49,10 @@ The stanza will build all `.v` files on the given directory. The semantics of fi
 - ``<coq_flags>`` will be passed to ``coqc``,
 - the path to installed locations of ``<ocaml_libraries>`` will be passed to
   ``coqdep`` and ``coqc`` using Coq's ``-I`` flag; this allows for a Coq
-  library to depend on a ML plugin.
+  library to depend on a ML plugin,
+- you can depend on in-tree ``<coq_libraries>``, in this case, Dune
+  will pass to Coq the the corresponding `-Q` flag for the libraries
+  and their dependencies.
 
 Preprocessing with ``coqpp``
 ============================
@@ -82,9 +87,17 @@ to a ``dune`` file, Dune will to consider that all the modules in
 their directory and sub-directories, adding a prefix to the module
 name in the usual Coq style for sub-directories. For example, file ``A/b/C.v`` will be module ``A.b.C``.
 
+Composition of Coq libraries
+============================
+
+For local Coq libraries, composition is possible using the
+``theories`` field. Libraries are wrapped, however for their own
+compilation the scope is opened so qualification is not necessary.
+
+TODO: "rules about prefix shadowing"
+
 Limitations
 ===========
 
-- composition and scoping of Coq libraries is still not possible. For now, libraries are located using Coq's built-in library management,
 - .v always depend on the native version of a plugin,
 - a ``foo.mlpack`` file must the present for locally defined plugins to work, this is a limitation of coqdep,

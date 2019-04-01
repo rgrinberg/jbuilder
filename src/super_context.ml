@@ -296,6 +296,15 @@ let create
           | Library lib -> Some (ctx_dir, lib)
           | _ -> None))
   in
+  let internal_coq_libs =
+    List.concat_map stanzas
+      ~f:(fun { Dune_load.Dune_file. dir; stanzas; project = _ ; kind = _ } ->
+        let ctx_dir = Path.append context.build_dir dir in
+        List.filter_map stanzas ~f:(fun stanza ->
+          match (stanza : Stanza.t) with
+          | Coq.T coq_lib -> Some (ctx_dir, coq_lib)
+          | _ -> None))
+  in
   let scopes, public_libs =
     let lib_config = Context.lib_config context in
     Scope.DB.create
@@ -304,6 +313,7 @@ let create
       ~installed_libs
       ~lib_config
       internal_libs
+      internal_coq_libs
   in
   let stanzas =
     List.map stanzas
