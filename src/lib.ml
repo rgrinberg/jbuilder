@@ -194,6 +194,27 @@ end = struct
   module Top_closure = Top_closure.Make(Set)(Monad.Id)
 end
 
+module Resolved = struct
+  module T = struct
+    type t =
+      { info : Lib_info.t
+      ; unique_id : Id.t
+      ; name : Lib_name.t
+      }
+
+    let hash t = Id.hash t.unique_id
+
+    let compare t1 t2 = Id.compare t1.unique_id t2.unique_id
+
+    include (
+      Comparable.Operators(struct type nonrec t = t let compare = compare end)
+      : Comparable.OPS with type t := t
+    )
+  end
+
+  include Hashtbl.Make(T)
+end
+
 module T = struct
   type t =
     { info              : Lib_info.t
