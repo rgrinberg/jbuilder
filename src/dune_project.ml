@@ -236,7 +236,12 @@ module Project_file_edit = struct
     else begin
       let ver = !default_dune_language_version in
       let lines =
-        [sprintf "(lang dune %s)" (Syntax.Version.to_string ver)]
+        [ sprintf "(lang dune %s)" (Syntax.Version.to_string ver)
+        ; sprintf ";; (explicit_js_mode) ;; uncomment to only enable js \
+                  targets with (modes js)"
+        ; sprintf ";; (implicit_transitive_deps false) ;; uncomment to \
+                   disallow transitive deps"
+        ]
       in
       let lines =
         match t.project_name with

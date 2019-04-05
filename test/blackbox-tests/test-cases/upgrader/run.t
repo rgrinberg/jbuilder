@@ -1,6 +1,8 @@
   $ dune upgrade
   Info: creating file dune-project with this contents:
   | (lang dune 1.0)
+  | ;; (explicit_js_mode) ;; uncomment to only enable js targets with (modes js)
+  | ;; (implicit_transitive_deps false) ;; uncomment to disallow transitive deps
   | (name foo)
   
   Upgrading foo.opam...
