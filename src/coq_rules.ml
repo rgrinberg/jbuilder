@@ -177,12 +177,17 @@ let setup_rules ~sctx ~dir ~dir_contents (s : Dune_file.Coq.t) =
 (* This is here for compatibility with Coq < 8.11, which expects the
    plugin's `.cmxs` files to be in the folder containing the `.vo`
    files *)
-let coq_cmx_install_rules ~dst_dir libs =
+let coq_cmx_install_rules ~package ~dst_dir libs =
   let rules_for_lib lib =
-    Mode.Dict.get (Lib.plugins lib) Mode.Native |>
-    List.map ~f:(fun plugin_file ->
-      let dst = Path.(to_string (relative dst_dir (basename plugin_file))) in
-      None, Install.(Entry.make Section.Lib_root ~dst plugin_file))
+    (* Don't install libraries that don't belong to this package *)
+    if Option.equal Package.Name.equal
+         (Lib.package lib) (Some (package.Package.name))
+    then
+      Mode.Dict.get (Lib.plugins lib) Mode.Native |>
+      List.map ~f:(fun plugin_file ->
+        let dst = Path.(to_string (relative dst_dir (basename plugin_file))) in
+        None, Install.(Entry.make Section.Lib_root ~dst plugin_file))
+    else []
   in
   List.concat_map ~f:rules_for_lib libs
 
@@ -190,7 +195,7 @@ let install_rules ~sctx ~dir s =
   match s with
   | { Dune_file.Coq. public = None; _ } ->
     []
-  | { Dune_file.Coq. public = Some { package = _ ; _ } ; loc; _ } ->
+  | { Dune_file.Coq. public = Some { package; _ } ; loc; _ } ->
     let scope = SC.find_scope_by_dir sctx dir in
     let dir_contents = Dir_contents.get_without_rules sctx ~dir in
     let name = Dune_file.Coq.best_name s in
@@ -206,4 +211,4 @@ let install_rules ~sctx ~dir s =
       let dst = Coq_module.obj_file ~obj_dir:dst_dir ~ext:".vo" vfile in
       let dst = Path.to_string dst in
       None, Install.(Entry.make Section.Lib_root ~dst vofile))
-    |> List.rev_append (coq_cmx_install_rules ~dst_dir ml_libs)
+    |> List.rev_append (coq_cmx_install_rules ~package ~dst_dir ml_libs)
