@@ -31,6 +31,7 @@ module Colors         = Dune.Colors
 module Report_error   = Dune.Report_error
 module Dune_project   = Dune.Dune_project
 module Workspace      = Dune.Workspace
+module Rotor          = Dune.Rotor
 
 include Common.Let_syntax
 
