@@ -44,3 +44,5 @@ val convert_to_external : t -> dir:Path.t -> t
 val cm_dir : t -> Cm_kind.t -> Visibility.t -> Path.t
 
 val cm_public_dir : t -> Cm_kind.t -> Path.t
+
+val inferred_mli_dir : t -> Path.t

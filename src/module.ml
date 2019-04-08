@@ -524,3 +524,19 @@ let ml_source =
         Path.extend_basename base ~suffix
       in
       File.make OCaml path)
+
+let inferred_mli t =
+  let dir = Obj_dir.inferred_mli_dir t.obj_dir in
+  let fn =
+    let path =
+      match t.intf with
+      | Some f -> f.path
+      | None ->
+        match t.impl with
+        | None -> assert false
+        | Some f -> f.path
+    in
+    let (f, _) = Path.split_extension path in
+    Path.basename f ^ ".mli"
+  in
+  Path.relative dir fn

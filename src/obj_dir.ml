@@ -87,6 +87,9 @@ module Local = struct
     ; public_cmi_dir: Path.t option
     }
 
+  let inferred_mli_dir t =
+    Path.relative t.dir ".inferred"
+
   let to_dyn { dir; obj_dir; native_dir; byte_dir; public_cmi_dir } =
     let open Dyn.Encoder in
     record
@@ -239,3 +242,11 @@ let cm_public_dir t (cm_kind : Cm_kind.t) =
   | Cmx -> native_dir t
   | Cmo -> byte_dir t
   | Cmi -> public_cmi_dir t
+
+let inferred_mli_dir t =
+  match t with
+  | Local e -> Local.inferred_mli_dir e
+  | External obj_dir ->
+    Exn.code_error "Obj_dir.inferred_mli_dir: doesn't exist for external dirs"
+      [ "obj_dir", Dyn.to_sexp (External.to_dyn obj_dir)
+      ]

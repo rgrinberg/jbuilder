@@ -194,3 +194,5 @@ val pped : t -> t
 
 (** [ml_source m] returns [m] but with the OCaml syntax source paths *)
 val ml_source : t -> t
+
+val inferred_mli : t -> Path.t
