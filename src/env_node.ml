@@ -140,3 +140,76 @@ let rec c_flags t ~profile ~expander ~default_context_flags =
     in
     t.c_flags <- Some flags;
     flags
+
+module type Node_intf = sig
+  type t
+
+  val get : dir:Path.t -> t
+end
+
+module type Node = sig
+  type t
+  type config
+
+  val make : config -> dir:Path.t -> t
+  val merge : t -> t -> t
+end
+
+module Make
+    (Config : Node_intf)
+    (Node : Node with type config = Config.t)
+= struct
+  type t = Node.t
+
+  let cache = Path.Table.create 7
+  let initialized = ref false
+
+  let init_with_root_nodes nodes =
+    if !initialized then
+      Exn.code_error "init_with_root_nodes: already initialized" [];
+    List.iter nodes ~f:(fun (p, node) ->
+      Path.Table.add cache p node)
+
+  let get ~dir:init_dir =
+    if not !initialized then
+      Exn.code_error "cannot access table without initializing" [];
+    let rec loop dir =
+      Path.Table.find_or_add cache dir ~f:(fun dir ->
+        let parent =
+          match Path.parent dir with
+          | None ->
+            Exn.code_error "No root value defined for dir"
+              [ "init_dir", Path.to_sexp init_dir
+              ]
+          | Some p -> loop p
+        in
+        let config = Config.get ~dir in
+        let current = Node.make config ~dir in
+        Node.merge parent current)
+    in
+    loop init_dir
+end
+
+module Unit_config = struct
+  type t = ()
+  let get ~dir:_ = ()
+end
+
+module Profile = struct
+  let nodes = Fdecl.create ()
+  let init_with_root_nodes xs =
+    Fdecl.set nodes (Path.Map.of_list_exn xs)
+
+  let get ~dir =
+    let map = Fdecl.get nodes in
+    let rec loop p =
+      match Path.Map.find p with
+      | Some v -> v
+      | None ->
+        begin match Path.parent p with
+        | None -> Exn.code_error "not defined" []
+        | Some p -> loop p
+        end
+    in
+    loop dir
+end

@@ -38,3 +38,26 @@ val artifacts
   -> default:Artifacts.t
   -> expander:Expander.t
   -> Artifacts.t
+
+module type Node_intf = sig
+  type t
+
+  val get : dir:Path.t -> t
+end
+
+module type Node = sig
+  type t
+  type config
+
+  val make : config -> dir:Path.t -> t
+  val merge : t -> t -> t
+end
+
+module Make
+    (Config : Node_intf)
+    (Node : Node with type config = Config.t)
+  : sig
+    include Node_intf with type t = Node.t
+
+    val init_with_root_nodes : (Path.t * t) list -> unit
+end
