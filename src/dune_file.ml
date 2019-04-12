@@ -1886,11 +1886,16 @@ module Coq = struct
 
   let unit_to_sexp () = Sexp.List []
 
-  let coqlib_p = "coqlib", decode >>| fun x -> [T x]
+  let coqlib_warn x =
+    Errors.warn x.loc "(coqlib ...) is deprecated, please use (coq.theory ...) instead";
+    x
+
+  let coqlib_p = "coqlib", decode >>| fun x -> [T (coqlib_warn x)]
+  let coqtheory_p = "coq.theory", decode >>| fun x -> [T x]
   let coqpp_p = "coq.pp", Coqpp.(decode >>| fun x -> [T x])
 
   let unit_stanzas =
-    let+ r = return [coqlib_p; coqpp_p] in
+    let+ r = return [coqlib_p; coqtheory_p; coqpp_p] in
     ((), r)
 
   let key =
