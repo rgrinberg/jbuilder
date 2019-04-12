@@ -120,7 +120,7 @@ let add_rules sctx ~dir =
   |> List.iter ~f:(fun pkg ->
     let opam_path = Local_package.opam_file pkg in
     let expected_path = Path.extend_basename opam_path ~suffix:".expected" in
-    let rule =
+    let expected_rule =
       Build.contents opam_path >>^ (fun contents ->
       let opamfile = Lexing.from_string contents |> Opam_file.parse in
       let package_name = Local_package.name pkg |> Package.Name.to_string in
@@ -128,5 +128,15 @@ let add_rules sctx ~dir =
       OpamPrinter.opamfile corrected) >>>
       Build.write_file_dyn expected_path
     in
+    let diff_rule =
+      Action.Diff { Action.Diff.
+        file1 = opam_path
+      ; file2 = expected_path
+      ; optional = false
+      ; mode = Text
+      }
+    in
+    let action = Build.path expected_path >>^ fun () -> diff_rule in
     let ctx = Super_context.context sctx in
-    Super_context.add_rule sctx ~dir:ctx.build_dir rule)
+    Super_context.add_rule sctx ~dir:ctx.build_dir expected_rule;
+    Super_context.add_alias_action sctx (Alias.runtest ~dir:ctx.build_dir) ~dir:ctx.build_dir ~loc:None ~stamp:("opam_diff",opam_path) action)
