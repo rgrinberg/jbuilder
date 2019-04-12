@@ -11,6 +11,10 @@ module Mutator : sig
 
   val set_var : string -> value -> t
 
+  (** [fixup] is a mutator that strips leading '\n's from variables.
+      Without this we accumulate newlines in long strings *)
+  val fixup : t
+
   (** [set_string v s] is a mutator that sets the opam variable [v] to the
       string [s]. If [v] is already bound in the opamfile the value is updated. 
       If [v] is not present in the opam file it is inserted at the top of the file *)
@@ -43,6 +47,16 @@ end
   let (>>>) : t -> t -> t = fun x y z -> y (x z)
 
   let nopos = ("",0,0) (* Null position *)
+
+  let fixup : t = List.map ~f:(function
+    | Variable (x,y,String (pos,z)) ->
+      let fixed =
+        if String.length z > 0 && z.[0] = '\n'
+        then String.sub z ~pos:1 ~len:(String.length z - 1)
+        else z
+      in
+      Variable (x,y,String (pos,fixed))
+    | y -> y)
 
   let _remove_var : string -> t =
     fun str -> List.filter ~f:(function
@@ -110,7 +124,8 @@ let correct project package_name =
   opt (Dune_project.license project) (set_string "license") >>>
   list (Dune_project.authors project) (set_list "authors" mkstring) >>>
   opt (Dune_project.version project) (set_string "version") >>>
-  opt (Option.map ~f:(Format.asprintf "%a" Dune_project.Source_kind.pp) (Dune_project.source project)) (set_string "dev-repo")
+  opt (Option.map ~f:(Format.asprintf "%a" Dune_project.Source_kind.pp) (Dune_project.source project)) (set_string "dev-repo") >>>
+  fixup
 
 let add_rules sctx ~dir =
   let open Build.O in
