@@ -172,7 +172,7 @@ module Source_kind = struct
    let decode =
      Dune_lang.Decoder.(Syntax.since Stanza.syntax (1, 7) >>> sum [
         "github", plain_string (fun ~loc s ->
-          match String.split_on_char ~sep:'/' s with
+          match String.split ~on:'/' s with
           | [user;repo] -> Github (user,repo)
           | _ -> of_sexp_errorf loc "GitHub repository must be of form user/repo")
       ; "uri", string >>| fun s -> Url s ])
