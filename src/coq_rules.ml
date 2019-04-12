@@ -45,20 +45,24 @@ let parse_coqdep ~dir ~coq_module (lines : string list) =
   | Some (basename,deps) ->
     let ff = List.hd @@ String.extract_blank_separated_words basename in
     let depname, _ = Filename.split_extension ff in
-    let modname = String.concat ~sep:"/" Coq_module.(prefix coq_module @ [name coq_module]) in
-    let modname = Path.(to_string (relative (drop_build_context_exn dir) modname)) in
+    let modname =
+      String.concat ~sep:"/"
+        Coq_module.(prefix coq_module @ [name coq_module]) in
+    let modname =
+      Path.(to_string (relative (drop_build_context_exn dir) modname)) in
     if coq_debug
     then Format.eprintf "depname / modname: %s / %s@\n%!" depname modname;
     if depname <> modname then invalid "basename";
     let deps = String.extract_blank_separated_words deps in
     if coq_debug
-    then Format.eprintf "deps for %a: %a@\n%!" Path.pp source Fmt.(list text) deps;
+    then Format.eprintf "deps for %a: %a@\n%!"
+           Path.pp source Fmt.(list text) deps;
     deps
 
 let setup_theory_flag lib =
   let wrapper = Lib_name.to_string (Coq_lib.name lib) in
   let dir = Coq_lib.src_root lib in
-  Arg_spec.[A "-Q"; Path dir; A wrapper]
+  [Arg_spec.A "-Q"; Path dir; A wrapper]
 
 let setup_rule ~expander ~base_dir ~dir ~cc ~source_rule ~wrapper_name
       ~coq_flags ~theories_libs ~ml_iflags ~mlpack_rule coq_module =
@@ -73,10 +77,11 @@ let setup_rule ~expander ~base_dir ~dir ~cc ~source_rule ~wrapper_name
 
   let th_flags = List.concat_map theories_libs ~f:setup_theory_flag in
   let file_flags =
-    th_flags @ Arg_spec.[ A "-R"; Path obj_dir; A wrapper_name; ml_iflags; Dep source ] in
+    th_flags
+    @ [Arg_spec.A "-R"; Path obj_dir; A wrapper_name; ml_iflags; Dep source ] in
 
   let cd_arg : (string list, _) Arg_spec.t list =
-    Arg_spec.[ As ["-dyndep"; "opt"] ] @ file_flags in
+    [Arg_spec.As ["-dyndep"; "opt"] ] @ file_flags in
 
   (* coqdep needs the full source + plugin's mlpack to be present :( *)
   let coqdep_rule =
@@ -96,10 +101,11 @@ let setup_rule ~expander ~base_dir ~dir ~cc ~source_rule ~wrapper_name
   let cc_arg = file_flags @ [ Arg_spec.Hidden_targets [object_to] ] in
 
   (* Rules for the files *)
-  [coqdep_rule;
-   deps_of >>>
-   Expander.expand_and_eval_set expander coq_flags ~standard:(Build.return []) >>>
-   Build.run ~dir:base_dir cc.coqc (Dyn (fun flags -> As flags) :: cc_arg)
+  [ coqdep_rule
+  ; deps_of >>>
+    Expander.expand_and_eval_set expander coq_flags
+      ~standard:(Build.return []) >>>
+    Build.run ~dir:base_dir cc.coqc (Dyn (fun flags -> As flags) :: cc_arg)
   ]
 
 (* TODO: remove; rgrinberg points out:
@@ -190,11 +196,9 @@ let setup_rules ~sctx ~dir ~dir_contents (s : Dune_file.Coq.t) =
   let ml_iflags, mlpack_rule = setup_ml_deps ~lib_db s.libraries in
   let base_dir = Scope.root scope in
 
-  let coq_rules =
-    List.concat_map
-      ~f:(setup_rule ~expander ~base_dir ~dir ~cc ~source_rule ~wrapper_name ~coq_flags
-            ~theories_libs ~ml_iflags ~mlpack_rule) coq_modules in
-  coq_rules
+  List.concat_map
+    ~f:(setup_rule ~expander ~base_dir ~dir ~cc ~source_rule ~wrapper_name
+          ~coq_flags ~theories_libs ~ml_iflags ~mlpack_rule) coq_modules
 
 (* This is here for compatibility with Coq < 8.11, which expects
    plugin files to be in the folder containing the `.vo` files *)
@@ -244,7 +248,7 @@ let coqpp_rules ~sctx ~dir (s : Dune_file.Coqpp.t) =
   let mlg_rule m =
     let source = Path.relative dir (m ^ ".mlg") in
     let target = Path.relative dir (m ^ ".ml") in
-    let args = Arg_spec.[Dep source; Hidden_targets [target]] in
+    let args = [Arg_spec.Dep source; Hidden_targets [target]] in
     Build.run ~dir:base_dir cc.coqpp args in
 
   List.map ~f:mlg_rule s.modules
