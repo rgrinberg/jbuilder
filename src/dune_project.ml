@@ -171,7 +171,6 @@ module Source_kind = struct
 
   let decode =
     let open Stanza.Decoder in
-    Syntax.since Stanza.syntax (1, 7) >>>
     sum
       ["github", plain_string (fun ~loc s ->
          match String.split ~on:'/' s with
@@ -654,7 +653,8 @@ let parse ~dir ~lang ~packages ~file =
   fields
     (let+ name = name_field ~dir ~packages
      and+ version = field_o "version" string
-     and+ source = field_o "source" Source_kind.decode
+     and+ source = field_o "source" (Syntax.since Stanza.syntax (1, 7)
+                                     >>> Source_kind.decode)
      and+ opam = field_o "opam" Opam.decode
      and+ authors = field ~default:[] "authors"
                       (Syntax.since Stanza.syntax (1, 9) >>> repeat string)
@@ -678,7 +678,7 @@ let parse ~dir ~lang ~packages ~file =
          ~check:(Syntax.since Stanza.syntax (1, 9))
      and+ gen_opam_file =
        field_o_b "generate_opam_file"
-         ~check:(Syntax.since Stanza.syntax (1, 9))
+         ~check:(Syntax.since Stanza.syntax (1, 10))
      and+ () = Versioned_file.no_more_lang
      in
      let project_file : Project_file.t =
