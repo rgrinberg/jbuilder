@@ -39,26 +39,26 @@ module Project_file : sig
 end
 
 module Source_kind : sig
-  type t = 
-  |Github of string * string
-  |Url of string
+  type t =
+    | Github of string * string
+    | Url of string
 
   val pp : t Fmt.t
 end
 
 module Opam_package : sig
-  type constr = Blang.t
-  type pkg = {
-    name: string;
-    synopsis: string;
-    description: string;
-    constraints: constr list;
-  }
-  type t = {
-    tags : string list;
-    constraints: constr list;
-    packages: pkg list;
-  }
+  type pkg =
+    { name: string
+    ; synopsis: string
+    ; description: string
+    ; constraints: Blang.t list
+    }
+
+  type t =
+    { tags : string list
+    ; constraints: Blang.t list
+    ; packages: pkg list
+    }
 end
 
 type t

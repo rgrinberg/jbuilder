@@ -16,29 +16,32 @@ module Mutator : sig
   val fixup : t
 
   (** [set_string v s] is a mutator that sets the opam variable [v] to the
-      string [s]. If [v] is already bound in the opamfile the value is updated. 
-      If [v] is not present in the opam file it is inserted at the top of the file *)
+      string [s]. If [v] is already bound in the opamfile the value is updated.
+      If [v] is not present in the opam file it is inserted at the top of the
+      file *)
   val set_string : string -> string -> t
 
-  (** [set_list v conv l] is a mutator that sets the opam variable [v] to the list
-      [l] after applying the convertor [conv] to the elements of [l]. If [v] is already
-      bound in the opamfile the value is updated. If [v] is not present in the opam 
+  (** [set_list v conv l] is a mutator that sets the opam variable [v] to the
+      list [l] after applying the convertor [conv] to the elements of [l]. If
+      [v] is already bound in the opamfile the value is updated. If [v] is not
+      present in the opam
       file it is inserted at the top of the file. *)
   val set_list : string -> ('a -> value) -> 'a list -> t
 
   (** [opt v f] returns an identity transformer if [v] is None and if it is
-      [Some x] applies [f] to [x] to return a transformer. Useful for constructing a
-      mutator that is only applied if an optional value has been given.  *)
+      [Some x] applies [f] to [x] to return a transformer. Useful for
+      constructing a mutator that is only applied if an optional value has been
+      given. *)
   val opt : 'a option -> ('a -> t) -> t
 
-  (** [list v f] returns an identity transformer if [v] is the empty list, and if
-      not returns a transformer with the semantics of {v:set_list} *)
+  (** [list v f] returns an identity transformer if [v] is the empty list, and
+      if not returns a transformer with the semantics of {v:set_list} *)
   val list : 'a list -> ('a list -> t) -> t
 
   (** [apply t] returns a function that applies the transformation [t] to an
       {{val:OpamParserTypes.opamfile}opamfile} *)
   val apply : t -> OpamParserTypes.opamfile -> OpamParserTypes.opamfile
-end 
+end
  = struct
   open OpamParserTypes
 
@@ -74,7 +77,7 @@ end
         | None -> None
         end
       | z -> Some z)
-  
+
   let binding_present x =
     List.exists ~f:(function
       | Variable (_, v, _) when v = x -> true
@@ -120,11 +123,13 @@ let correct_specific _project package =
 
 let correct project package_name =
   let open Mutator in
-  opt (Dune_project.opam_package project package_name) (correct_specific project) >>>
+  opt (Dune_project.opam_package project package_name)
+    (correct_specific project) >>>
   opt (Dune_project.license project) (set_string "license") >>>
   list (Dune_project.authors project) (set_list "authors" mkstring) >>>
   opt (Dune_project.version project) (set_string "version") >>>
-  opt (Option.map ~f:(Format.asprintf "%a" Dune_project.Source_kind.pp) (Dune_project.source project)) (set_string "dev-repo") >>>
+  opt (Option.map ~f:(Format.asprintf "%a" Dune_project.Source_kind.pp)
+         (Dune_project.source project)) (set_string "dev-repo") >>>
   fixup
 
 let add_rules sctx ~dir =
@@ -137,21 +142,22 @@ let add_rules sctx ~dir =
     let expected_path = Path.extend_basename opam_path ~suffix:".expected" in
     let expected_rule =
       Build.contents opam_path >>^ (fun contents ->
-      let opamfile = Lexing.from_string contents |> Opam_file.parse in
-      let package_name = Local_package.name pkg |> Package.Name.to_string in
-      let corrected = Mutator.apply (correct project package_name) opamfile in
-      OpamPrinter.opamfile corrected) >>>
+        let opamfile = Lexing.from_string contents |> Opam_file.parse in
+        let package_name = Local_package.name pkg |> Package.Name.to_string in
+        let corrected = Mutator.apply (correct project package_name) opamfile in
+        OpamPrinter.opamfile corrected) >>>
       Build.write_file_dyn expected_path
     in
     let diff_rule =
       Action.Diff { Action.Diff.
-        file1 = opam_path
-      ; file2 = expected_path
-      ; optional = false
-      ; mode = Text
-      }
+                    file1 = opam_path
+                  ; file2 = expected_path
+                  ; optional = false
+                  ; mode = Text
+                  }
     in
     let action = Build.path expected_path >>^ fun () -> diff_rule in
     let ctx = Super_context.context sctx in
     Super_context.add_rule sctx ~dir:ctx.build_dir expected_rule;
-    Super_context.add_alias_action sctx (Alias.runtest ~dir:ctx.build_dir) ~dir:ctx.build_dir ~loc:None ~stamp:("opam_diff",opam_path) action)
+    Super_context.add_alias_action sctx (Alias.runtest ~dir:ctx.build_dir)
+      ~dir:ctx.build_dir ~loc:None ~stamp:("opam_diff",opam_path) action)

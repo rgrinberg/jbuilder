@@ -147,100 +147,107 @@ module Project_file = struct
       ]
 
   let to_sexp { file; exists; project_name } =
-    Sexp.Encoder.(
-      record
-        [ "file", Path.to_sexp file
-        ; "exists", bool exists
-        ; "project_name", Name.to_sexp project_name
-        ])
+    let open Sexp.Encoder  in
+    record
+      [ "file", Path.to_sexp file
+      ; "exists", bool exists
+      ; "project_name", Name.to_sexp project_name
+      ]
 end
 
 module Source_kind = struct
   type t =
-   | Github of string * string
-   | Url of string
+    | Github of string * string
+    | Url of string
 
-   let pp fmt = function
-   | Github (user,repo) ->
-      Format.pp_print_string fmt (Printf.sprintf "git+https://github.com/%s/%s.git" user repo)
-   | Url u -> Format.pp_print_string fmt u
+  let pp fmt = function
+    | Github (user,repo) ->
+      Format.fprintf fmt "git+https://github.com/%s/%s.git" user repo
+    | Url u -> Format.pp_print_string fmt u
 
-   let to_sexp = function
-     | Github (user,repo) -> Sexp.(List [Atom "github"; Atom user; Atom repo])
-     | Url url -> Sexp.(List [Atom "url"; Atom url])
-     
-   let decode =
-     Dune_lang.Decoder.(Syntax.since Stanza.syntax (1, 7) >>> sum [
-        "github", plain_string (fun ~loc s ->
-          match String.split ~on:'/' s with
-          | [user;repo] -> Github (user,repo)
-          | _ -> of_sexp_errorf loc "GitHub repository must be of form user/repo")
-      ; "uri", string >>| fun s -> Url s ])
+  let to_sexp = function
+    | Github (user,repo) -> Sexp.(List [Atom "github"; Atom user; Atom repo])
+    | Url url -> Sexp.(List [Atom "url"; Atom url])
+
+  let decode =
+    let open Stanza.Decoder in
+    Syntax.since Stanza.syntax (1, 7) >>>
+    sum
+      ["github", plain_string (fun ~loc s ->
+         match String.split ~on:'/' s with
+         | [user; repo] -> Github (user,repo)
+         | _ ->
+           of_sexp_errorf loc "GitHub repository must be of form user/repo")
+      ; "uri", string >>| fun s -> Url s
+      ]
 end
 
 module Opam_package = struct
-
-  type constr = Blang.t
 
   let pp_constr fmt _ = Format.fprintf fmt "<constraint>"
 
   let decode_constraint = Blang_decode.decode
 
-  type pkg = {
-    name: string;
-    synopsis: string;
-    description: string;
-    constraints: constr list;
-  }
+  type pkg =
+    { name : string
+    ; synopsis : string
+    ; description : string
+    ; constraints : Blang.t list;
+    }
 
   let decode_pkg =
-    Dune_lang.Decoder.(Syntax.since Stanza.syntax (1, 7) >>>
-     fields (
-       let+ name = field "name" string
-       and+ synopsis = field "synopsis" string
-       and+ description = field "description" string
-       and+ constraints = field ~default:[] "constraints" (repeat decode_constraint) in
-       { name; synopsis; description; constraints }))
+    let open Stanza.Decoder in
+    Syntax.since Stanza.syntax (1, 7) >>>
+    fields (
+      let+ name = field "name" string
+      and+ synopsis = field "synopsis" string
+      and+ description = field "description" string
+      and+ constraints = field ~default:[] "constraints"
+                           (repeat decode_constraint) in
+      { name; synopsis; description; constraints })
 
   let pp_pkg fmt { name; synopsis; constraints; description } =
     Fmt.record fmt
-    [ "name", Fmt.const Format.pp_print_string name
-    ; "synopsis", Fmt.const Format.pp_print_string synopsis
-    ; "description", Fmt.const Format.pp_print_string description
-    ; "constraints", Fmt.(const (list pp_constr) constraints)
-    ]
-  
+      [ "name", Fmt.const Format.pp_print_string name
+      ; "synopsis", Fmt.const Format.pp_print_string synopsis
+      ; "description", Fmt.const Format.pp_print_string description
+      ; "constraints", Fmt.(const (list pp_constr) constraints)
+      ]
+
   type t =
-  {
-     tags: string list;
-     constraints: constr list;
-     packages: pkg list;
-  }
+    { tags : string list
+    ; constraints: constr list
+    ; packages: pkg list
+    }
 
   let pp fmt { tags; constraints; packages } =
-    Fmt.record fmt 
-    [ "tags", Fmt.(const (list Format.pp_print_string) tags)
-    ; "constraints", Fmt.(const (list pp_constr) constraints) 
-    ; "packages", Fmt.(const (list pp_pkg) packages)
-    ]
+    Fmt.record fmt
+      [ "tags", Fmt.(const (list Format.pp_print_string) tags)
+      ; "constraints", Fmt.(const (list pp_constr) constraints)
+      ; "packages", Fmt.(const (list pp_pkg) packages)
+      ]
 
   let to_sexp { tags; constraints = _ ; packages = _ } =
-    Sexp.Encoder.(
-      record
+    let open Sexp.Encoder in
+    record
       [ "tags", list string tags
       ; "constraints", list string ["TODO"]
       ; "packages", list string ["TODO"]
       ]
-    )
 
   let decode =
-    Dune_lang.Decoder.(Syntax.since Stanza.syntax (1, 9) >>>
-     fields (
-     let+ tags = field ~default:[] "tags" (repeat string)
-     and+ constraints = field ~default:[] "constraints" (repeat decode_constraint)
-     and+ packages = multi_field "package" decode_pkg in
-     { tags; constraints; packages }
-     ))
+    let open Stanza.Decoder in
+    Syntax.since Stanza.syntax (1, 9) >>>
+    fields (
+      let+ tags = field ~default:[] "tags" (repeat string)
+      and+ constraints =
+        field ~default:[] "constraints" (repeat decode_constraint)
+      and+ packages = multi_field "package" decode_pkg in
+      { tags
+      ; constraints
+      ; packages
+      }
+    )
 
 end
 
@@ -399,7 +406,7 @@ module Extension = struct
     ; version    : Syntax.Version.t
     ; loc        : Loc.t
     ; parse_args : (Univ_map.t * Stanza.Parser.t list) Dune_lang.Decoder.t ->
-      Univ_map.t * Stanza.Parser.t list
+        Univ_map.t * Stanza.Parser.t list
     }
 
   let extensions = Hashtbl.create 32
@@ -490,54 +497,54 @@ let interpret_lang_and_extensions ~(lang : Lang.Instance.t)
   match
     String.Map.of_list
       (List.map explicit_extensions ~f:(fun (e : Extension.instance) ->
-           (Syntax.name (Extension.syntax e.extension), e.loc)))
+         (Syntax.name (Extension.syntax e.extension), e.loc)))
   with
   | Error (name, _, loc) ->
-     Errors.fail loc "Extension %S specified for the second time." name
+    Errors.fail loc "Extension %S specified for the second time." name
   | Ok map ->
-     let implicit_extensions =
-       Extension.automatic ~project_file
-         ~f:(fun name -> not (String.Map.mem map name))
-     in
-     let extensions =
-       List.map ~f:(fun e -> (e, true)) explicit_extensions @
-       List.map ~f:(fun e -> (e, false)) implicit_extensions
-     in
-     let acc = Univ_map.singleton (Syntax.key lang.syntax) lang.version in
-     let parsing_context =
-       List.fold_left extensions ~init:acc
-         ~f:(fun acc ((ext : Extension.instance), _) ->
-           Univ_map.add acc (Syntax.key (Extension.syntax ext.extension))
-             ext.version)
-     in
-     let extension_args, extension_stanzas =
-       List.fold_left
-         extensions
-         ~init:(Univ_map.empty, [])
-         ~f:(fun (args_acc, stanzas_acc)
-              ((instance : Extension.instance), is_explicit) ->
-              let extension = instance.extension in
-              let Extension.Extension e = extension in
-              let args =
-                let+ (arg, stanzas) =
-                  Dune_lang.Decoder.set_many parsing_context e.stanzas
-                in
-                let new_args_acc =
-                  if is_explicit then
-                    Univ_map.add args_acc e.key arg
-                  else
-                    args_acc
-                in
-                (new_args_acc, stanzas)
-              in
-              let (new_args_acc, stanzas) = instance.parse_args args in
-              (new_args_acc, stanzas::stanzas_acc))
-     in
-     let stanzas = List.concat (lang.data :: extension_stanzas) in
-     let stanza_parser =
-       Dune_lang.Decoder.(set_many parsing_context (sum stanzas))
-     in
-     (parsing_context, stanza_parser, extension_args)
+    let implicit_extensions =
+      Extension.automatic ~project_file
+        ~f:(fun name -> not (String.Map.mem map name))
+    in
+    let extensions =
+      List.map ~f:(fun e -> (e, true)) explicit_extensions @
+      List.map ~f:(fun e -> (e, false)) implicit_extensions
+    in
+    let acc = Univ_map.singleton (Syntax.key lang.syntax) lang.version in
+    let parsing_context =
+      List.fold_left extensions ~init:acc
+        ~f:(fun acc ((ext : Extension.instance), _) ->
+          Univ_map.add acc (Syntax.key (Extension.syntax ext.extension))
+            ext.version)
+    in
+    let extension_args, extension_stanzas =
+      List.fold_left
+        extensions
+        ~init:(Univ_map.empty, [])
+        ~f:(fun (args_acc, stanzas_acc)
+             ((instance : Extension.instance), is_explicit) ->
+             let extension = instance.extension in
+             let Extension.Extension e = extension in
+             let args =
+               let+ (arg, stanzas) =
+                 Dune_lang.Decoder.set_many parsing_context e.stanzas
+               in
+               let new_args_acc =
+                 if is_explicit then
+                   Univ_map.add args_acc e.key arg
+                 else
+                   args_acc
+               in
+               (new_args_acc, stanzas)
+             in
+             let (new_args_acc, stanzas) = instance.parse_args args in
+             (new_args_acc, stanzas::stanzas_acc))
+    in
+    let stanzas = List.concat (lang.data :: extension_stanzas) in
+    let stanza_parser =
+      Dune_lang.Decoder.(set_many parsing_context (sum stanzas))
+    in
+    (parsing_context, stanza_parser, extension_args)
 
 let key =
   Univ_map.Key.create ~name:"dune-project"
@@ -628,10 +635,10 @@ let default_name ~dir ~packages =
         name
 
 let name_field ~dir ~packages =
-    let+ name = field_o "name" Name.decode in
-    match name with
-    | Some x -> x
-    | None   -> default_name ~dir ~packages
+  let+ name = field_o "name" Name.decode in
+  match name with
+  | Some x -> x
+  | None   -> default_name ~dir ~packages
 
 let parse ~dir ~lang ~packages ~file =
   fields
@@ -639,8 +646,10 @@ let parse ~dir ~lang ~packages ~file =
      and+ version = field_o "version" string
      and+ source = field_o "source" Source_kind.decode
      and+ opam = field_o "opam" Opam_package.decode
-     and+ authors = field ~default:[] "authors" (Syntax.since Stanza.syntax (1, 9) >>> repeat string)
-     and+ license = field_o "license" (Syntax.since Stanza.syntax (1, 9) >>> string)
+     and+ authors = field ~default:[] "authors"
+                      (Syntax.since Stanza.syntax (1, 9) >>> repeat string)
+     and+ license = field_o "license"
+                      (Syntax.since Stanza.syntax (1, 9) >>> string)
      and+ explicit_extensions =
        multi_field "using"
          (let+ loc = loc
