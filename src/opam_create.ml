@@ -26,7 +26,7 @@ let add_rules sctx ~dir ~project =
     let expected_rule =
       Build.contents opam_path >>^ (fun contents ->
         let opamfile = Lexing.from_string contents |> Opam_file.parse in
-        let package_name = Local_package.name pkg |> Package.Name.to_string in
+        let package_name = Local_package.name pkg in
         let corrected =
           Opam_file.Mutator.apply (correct project package_name) opamfile in
         OpamPrinter.opamfile corrected) >>>

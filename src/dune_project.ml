@@ -189,7 +189,7 @@ module Opam_package = struct
   let decode_constraint = Blang_decode.decode
 
   type pkg =
-    { name : string
+    { name : Package.Name.t
     ; synopsis : string
     ; description : string
     ; constraints : Blang.t list;
@@ -199,7 +199,7 @@ module Opam_package = struct
     let open Stanza.Decoder in
     Syntax.since Stanza.syntax (1, 7) >>>
     fields (
-      let+ name = field "name" string
+      let+ name = field "name" Package.Name.decode
       and+ synopsis = field "synopsis" string
       and+ description = field "description" string
       and+ constraints = field ~default:[] "constraints"
@@ -208,7 +208,7 @@ module Opam_package = struct
 
   let pp_pkg fmt { name; synopsis; constraints; description } =
     Fmt.record fmt
-      [ "name", Fmt.const Format.pp_print_string name
+      [ "name", Fmt.const Package.Name.pp name
       ; "synopsis", Fmt.const Format.pp_print_string synopsis
       ; "description", Fmt.const Format.pp_print_string description
       ; "constraints", Fmt.(const (list pp_constr) constraints)
@@ -216,7 +216,7 @@ module Opam_package = struct
 
   type t =
     { tags : string list
-    ; constraints: constr list
+    ; constraints: Blang.t list
     ; packages: pkg list
     }
 

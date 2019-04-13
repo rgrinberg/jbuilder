@@ -48,7 +48,7 @@ end
 
 module Opam_package : sig
   type pkg =
-    { name: string
+    { name: Package.Name.t
     ; synopsis: string
     ; description: string
     ; constraints: Blang.t list
@@ -68,7 +68,7 @@ val version : t -> string option
 val name : t -> Name.t
 val source: t -> Source_kind.t option
 val opam : t -> Opam_package.t option
-val opam_package : t -> string -> Opam_package.pkg option
+val opam_package : t -> Package.Name.t -> Opam_package.pkg option
 val license : t -> string option
 val authors : t -> string list
 val root : t -> Path.Local.t
