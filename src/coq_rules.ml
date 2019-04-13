@@ -166,7 +166,9 @@ let setup_rules ~sctx ~dir ~dir_contents (s : Dune_file.Coq.t) =
 
   let coq_modules = Dir_contents.coq_modules_of_library dir_contents ~name in
 
-  let theories_libs = coq_theories_of_lib_deps ~coq_lib_db s.theories in
+  let theories = List.map s.theories ~f:(fun (loc, ln) ->
+    (loc, Coq_lib_name.make ln)) in
+  let theories_libs = coq_theories_of_lib_deps ~coq_lib_db theories in
   let theories_flags = List.concat_map theories_libs ~f:setup_theory_flag in
 
   let theories_modules =

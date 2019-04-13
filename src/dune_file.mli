@@ -369,7 +369,7 @@ module Coq : sig
     ; enabled_if : Blang.t
     }
 
-  val best_name : t -> Lib_name.t
+  val best_name : t -> Coq_lib_name.t
 
   type Stanza.t += T of t
 end

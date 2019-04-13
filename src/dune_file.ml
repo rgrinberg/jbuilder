@@ -1887,8 +1887,8 @@ module Coq = struct
 
   let best_name t =
     match t.public with
-    | None -> Lib_name.of_local t.name
-    | Some p -> snd p.name
+    | None -> Coq_lib_name.make (Lib_name.of_local t.name)
+    | Some p -> Coq_lib_name.make (snd p.name)
 
   type Stanza.t += T of t
 

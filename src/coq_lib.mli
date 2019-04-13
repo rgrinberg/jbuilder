@@ -6,7 +6,7 @@ open! Stdune
 
 type t
 
-val name : t -> Lib_name.t
+val name : t -> Coq_lib_name.t
 
 (* this is not really a wrapper for the prefix path *)
 val wrapper : t -> string
@@ -28,9 +28,9 @@ module DB : sig
   val find_many
     :  t
     -> loc:Loc.t
-    -> Lib_name.t list
+    -> Coq_lib_name.t list
     -> lib list Or_exn.t
 
-  val resolve : t -> Loc.t * Lib_name.t -> lib Or_exn.t
+  val resolve : t -> Loc.t * Coq_lib_name.t -> lib Or_exn.t
 
 end with type lib := t

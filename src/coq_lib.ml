@@ -5,7 +5,7 @@
 open! Stdune
 
 type t =
-  { name : Lib_name.t
+  { name : Coq_lib_name.t
   ; wrapper : string
   ; src_root : Path.t
   ; obj_root : Path.t
@@ -20,7 +20,7 @@ let package l = l.package
 
 module DB = struct
 
-  type nonrec t = t Lib_name.Map.t
+  type nonrec t = t Coq_lib_name.Map.t
 
   let create_from_stanza (dir, s : Path.t * Dune_file.Coq.t) =
     let name = Dune_file.Coq.best_name s in
@@ -34,16 +34,16 @@ module DB = struct
 
   (* XXX: Error handling: register errors and printers *)
   let create_from_coqlib_stanzas sl =
-    match Lib_name.Map.of_list_map ~f:create_from_stanza sl with
+    match Coq_lib_name.Map.of_list_map ~f:create_from_stanza sl with
     | Ok m -> m
     | Error (name, _w1, w2) ->
       let loc = (snd w2).loc in
-      raise (Errors.exnf loc "Duplicate theory name: %a" Lib_name.pp name)
+      raise (Errors.exnf loc "Duplicate theory name: %a" Coq_lib_name.pp name)
 
   let resolve db (loc,name) =
-    match Lib_name.Map.find db name with
+    match Coq_lib_name.Map.find db name with
     | None ->
-      Error (Errors.exnf loc "Theory %a not found" Lib_name.pp name)
+      Error (Errors.exnf loc "Theory %a not found" Coq_lib_name.pp name)
     | Some s -> Ok s
 
   let find_many t ~loc =
