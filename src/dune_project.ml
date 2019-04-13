@@ -267,6 +267,7 @@ type t =
   ; implicit_transitive_deps : bool
   ; dune_version    : Syntax.Version.t
   ; allow_approx_merlin : bool
+  ; gen_opam_file   : bool
   }
 
 let equal = (==)
@@ -287,12 +288,13 @@ let stanza_parser t = t.stanza_parser
 let file t = t.project_file.file
 let implicit_transitive_deps t = t.implicit_transitive_deps
 let allow_approx_merlin t = t.allow_approx_merlin
+let gen_opam_file t = t.gen_opam_file
 
 let pp fmt { name ; root ; version ; source; license; authors
            ; opam; project_file ; parsing_context = _
            ; extension_args = _; stanza_parser = _ ; packages
            ; implicit_transitive_deps ; dune_version
-           ; allow_approx_merlin } =
+           ; allow_approx_merlin ; gen_opam_file} =
   Fmt.record fmt
     [ "name", Fmt.const Name.pp name
     ; "root", Fmt.const Path.Local.pp root
@@ -311,6 +313,8 @@ let pp fmt { name ; root ; version ; source; license; authors
     ; "dune_version", Fmt.const Syntax.Version.pp dune_version
     ; "allow_approx_merlin"
     , Fmt.const Format.pp_print_bool allow_approx_merlin
+    ; "gen_opam_file"
+    , Fmt.const Format.pp_print_bool gen_opam_file
     ]
 
 let find_extension_args t key =
@@ -552,7 +556,7 @@ let key =
          ; license; authors; opam
          ; stanza_parser = _; packages = _ ; extension_args = _
          ; parsing_context ; implicit_transitive_deps ; dune_version
-         ; allow_approx_merlin } ->
+         ; allow_approx_merlin ; gen_opam_file } ->
       Sexp.Encoder.record
         [ "name", Name.to_sexp name
         ; "root", Path.Local.to_sexp root
@@ -567,6 +571,8 @@ let key =
         ; "dune_version", Syntax.Version.to_sexp dune_version
         ; "allow_approx_merlin"
         , Sexp.Encoder.bool allow_approx_merlin
+        ; "gen_opam_file"
+        , Sexp.Encoder.bool gen_opam_file
         ])
 
 let set t = Dune_lang.Decoder.set key t
@@ -612,6 +618,7 @@ let anonymous = lazy (
   ; parsing_context
   ; dune_version = lang.version
   ; allow_approx_merlin = true
+  ; gen_opam_file = false
   })
 
 let default_name ~dir ~packages =
@@ -666,6 +673,9 @@ let parse ~dir ~lang ~packages ~file =
      and+ allow_approx_merlin =
        field_o_b "allow_approximate_merlin"
          ~check:(Syntax.since Stanza.syntax (1, 9))
+     and+ gen_opam_file =
+       field_o_b "generate_opam_file"
+         ~check:(Syntax.since Stanza.syntax (1, 9))
      and+ () = Versioned_file.no_more_lang
      in
      let project_file : Project_file.t =
@@ -682,6 +692,8 @@ let parse ~dir ~lang ~packages ~file =
      in
      let allow_approx_merlin =
        Option.value ~default:false allow_approx_merlin in
+     let gen_opam_file =
+       Option.value ~default:false gen_opam_file in
      { name
      ; root = get_local_path dir
      ; version
@@ -697,6 +709,7 @@ let parse ~dir ~lang ~packages ~file =
      ; implicit_transitive_deps
      ; dune_version = lang.version
      ; allow_approx_merlin
+     ; gen_opam_file
      })
 
 let load_dune_project ~dir packages =
@@ -731,6 +744,7 @@ let make_jbuilder_project ~dir packages =
   ; implicit_transitive_deps = true
   ; dune_version = lang.version
   ; allow_approx_merlin = true
+  ; gen_opam_file = false
   }
 
 let read_name file =

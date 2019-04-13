@@ -90,12 +90,10 @@ let correct project package_name =
          (Dune_project.source project)) (set_string "dev-repo") >>>
   fixup
 
-let add_rules sctx ~dir =
+let add_rules sctx ~dir ~project =
   let open Build.O in
-  let scope = lazy (Super_context.find_scope_by_dir sctx dir) in
   Local_package.defined_in sctx ~dir
   |> List.iter ~f:(fun pkg ->
-    let project = Scope.project (Lazy.force scope) in
     let opam_path = Local_package.opam_file pkg in
     let expected_path = Path.extend_basename opam_path ~suffix:".expected" in
     let expected_rule =
@@ -107,7 +105,8 @@ let add_rules sctx ~dir =
       Build.write_file_dyn expected_path
     in
     let diff_rule =
-      Build.paths [opam_path; expected_path] >>^ fun () ->
+      Build.paths [expected_path; opam_path]
+      >>^ fun () ->
       Action.Diff { Action.Diff.
                     file1 = opam_path
                   ; file2 = expected_path
@@ -120,3 +119,9 @@ let add_rules sctx ~dir =
     Super_context.add_rule sctx ~dir expected_rule;
     Super_context.add_alias_action sctx alias
       ~dir ~loc:None ~stamp:("opam_diff", opam_path) diff_rule)
+
+let add_rules sctx ~dir =
+  let scope = Super_context.find_scope_by_dir sctx dir in
+  let project = Scope.project scope in
+  if Dune_project.gen_opam_file project then
+    add_rules sctx ~dir ~project
