@@ -182,49 +182,53 @@ module Source_kind = struct
       ]
 end
 
-module Opam_package = struct
+module Opam = struct
 
   let pp_constr fmt _ = Format.fprintf fmt "<constraint>"
 
   let decode_constraint = Blang_decode.decode
 
-  type pkg =
-    { name : Package.Name.t
-    ; synopsis : string
-    ; description : string
-    ; constraints : Blang.t list;
-    }
+  module Package = struct
+    module Name = Package.Name
 
-  let decode_pkg =
-    let open Stanza.Decoder in
-    Syntax.since Stanza.syntax (1, 7) >>>
-    fields (
-      let+ name = field "name" Package.Name.decode
-      and+ synopsis = field "synopsis" string
-      and+ description = field "description" string
-      and+ constraints = field ~default:[] "constraints"
-                           (repeat decode_constraint) in
-      { name; synopsis; description; constraints })
+    type t =
+      { name : Package.Name.t
+      ; synopsis : string
+      ; description : string
+      ; constraints : Blang.t list;
+      }
 
-  let pp_pkg fmt { name; synopsis; constraints; description } =
-    Fmt.record fmt
-      [ "name", Fmt.const Package.Name.pp name
-      ; "synopsis", Fmt.const Format.pp_print_string synopsis
-      ; "description", Fmt.const Format.pp_print_string description
-      ; "constraints", Fmt.(const (list pp_constr) constraints)
-      ]
+    let decode =
+      let open Stanza.Decoder in
+      Syntax.since Stanza.syntax (1, 7) >>>
+      fields (
+        let+ name = field "name" Package.Name.decode
+        and+ synopsis = field "synopsis" string
+        and+ description = field "description" string
+        and+ constraints = field ~default:[] "constraints"
+                             (repeat decode_constraint) in
+        { name; synopsis; description; constraints })
+
+    let pp fmt { name; synopsis; constraints; description } =
+      Fmt.record fmt
+        [ "name", Fmt.const Package.Name.pp name
+        ; "synopsis", Fmt.const Format.pp_print_string synopsis
+        ; "description", Fmt.const Format.pp_print_string description
+        ; "constraints", Fmt.(const (list pp_constr) constraints)
+        ]
+  end
 
   type t =
     { tags : string list
     ; constraints: Blang.t list
-    ; packages: pkg list
+    ; packages: Package.t list
     }
 
   let pp fmt { tags; constraints; packages } =
     Fmt.record fmt
       [ "tags", Fmt.(const (list Format.pp_print_string) tags)
       ; "constraints", Fmt.(const (list pp_constr) constraints)
-      ; "packages", Fmt.(const (list pp_pkg) packages)
+      ; "packages", Fmt.(const (list Package.pp) packages)
       ]
 
   let to_sexp { tags; constraints = _ ; packages = _ } =
@@ -242,13 +246,15 @@ module Opam_package = struct
       let+ tags = field ~default:[] "tags" (repeat string)
       and+ constraints =
         field ~default:[] "constraints" (repeat decode_constraint)
-      and+ packages = multi_field "package" decode_pkg in
+      and+ packages = multi_field "package" Package.decode in
       { tags
       ; constraints
       ; packages
       }
     )
 
+  let find t name =
+    List.find t.packages ~f:(fun p -> Package.Name.equal p.name name)
 end
 
 type t =
@@ -258,7 +264,7 @@ type t =
   ; source          : Source_kind.t option
   ; license         : string option
   ; authors         : string list
-  ; opam            : Opam_package.t option
+  ; opam            : Opam.t option
   ; packages        : Package.t Package.Name.Map.t
   ; stanza_parser   : Stanza.t list Dune_lang.Decoder.t
   ; project_file    : Project_file.t
@@ -279,9 +285,6 @@ let source t = t.source
 let license t = t.license
 let authors t = t.authors
 let opam t = t.opam
-let opam_package t name =
-  Option.bind (opam t) ~f:(fun o ->
-    List.find ~f:(fun p -> p.Opam_package.name = name) o.Opam_package.packages)
 let name t = t.name
 let root t = t.root
 let stanza_parser t = t.stanza_parser
@@ -302,7 +305,7 @@ let pp fmt { name ; root ; version ; source; license; authors
     ; "source", Fmt.const (Fmt.optional Source_kind.pp) source
     ; "license", Fmt.const (Fmt.optional Format.pp_print_string) license
     ; "authors", Fmt.const (Fmt.list Format.pp_print_string) authors
-    ; "opam", Fmt.const (Fmt.optional Opam_package.pp) opam
+    ; "opam", Fmt.const (Fmt.optional Opam.pp) opam
     ; "project_file", Fmt.const Project_file.pp project_file
     ; "packages",
       Fmt.const
@@ -564,7 +567,7 @@ let key =
         ; "authors", Sexp.Encoder.(list string) authors
         ; "source", Sexp.Encoder.(option Source_kind.to_sexp) source
         ; "version", Sexp.Encoder.(option string) version
-        ; "opam", Sexp.Encoder.(option Opam_package.to_sexp) opam
+        ; "opam", Sexp.Encoder.(option Opam.to_sexp) opam
         ; "project_file", Project_file.to_sexp project_file
         ; "parsing_context", Univ_map.to_sexp parsing_context
         ; "implicit_transitive_deps", Sexp.Encoder.bool implicit_transitive_deps
@@ -652,7 +655,7 @@ let parse ~dir ~lang ~packages ~file =
     (let+ name = name_field ~dir ~packages
      and+ version = field_o "version" string
      and+ source = field_o "source" Source_kind.decode
-     and+ opam = field_o "opam" Opam_package.decode
+     and+ opam = field_o "opam" Opam.decode
      and+ authors = field ~default:[] "authors"
                       (Syntax.since Stanza.syntax (1, 9) >>> repeat string)
      and+ license = field_o "license"

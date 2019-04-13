@@ -2,13 +2,16 @@ open Stdune
 
 let correct_specific _project package =
   let open Opam_file.Mutator in
-  let open Dune_project.Opam_package in
+  let open Dune_project.Opam.Package in
   set_string "synopsis" package.synopsis >>>
   set_string "description" package.description
 
 let correct project package_name =
   let open Opam_file.Mutator in
-  opt (Dune_project.opam_package project package_name)
+  opt (
+    let open Option.O in
+    let* opam = Dune_project.opam project in
+    Dune_project.Opam.find opam package_name)
     (correct_specific project) >>>
   opt (Dune_project.license project) (set_string "license") >>>
   list (Dune_project.authors project) (set_list "authors" mkstring) >>>

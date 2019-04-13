@@ -46,20 +46,26 @@ module Source_kind : sig
   val pp : t Fmt.t
 end
 
-module Opam_package : sig
-  type pkg =
-    { name: Package.Name.t
-    ; synopsis: string
-    ; description: string
-    ; constraints: Blang.t list
-    }
+module Opam : sig
+  module Package : sig
+    type t = private
+      { name: Package.Name.t
+      ; synopsis: string
+      ; description: string
+      ; constraints: Blang.t list
+      }
+  end
 
-  type t =
+  type t = private
     { tags : string list
     ; constraints: Blang.t list
-    ; packages: pkg list
+    ; packages: Package.t list
     }
-end
+
+  type package_name
+
+  val find : t -> package_name -> Package.t option
+end with type package_name := Package.Name.t
 
 type t
 
@@ -67,8 +73,7 @@ val packages : t -> Package.t Package.Name.Map.t
 val version : t -> string option
 val name : t -> Name.t
 val source: t -> Source_kind.t option
-val opam : t -> Opam_package.t option
-val opam_package : t -> Package.Name.t -> Opam_package.pkg option
+val opam : t -> Opam.t option
 val license : t -> string option
 val authors : t -> string list
 val root : t -> Path.Local.t
