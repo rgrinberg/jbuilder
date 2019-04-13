@@ -49,4 +49,7 @@ module DB = struct
   let find_many t ~loc =
     Result.List.map ~f:(fun name -> resolve t (loc, name))
 
+  (* XXX: Implement closure *)
+  let requires db l = Result.List.all [resolve db l]
+
 end

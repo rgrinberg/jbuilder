@@ -33,4 +33,7 @@ module DB : sig
 
   val resolve : t -> Loc.t * Coq_lib_name.t -> lib Or_exn.t
 
+  (** Return the list of dependencies needed for compiling this library *)
+  val requires : t -> Loc.t * Coq_lib_name.t -> lib list Or_exn.t
+
 end with type lib := t
