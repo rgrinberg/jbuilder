@@ -92,10 +92,10 @@ let correct project package_name =
 
 let add_rules sctx ~dir =
   let open Build.O in
-  let scope = Super_context.find_scope_by_dir sctx dir in
-  let project = Scope.project scope in
+  let scope = lazy (Super_context.find_scope_by_dir sctx dir) in
   Local_package.defined_in sctx ~dir
   |> List.iter ~f:(fun pkg ->
+    let project = Scope.project (Lazy.force scope) in
     let opam_path = Local_package.opam_file pkg in
     let expected_path = Path.extend_basename opam_path ~suffix:".expected" in
     let expected_rule =
