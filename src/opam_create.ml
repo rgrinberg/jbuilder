@@ -107,6 +107,7 @@ let add_rules sctx ~dir =
       Build.write_file_dyn expected_path
     in
     let diff_rule =
+      Build.paths [opam_path; expected_path] >>^ fun () ->
       Action.Diff { Action.Diff.
                     file1 = opam_path
                   ; file2 = expected_path
@@ -114,8 +115,8 @@ let add_rules sctx ~dir =
                   ; mode = Text
                   }
     in
-    let action = Build.path expected_path >>^ fun () -> diff_rule in
-    let ctx = Super_context.context sctx in
-    Super_context.add_rule sctx ~dir:ctx.build_dir expected_rule;
-    Super_context.add_alias_action sctx (Alias.runtest ~dir:ctx.build_dir)
-      ~dir:ctx.build_dir ~loc:None ~stamp:("opam_diff",opam_path) action)
+    let dir = Local_package.build_dir pkg in
+    let alias = Alias.install ~dir in
+    Super_context.add_rule sctx ~dir expected_rule;
+    Super_context.add_alias_action sctx alias
+      ~dir ~loc:None ~stamp:("opam_diff", opam_path) diff_rule)
