@@ -287,23 +287,16 @@ let create
   let installed_libs =
     Lib.DB.create_from_findlib context.findlib ~external_lib_deps_mode
   in
-  let internal_libs =
-    List.concat_map stanzas
+  let internal_libs, internal_coq_libs =
+    List.map stanzas
       ~f:(fun { Dune_load.Dune_file. dir; stanzas; project = _ ; kind = _ } ->
         let ctx_dir = Path.append context.build_dir dir in
-        List.filter_map stanzas ~f:(fun stanza ->
+        List.filter_partition_map stanzas ~f:(fun stanza ->
           match (stanza : Stanza.t) with
-          | Library lib -> Some (ctx_dir, lib)
-          | _ -> None))
-  in
-  let internal_coq_libs =
-    List.concat_map stanzas
-      ~f:(fun { Dune_load.Dune_file. dir; stanzas; project = _ ; kind = _ } ->
-        let ctx_dir = Path.append context.build_dir dir in
-        List.filter_map stanzas ~f:(fun stanza ->
-          match (stanza : Stanza.t) with
-          | Coq.T coq_lib -> Some (ctx_dir, coq_lib)
-          | _ -> None))
+          | Library lib -> Left (ctx_dir, lib)
+          | Coq.T coq_lib -> Right (ctx_dir, coq_lib)
+          | _ -> Skip))
+    |> List.split |> (fun (ll,lr) -> List.concat ll, List.concat lr)
   in
   let scopes, public_libs =
     let lib_config = Context.lib_config context in
