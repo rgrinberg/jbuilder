@@ -22,7 +22,9 @@ val true_ : t
 val eval
   :  t
   -> dir:Path.t
-  -> f:Value.t list option  String_with_vars.expander
+  -> f:Value.t list option String_with_vars.expander
   -> bool
 
 include Dyn.S with type t := t
+
+val decode : t Stanza.Decoder.t

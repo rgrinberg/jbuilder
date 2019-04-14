@@ -322,7 +322,7 @@ end
 
 let enabled_if =
   field "enabled_if" ~default:Blang.true_
-    (Syntax.since Stanza.syntax (1, 4) >>> Blang_decode.decode)
+    (Syntax.since Stanza.syntax (1, 4) >>> Blang.decode)
 
 module Per_module = struct
   include Per_item.Make(Module.Name)
@@ -1895,7 +1895,7 @@ module Alias_conf = struct
        and+ action = field_o "action" (located Action_dune_lang.decode)
        and+ locks = field "locks" (list String_with_vars.decode) ~default:[]
        and+ deps = field "deps" (Bindings.decode Dep_conf.decode) ~default:Bindings.empty
-       and+ enabled_if = field "enabled_if" Blang_decode.decode ~default:Blang.true_
+       and+ enabled_if = field "enabled_if" Blang.decode ~default:Blang.true_
        in
        { name
        ; deps

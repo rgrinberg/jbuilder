@@ -182,7 +182,7 @@ end
 
 module Opam = struct
 
-  let decode_constraint = Blang_decode.decode
+  let decode_constraint = Blang.decode
 
   module Package = struct
     module Name = Package.Name
