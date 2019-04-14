@@ -13,14 +13,13 @@ module Name : sig
     | Named     of string
     | Anonymous of Path.t
 
-  val pp : t Fmt.t
+  include Dyn.S with type t := t
 
   val compare : t -> t -> Ordering.t
 
   val to_string_hum : t -> string
 
   val decode : t Dune_lang.Decoder.t
-  val to_sexp : t Sexp.Encoder.t
 
   val to_encoded_string : t -> string
   val of_encoded_string : string -> t
@@ -55,22 +54,18 @@ end = struct
 
   let anonymous_root = Anonymous Path.root
 
-  let pp fmt = function
-    | Named n ->
-      Format.fprintf fmt "Named %S" n
-    | Anonymous p ->
-      Format.fprintf fmt "Anonymous %s" (Path.to_string_maybe_quoted p)
+  include Dyn.Make (struct
+      type nonrec t = t
+      let to_dyn =
+        let open Dyn.Encoder in
+        function
+        | Named n -> constr "Named" [string n]
+        | Anonymous p -> constr "Anonymous" [Path.to_dyn p]
+    end)
 
   let to_string_hum = function
     | Named     s -> s
     | Anonymous p -> sprintf "<anonymous %s>" (Path.to_string_maybe_quoted p)
-
-  let to_sexp = function
-    | Named s -> Sexp.Encoder.string s
-    | Anonymous p ->
-      List [ Atom "anonymous"
-           ; Path.to_sexp p
-           ]
 
   let validate name =
     let len = String.length name in
@@ -139,20 +134,17 @@ module Project_file = struct
     ; project_name   : Name.t
     }
 
-  let pp fmt { file ; exists; project_name } =
-    Fmt.record fmt
-      [ "file", Fmt.const Path.pp file
-      ; "exists", Fmt.const Format.pp_print_bool exists
-      ; "project_name", (fun fmt () -> Name.pp fmt project_name)
-      ]
-
-  let to_sexp { file; exists; project_name } =
-    let open Sexp.Encoder  in
-    record
-      [ "file", Path.to_sexp file
-      ; "exists", bool exists
-      ; "project_name", Name.to_sexp project_name
-      ]
+  include(
+    Dyn.Make(struct
+      type nonrec t = t
+      let to_dyn { file; exists; project_name } =
+        let open Dyn.Encoder  in
+        record
+          [ "file", Path.to_dyn file
+          ; "exists", bool exists
+          ; "project_name", Name.to_dyn project_name
+          ]
+    end))
 end
 
 module Source_kind = struct
@@ -160,14 +152,21 @@ module Source_kind = struct
     | Github of string * string
     | Url of string
 
+  include Dyn.Make(struct
+      type nonrec t = t
+      let to_dyn =
+        let open Dyn.Encoder in
+        function
+        | Github (user,repo) ->
+          constr "Github" [string user; string repo]
+        | Url url ->
+          constr "Url" [string url]
+    end)
+
   let pp fmt = function
     | Github (user,repo) ->
       Format.fprintf fmt "git+https://github.com/%s/%s.git" user repo
     | Url u -> Format.pp_print_string fmt u
-
-  let to_sexp = function
-    | Github (user,repo) -> Sexp.(List [Atom "github"; Atom user; Atom repo])
-    | Url url -> Sexp.(List [Atom "url"; Atom url])
 
   let decode =
     let open Stanza.Decoder in
@@ -182,8 +181,6 @@ module Source_kind = struct
 end
 
 module Opam = struct
-
-  let pp_constr fmt _ = Format.fprintf fmt "<constraint>"
 
   let decode_constraint = Blang_decode.decode
 
@@ -208,13 +205,18 @@ module Opam = struct
                              (repeat decode_constraint) in
         { name; synopsis; description; constraints })
 
-    let pp fmt { name; synopsis; constraints; description } =
-      Fmt.record fmt
-        [ "name", Fmt.const Package.Name.pp name
-        ; "synopsis", Fmt.const Format.pp_print_string synopsis
-        ; "description", Fmt.const Format.pp_print_string description
-        ; "constraints", Fmt.(const (list pp_constr) constraints)
-        ]
+    include (
+      Dyn.Make(struct
+        type nonrec t = t
+        let to_dyn { name; synopsis; constraints; description } =
+          let open Dyn.Encoder in
+          record
+            [ "name", Package.Name.to_dyn name
+            ; "synopsis", string synopsis
+            ; "description", string description
+            ; "constraints", list Blang.to_dyn constraints
+            ]
+      end))
   end
 
   type t =
@@ -223,20 +225,16 @@ module Opam = struct
     ; packages: Package.t list
     }
 
-  let pp fmt { tags; constraints; packages } =
-    Fmt.record fmt
-      [ "tags", Fmt.(const (list Format.pp_print_string) tags)
-      ; "constraints", Fmt.(const (list pp_constr) constraints)
-      ; "packages", Fmt.(const (list Package.pp) packages)
-      ]
-
-  let to_sexp { tags; constraints = _ ; packages = _ } =
-    let open Sexp.Encoder in
-    record
-      [ "tags", list string tags
-      ; "constraints", list string ["TODO"]
-      ; "packages", list string ["TODO"]
-      ]
+  include Dyn.Make (struct
+      type nonrec t = t
+      let to_dyn { tags; constraints ; packages } =
+        let open Dyn.Encoder in
+        record
+          [ "tags", list string tags
+          ; "constraints", list Blang.to_dyn constraints
+          ; "packages", list Package.to_dyn packages
+          ]
+    end)
 
   let decode =
     let open Stanza.Decoder in
@@ -292,32 +290,35 @@ let implicit_transitive_deps t = t.implicit_transitive_deps
 let allow_approx_merlin t = t.allow_approx_merlin
 let gen_opam_file t = t.gen_opam_file
 
-let pp fmt { name ; root ; version ; source; license; authors
-           ; opam; project_file ; parsing_context = _
-           ; extension_args = _; stanza_parser = _ ; packages
-           ; implicit_transitive_deps ; dune_version
-           ; allow_approx_merlin ; gen_opam_file} =
-  Fmt.record fmt
-    [ "name", Fmt.const Name.pp name
-    ; "root", Fmt.const Path.Local.pp root
-    ; "version", Fmt.const (Fmt.optional Format.pp_print_string) version
-    ; "source", Fmt.const (Fmt.optional Source_kind.pp) source
-    ; "license", Fmt.const (Fmt.optional Format.pp_print_string) license
-    ; "authors", Fmt.const (Fmt.list Format.pp_print_string) authors
-    ; "opam", Fmt.const (Fmt.optional Opam.pp) opam
-    ; "project_file", Fmt.const Project_file.pp project_file
-    ; "packages",
-      Fmt.const
-        (Fmt.ocaml_list (Fmt.tuple Package.Name.pp Package.pp))
-        (Package.Name.Map.to_list packages)
-    ; "implicit_transitive_deps",
-      Fmt.const Format.pp_print_bool implicit_transitive_deps
-    ; "dune_version", Fmt.const Syntax.Version.pp dune_version
-    ; "allow_approx_merlin"
-    , Fmt.const Format.pp_print_bool allow_approx_merlin
-    ; "gen_opam_file"
-    , Fmt.const Format.pp_print_bool gen_opam_file
-    ]
+include (Dyn.Make(
+struct
+  type nonrec t = t
+  let to_dyn
+        { name ; root ; version ; source; license; authors
+        ; opam; project_file ; parsing_context = _
+        ; extension_args = _; stanza_parser = _ ; packages
+        ; implicit_transitive_deps ; dune_version
+        ; allow_approx_merlin ; gen_opam_file } =
+    let open Dyn.Encoder in
+    record
+      [ "name", Name.to_dyn name
+      ; "root", via_sexp Path.Local.to_sexp root
+      ; "version", (option string) version
+      ; "source", (option Source_kind.to_dyn) source
+      ; "license", (option string) license
+      ; "authors", (list string) authors
+      ; "opam", (option Opam.to_dyn) opam
+      ; "project_file", Project_file.to_dyn project_file
+      ; "packages",
+        (list (pair Package.Name.to_dyn Package.to_dyn))
+          (Package.Name.Map.to_list packages)
+      ; "implicit_transitive_deps",
+        bool implicit_transitive_deps
+      ; "dune_version", Syntax.Version.to_dyn dune_version
+      ; "allow_approx_merlin", bool allow_approx_merlin
+      ; "gen_opam_file", bool gen_opam_file
+      ]
+end))
 
 let find_extension_args t key =
   Univ_map.find t.extension_args key

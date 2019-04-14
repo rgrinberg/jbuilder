@@ -11,16 +11,13 @@ module Version : sig
   type t = int * int
 
   include Dune_lang.Conv with type t := t
+  include Dyn.S with type t := t
 
   val hash : t -> int
 
   val equal : t -> t -> bool
 
-  val to_sexp : t Sexp.Encoder.t
-
   val to_string : t -> string
-
-  val pp : t Fmt.t
 
   (** Whether the parser can read the data or not *)
   val can_read : parser_version:t -> data_version:t -> bool

@@ -18,12 +18,12 @@ module Name : sig
     | Named     of string
     | Anonymous of Path.t
 
+  include Dyn.S with type t := t
+
   val compare : t -> t -> Ordering.t
 
   (** Convert to a string that is suitable for human readable messages *)
   val to_string_hum : t -> string
-
-  val to_sexp : t Sexp.Encoder.t
 
   (** Convert to/from an encoded string that is suitable to use in filenames *)
   val to_encoded_string : t -> string
@@ -36,6 +36,7 @@ end
 
 module Project_file : sig
   type t
+  include Dyn.S with type t := t
 end
 
 module Source_kind : sig
@@ -43,7 +44,7 @@ module Source_kind : sig
     | Github of string * string
     | Url of string
 
-  val pp : t Fmt.t
+  include Dyn.S with type t := t
 end
 
 module Opam : sig
@@ -54,6 +55,7 @@ module Opam : sig
       ; description: string
       ; constraints: Blang.t list
       }
+    include Dyn.S with type t := t
   end
 
   type t = private
@@ -64,10 +66,14 @@ module Opam : sig
 
   type package_name
 
+  include Dyn.S with type t := t
+
   val find : t -> package_name -> Package.t option
 end with type package_name := Package.Name.t
 
 type t
+
+include Dyn.S with type t := t
 
 val packages : t -> Package.t Package.Name.Map.t
 val version : t -> string option
@@ -167,7 +173,5 @@ val set_parsing_context : t -> 'a Dune_lang.Decoder.t -> 'a Dune_lang.Decoder.t
 val implicit_transitive_deps : t -> bool
 
 val dune_version : t -> Syntax.Version.t
-
-val pp : t Fmt.t
 
 val in_source_root : t -> Path.t

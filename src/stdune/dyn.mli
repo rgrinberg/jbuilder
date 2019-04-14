@@ -48,3 +48,14 @@ val pp : Format.formatter -> t -> unit
 val opaque : t
 
 val to_sexp : t Sexp.Encoder.t
+
+type dyn = t
+
+module type S = sig
+  type t
+  val to_dyn : t -> dyn
+  val pp : Format.formatter -> t -> unit
+  val to_sexp : t -> Sexp0.t
+end
+
+module Make (D : sig type t val to_dyn : t -> dyn end) : S with type t := D.t

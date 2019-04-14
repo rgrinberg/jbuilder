@@ -24,3 +24,5 @@ val eval
   -> dir:Path.t
   -> f:Value.t list option  String_with_vars.expander
   -> bool
+
+include Dyn.S with type t := t

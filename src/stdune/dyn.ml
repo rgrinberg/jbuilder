@@ -126,3 +126,18 @@ module Encoder = struct
 end
 
 let opaque = String "<opaque>"
+
+type dyn = t
+
+module type S = sig
+  type t
+  val to_dyn : t -> dyn
+  val pp : Format.formatter -> t -> unit
+  val to_sexp : t -> Sexp0.t
+end
+
+module Make (S : sig type t val to_dyn : t -> dyn end) = struct
+  include S
+  let pp fmt t = pp fmt (to_dyn t)
+  let to_sexp t = to_sexp (to_dyn t)
+end
