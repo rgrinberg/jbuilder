@@ -38,7 +38,7 @@ module Env_nodes : sig
     }
 end
 
-type t =
+type t = private
   { name : string
   ; kind : Kind.t
 
