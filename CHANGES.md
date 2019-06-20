@@ -5,6 +5,9 @@
   the cost of building unnecessary artifacts in some cases. Some of these extra
   artifacts can fail to built, so this is a breaking change. (#2268, @rgrinberg)
 
+- Change `implicit_transive_deps` to be false. Implicit transitive deps now must
+  be manually enabled (#22.., @rgrinberg)
+
 1.11.0 (unreleased)
 -------------------
 
