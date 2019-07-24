@@ -15,11 +15,11 @@ val load_sources
   :  dune_version:Syntax.Version.t
   -> dir:Path.Build.t
   -> files:String.Set.t
-  -> C.Source.t String.Map.t C.Kind.Dict.t
+  -> C.Source.t String.Map.t C.Kind.Map.t
 
 (** [make stanzas ~c_sources] will load and validate C/C++ sources. [c_sources]
     should be a two level map such as the one returned by [load_sources] *)
 val make
   :  Stanza.t list Dir_with_dune.t
-  -> c_sources:C.Source.t String.Map.t C.Kind.Dict.t
+  -> c_sources:C.Source.t String.Map.t C.Kind.Map.t
   -> t

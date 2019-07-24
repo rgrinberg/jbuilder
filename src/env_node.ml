@@ -7,7 +7,7 @@ type t =
   ; config                : Dune_env.Stanza.t option
   ; mutable local_binaries : File_binding.Expanded.t list option
   ; mutable ocaml_flags   : Ocaml_flags.t option
-  ; mutable c_flags       : (unit, string list) Build.t C.Kind.Dict.t option
+  ; mutable c_flags       : (unit, string list) Build.t C.Kind.Map.t option
   ; mutable external_     : Env.t option
   ; mutable bin_artifacts : Artifacts.Bin.t option
   ; mutable inline_tests  : Dune_env.Stanza.Inline_tests.t option;
@@ -151,7 +151,7 @@ let rec c_flags t ~profile ~expander ~default_context_flags =
   | None ->
     let default =
       match t.inherit_from with
-      | None -> C.Kind.Dict.map ~f:Build.return default_context_flags
+      | None -> C.Kind.Map.map ~f:Build.return default_context_flags
       | Some (lazy t) -> c_flags t ~profile ~expander ~default_context_flags
     in
     let flags =
@@ -159,8 +159,8 @@ let rec c_flags t ~profile ~expander ~default_context_flags =
       | None -> default
       | Some cfg ->
         let expander = Expander.set_dir expander ~dir:t.dir in
-        C.Kind.Dict.mapi cfg.c_flags ~f:(fun ~kind f ->
-          let default = C.Kind.Dict.get default kind in
+        C.Kind.Map.mapi cfg.c_flags ~f:(fun ~kind f ->
+          let default = C.Kind.Map.get default kind in
           Expander.expand_and_eval_set expander f ~standard:default)
     in
     t.c_flags <- Some flags;

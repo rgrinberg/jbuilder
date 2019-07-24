@@ -13,10 +13,10 @@ module Lib = struct
     ; orig_src_dir     : Path.t option
     ; kind             : Lib_kind.t
     ; synopsis         : string option
-    ; archives         : Path.t list Mode.Dict.t
-    ; plugins          : Path.t list Mode.Dict.t
+    ; archives         : Path.t list Mode.Map.t
+    ; plugins          : Path.t list Mode.Map.t
     ; foreign_objects  : Path.t list
-    ; foreign_archives : Path.t list Mode.Dict.t
+    ; foreign_archives : Path.t list Mode.Map.t
     ; jsoo_runtime     : Path.t list
     ; ppx_runtime_deps : (Loc.t * Lib_name.t) list
     ; sub_systems      : 'sub_system Sub_system_name.Map.t
@@ -28,7 +28,7 @@ module Lib = struct
     ; main_module_name : Module.Name.t option
     ; requires         : (Loc.t * Lib_name.t) list
     ; version          : string option
-    ; modes            : Mode.Dict.Set.t
+    ; modes            : Mode.Map.Set.t
     ; special_builtin_support :
         Dune_file.Library.Special_builtin_support.t option
     }
@@ -47,7 +47,7 @@ module Lib = struct
         p
     in
     let map_list = List.map ~f:map_path in
-    let map_mode = Mode.Dict.map ~f:map_list in
+    let map_mode = Mode.Map.map ~f:map_list in
     { loc
     ; kind
     ; name
@@ -96,8 +96,8 @@ module Lib = struct
     let no_loc f (_loc, x) = f x in
     let path = Dpath.Local.encode ~dir:package_root in
     let paths name f = field_l name path f in
-    let mode_paths name (xs : Path.t Mode.Dict.List.t) =
-      field_l name sexp (Mode.Dict.List.encode path xs) in
+    let mode_paths name (xs : Path.t Mode.Map.List.t) =
+      field_l name sexp (Mode.Map.List.encode path xs) in
     let known_implementations = Variant.Map.to_list known_implementations in
     let libs name = field_l name (no_loc Lib_name.encode) in
     record_fields @@
@@ -119,7 +119,7 @@ module Lib = struct
     ; field_o "default_implementation"
         (no_loc Lib_name.encode) default_implementation
     ; field_o "main_module_name" Module.Name.encode main_module_name
-    ; field_l "modes" sexp (Mode.Dict.Set.encode modes)
+    ; field_l "modes" sexp (Mode.Map.Set.encode modes)
     ; field_l "obj_dir" sexp (Obj_dir.encode obj_dir)
     ; field_o "modules" Modules.encode modules
     ; field_o "special_builtin_support"
@@ -135,8 +135,8 @@ module Lib = struct
     let libs s = field_l s (located Lib_name.decode) in
     let paths s = field_l s path in
     let mode_paths name =
-      field ~default:Mode.Dict.List.empty
-        name (Mode.Dict.List.decode path) in
+      field ~default:Mode.Map.List.empty
+        name (Mode.Map.List.decode path) in
     record (
       let* main_module_name = field_o "main_module_name" Module.Name.decode in
       let* implements = field_o "implements" (located Lib_name.decode) in
@@ -179,7 +179,7 @@ module Lib = struct
       in
       let known_implementations =
         Variant.Map.of_list_exn known_implementations in
-      let modes = Mode.Dict.Set.of_list modes in
+      let modes = Mode.Map.Set.of_list modes in
       { kind
       ; name
       ; synopsis

@@ -25,7 +25,7 @@ module Kind : sig
       basenames [s] *)
   val possible_fns : t -> string -> dune_version:Syntax.Version.t -> string list
 
-  module Dict : sig
+  module Map : sig
     type kind
     type 'a t =
       { c : 'a
@@ -65,7 +65,7 @@ module Sources : sig
 
   val objects : t -> dir:Path.Build.t -> ext_obj:string -> Path.Build.t list
 
-  val split_by_kind : t -> t Kind.Dict.t
+  val split_by_kind : t -> t Kind.Map.t
 end
 
 val c_cxx_or_header : fn:string -> bool

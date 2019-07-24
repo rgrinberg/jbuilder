@@ -53,7 +53,7 @@ module Kind = struct
     possible_exts t ~dune_version
     |> List.map ~f:(fun ext -> fn ^ ext)
 
-  module Dict = struct
+  module Map = struct
     type 'a t =
       { c : 'a
       ; cxx : 'a
@@ -129,7 +129,7 @@ module Sources = struct
         | C -> true
         | Cxx -> false)
     in
-    {Kind.Dict. c; cxx}
+    {Kind.Map. c; cxx}
 end
 
 let all_possible_exts =

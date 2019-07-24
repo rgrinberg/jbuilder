@@ -22,7 +22,7 @@ end
 
 type t =
   { name       : string
-  ; file_kinds : File_kind.t Ml_kind.Dict.t
+  ; file_kinds : File_kind.t Ml_kind.Map.t
   }
 
 let name t = t.name
@@ -31,7 +31,7 @@ let to_dyn { name ; file_kinds } =
   let open Dyn.Encoder in
   record
     [ "name"      , string name
-    ; "file_kinds", Ml_kind.Dict.to_dyn File_kind.to_dyn file_kinds
+    ; "file_kinds", Ml_kind.Map.to_dyn File_kind.to_dyn file_kinds
     ]
 
 let decode =
@@ -55,17 +55,17 @@ let decode =
           and+ impl = field "implementation" (fields (kind Ml_kind.Impl))
           and+ intf = field "interface" (fields (kind Ml_kind.Intf))
           in
-          { name ; file_kinds = Ml_kind.Dict.make ~intf ~impl })
+          { name ; file_kinds = Ml_kind.Map.make ~intf ~impl })
 
-let extension { file_kinds = { Ml_kind.Dict.intf ; impl } ; _ } = function
+let extension { file_kinds = { Ml_kind.Map.intf ; impl } ; _ } = function
   | Ml_kind.Intf -> intf.extension
   | Impl         -> impl.extension
 
-let preprocess { file_kinds = { Ml_kind.Dict.intf ; impl } ; _ } = function
+let preprocess { file_kinds = { Ml_kind.Map.intf ; impl } ; _ } = function
   | Ml_kind.Intf -> intf.preprocess
   | Impl         -> impl.preprocess
 
-let format { file_kinds = { Ml_kind.Dict.intf ; impl } ; _ } = function
+let format { file_kinds = { Ml_kind.Map.intf ; impl } ; _ } = function
   | Ml_kind.Intf -> intf.format
   | Impl         -> impl.format
 
@@ -94,7 +94,7 @@ let ocaml =
   let intf = file_kind Ml_kind.Intf ".mli" in
   let impl = file_kind Ml_kind.Impl ".ml"  in
   { name       = "ocaml"
-  ; file_kinds = Ml_kind.Dict.make ~intf ~impl
+  ; file_kinds = Ml_kind.Map.make ~intf ~impl
   }
 
 let reason =
@@ -122,10 +122,10 @@ let reason =
   let intf = file_kind Ml_kind.Intf ".rei" in
   let impl = file_kind Ml_kind.Impl ".re"  in
   { name       = "reason"
-  ; file_kinds = Ml_kind.Dict.make ~intf ~impl
+  ; file_kinds = Ml_kind.Map.make ~intf ~impl
   }
 
-let ml_suffix { file_kinds = { Ml_kind.Dict.intf ; impl } ; _ } ml_kind =
+let ml_suffix { file_kinds = { Ml_kind.Map.intf ; impl } ; _ } ml_kind =
   match ml_kind, intf.preprocess, impl.preprocess with
   | Ml_kind.Intf, None, _ | Impl, _, None -> None
   | _ -> Some (extension ocaml ml_kind)

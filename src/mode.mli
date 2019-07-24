@@ -20,7 +20,7 @@ val to_string : t -> string
 
 val to_dyn : t -> Dyn.t
 
-module Dict : sig
+module Map : sig
   type mode = t
 
   type 'a t =

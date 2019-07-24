@@ -9,7 +9,7 @@ val source : t -> Ml_kind.t
 
 val to_dyn : t -> Dyn.t
 
-module Dict : sig
+module Map : sig
   type cm_kind = t
 
   type 'a t =

@@ -102,7 +102,7 @@ let rec deps_of cctx ~ml_kind (m : Modules.Sourced_module.t) =
     | Normal m ->
       skip_if_source_absent (deps_of_module cctx ~ml_kind) m
     | Impl_of_virtual_module impl_or_vlib ->
-      let m = Ml_kind.Dict.get impl_or_vlib ml_kind in
+      let m = Ml_kind.Map.get impl_or_vlib ml_kind in
       begin match ml_kind with
       | Intf -> deps_of cctx ~ml_kind (Imported_from_vlib m)
       | Impl -> deps_of cctx ~ml_kind (Normal m)
@@ -110,7 +110,7 @@ let rec deps_of cctx ~ml_kind (m : Modules.Sourced_module.t) =
 
 let rules cctx ~modules =
   let dir = Compilation_context.dir cctx in
-  Ml_kind.Dict.of_func (fun ~ml_kind ->
+  Ml_kind.Map.of_func (fun ~ml_kind ->
     let per_module =
       Modules.obj_map modules ~f:(deps_of cctx ~ml_kind) in
     Dep_graph.make ~dir ~per_module)

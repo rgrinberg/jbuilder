@@ -57,8 +57,8 @@ val c_flags
   :  t
   -> dir:Path.Build.t
   -> expander:Expander.t
-  -> flags:Ordered_set_lang.Unexpanded.t C.Kind.Dict.t
-  -> (unit, string list) Build.t C.Kind.Dict.t
+  -> flags:Ordered_set_lang.Unexpanded.t C.Kind.Map.t
+  -> (unit, string list) Build.t C.Kind.Map.t
 
 (** Binaries that are symlinked in the associated .bin directory of [dir]. This
     associated directory is [Path.relative dir ".bin"] *)

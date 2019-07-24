@@ -678,7 +678,7 @@ module Sourced_module = struct
   type t =
     | Normal of Module.t
     | Imported_from_vlib of Module.t
-    | Impl_of_virtual_module of Module.t Ml_kind.Dict.t
+    | Impl_of_virtual_module of Module.t Ml_kind.Map.t
 end
 
 let rec obj_map

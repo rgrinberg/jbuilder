@@ -17,7 +17,7 @@ val to_dyn : t -> Dyn.t
 
 val cmt_ext : t -> string
 
-module Dict : sig
+module Map : sig
   type kind = t
 
   type 'a t =

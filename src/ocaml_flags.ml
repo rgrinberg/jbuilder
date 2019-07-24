@@ -72,7 +72,7 @@ let default_flags ~dune_version ~profile =
 
 type 'a t' =
   { common     : 'a
-  ; specific   : 'a Mode.Dict.t
+  ; specific   : 'a Mode.Map.t
   }
 
 module Spec = struct
@@ -85,7 +85,7 @@ module Spec = struct
     and+ byte = field_oslu "ocamlc_flags"
     and+ native = field_oslu "ocamlopt_flags"
     in
-    let specific = Mode.Dict.make ~native ~byte in
+    let specific = Mode.Map.make ~native ~byte in
     { common
     ; specific
     }
@@ -96,7 +96,7 @@ type t = (unit, string list) Build.t t'
 let empty =
   let build = Build.arr (fun () -> []) in
   { common   = build
-  ; specific = Mode.Dict.make_both build
+  ; specific = Mode.Map.make_both build
   }
 
 let of_list l =
@@ -122,7 +122,7 @@ let make ~spec ~default ~eval =
 let get t mode =
   t.common
   &&&
-  (Mode.Dict.get t.specific mode)
+  (Mode.Map.get t.specific mode)
   >>^ fun (common, specific) ->
   common @ specific
 

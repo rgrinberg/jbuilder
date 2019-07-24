@@ -82,7 +82,7 @@ let build_cm cctx ~dep_graphs ~precompiled_cmi ~cm_kind (m : Module.t) =
           :: other_targets
         | Cmi | Cmo -> other_targets
       in
-      let dep_graph = Ml_kind.Dict.get dep_graphs ml_kind in
+      let dep_graph = Ml_kind.Map.get dep_graphs ml_kind in
       let opaque = CC.opaque cctx in
       let other_cm_files =
         Build.dyn_paths
@@ -162,7 +162,7 @@ let build_cm cctx ~dep_graphs ~precompiled_cmi ~cm_kind (m : Module.t) =
                   |> List.concat_map ~f:(fun p -> [ Command.Args.A "-I"
                                                   ; Path (Path.build p)])
                 )
-              ; Cm_kind.Dict.get (CC.includes cctx) cm_kind
+              ; Cm_kind.Map.get (CC.includes cctx) cm_kind
               ; As extra_args
               ; if dynlink || cm_kind <> Cmx then As [] else A "-nodynlink"
               ; A "-no-alias-deps"; opaque_arg
@@ -199,7 +199,7 @@ let ocamlc_i ?(flags=[]) ~dep_graphs cctx (m : Module.t) ~output =
   let dir      = CC.dir           cctx in
   let ctx      = SC.context       sctx in
   let src = Option.value_exn (Module.file m ~ml_kind:Impl) in
-  let dep_graph = Ml_kind.Dict.get dep_graphs Impl in
+  let dep_graph = Ml_kind.Map.get dep_graphs Impl in
   let sandbox = Compilation_context.sandbox cctx in
   let cm_deps =
     Build.dyn_paths
@@ -216,7 +216,7 @@ let ocamlc_i ?(flags=[]) ~dep_graphs cctx (m : Module.t) ~output =
           (Command.run (Ok ctx.ocamlc) ~dir:(Path.build ctx.build_dir)
              [ Command.Args.dyn ocaml_flags
              ; A "-I"; Path (Path.build (Obj_dir.byte_dir obj_dir))
-             ; Cm_kind.Dict.get (CC.includes cctx) Cmo
+             ; Cm_kind.Map.get (CC.includes cctx) Cmo
              ; opens modules m
              ; As flags
              ; A "-short-paths"

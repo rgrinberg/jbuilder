@@ -15,12 +15,12 @@ module Lib : sig
   val synopsis : _ t -> string option
   val ppx_runtime_deps : _ t -> (Loc.t * Lib_name.t) list
   val foreign_objects : _ t -> Path.t list
-  val foreign_archives : _ t -> Path.t list Mode.Dict.t
-  val archives : _ t -> Path.t list Mode.Dict.t
+  val foreign_archives : _ t -> Path.t list Mode.Map.t
+  val archives : _ t -> Path.t list Mode.Map.t
   val virtual_ : _ t -> bool
   val modules : _ t -> Modules.t option
   val main_module_name : _ t -> Module.Name.t option
-  val plugins : _ t -> Path.t list Mode.Dict.t
+  val plugins : _ t -> Path.t list Mode.Map.t
   val jsoo_runtime : _ t -> Path.t list
   val implements : _ t -> (Loc.t * Lib_name.t) option
   val known_implementations : _ t -> (Loc.t * Lib_name.t) Variant.Map.t
@@ -32,7 +32,7 @@ module Lib : sig
 
   val compare_name : _ t -> _ t -> Ordering.t
 
-  val modes : _ t -> Mode.Dict.Set.t
+  val modes : _ t -> Mode.Map.Set.t
 
   val wrapped : _ t -> Wrapped.t option
 
@@ -41,10 +41,10 @@ module Lib : sig
     -> kind:Lib_kind.t
     -> name:Lib_name.t
     -> synopsis:string option
-    -> archives:Path.t list Mode.Dict.t
-    -> plugins:Path.t list Mode.Dict.t
+    -> archives:Path.t list Mode.Map.t
+    -> plugins:Path.t list Mode.Map.t
     -> foreign_objects:Path.t list
-    -> foreign_archives:Path.t list Mode.Dict.t
+    -> foreign_archives:Path.t list Mode.Map.t
     -> jsoo_runtime:Path.t list
     -> main_module_name:Module.Name.t option
     -> sub_systems:'a Sub_system_name.Map.t
@@ -55,7 +55,7 @@ module Lib : sig
     -> virtual_:bool
     -> known_implementations: (Loc.t * Lib_name.t) Variant.Map.t
     -> modules:Modules.t option
-    -> modes:Mode.Dict.Set.t
+    -> modes:Mode.Map.Set.t
     -> version:string option
     -> orig_src_dir:Path.t option
     -> obj_dir:Path.t Obj_dir.t

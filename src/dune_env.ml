@@ -12,7 +12,7 @@ module Stanza = struct
     let+ c = Ordered_set_lang.Unexpanded.field "c_flags" ?check
     and+ cxx = Ordered_set_lang.Unexpanded.field "cxx_flags" ?check
     in
-    C.Kind.Dict.make ~c ~cxx
+    C.Kind.Map.make ~c ~cxx
 
   module Inline_tests = struct
     type t =
@@ -35,7 +35,7 @@ module Stanza = struct
 
   type config =
     { flags          : Ocaml_flags.Spec.t
-    ; c_flags        : Ordered_set_lang.Unexpanded.t C.Kind.Dict.t
+    ; c_flags        : Ordered_set_lang.Unexpanded.t C.Kind.Map.t
     ; env_vars       : Env.t
     ; binaries       : File_binding.Unexpanded.t list
     ; inline_tests   : Inline_tests.t option

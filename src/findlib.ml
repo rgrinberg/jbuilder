@@ -185,7 +185,7 @@ module Package = struct
     List.map (Vars.get_words t.vars var preds) ~f:(Path.relative t.dir)
 
   let make_archives t var preds =
-    Mode.Dict.of_func (fun ~mode ->
+    Mode.Map.of_func (fun ~mode ->
       get_paths t var (Ps.add preds (Mode.variant mode)))
 
   let version          t = Vars.get       t.vars "version"          Ps.empty
@@ -200,7 +200,7 @@ module Package = struct
 
   let archives t = make_archives t "archive" preds
   let plugins t =
-    Mode.Dict.map2 ~f:(@)
+    Mode.Map.map2 ~f:(@)
       (make_archives t "archive" (Ps.add preds Variant.plugin))
       (make_archives t "plugin" preds)
 
@@ -219,8 +219,8 @@ module Package = struct
     in
     let archives = archives t in
     let obj_dir = Obj_dir.make_external_no_private ~dir:t.dir in
-    let modes : Mode.Dict.Set.t =
-      Mode.Dict.map ~f:(fun x -> not (List.is_empty x)) archives in
+    let modes : Mode.Map.Set.t =
+      Mode.Map.map ~f:(fun x -> not (List.is_empty x)) archives in
     Dune_package.Lib.make
       ~orig_src_dir:None
       ~loc
@@ -230,7 +230,7 @@ module Package = struct
       ~archives
       ~plugins:(plugins t)
       ~foreign_objects:[]
-      ~foreign_archives:(Mode.Dict.make_both [])
+      ~foreign_archives:(Mode.Map.make_both [])
       ~jsoo_runtime:(jsoo_runtime t)
       ~sub_systems
       ~requires:(List.map ~f:add_loc (requires t))

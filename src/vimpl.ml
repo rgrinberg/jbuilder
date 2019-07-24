@@ -21,7 +21,7 @@ let impl_modules t m =
 let make ~vlib ~impl ~vlib_modules ~vlib_foreign_objects =
   let impl_cm_kind =
     let vlib_info = Lib.info vlib in
-    let { Mode.Dict. byte; native = _ } = Lib_info.modes vlib_info in
+    let { Mode.Map. byte; native = _ } = Lib_info.modes vlib_info in
     Mode.cm_kind (if byte then Byte else Native)
   in
   let vlib_obj_map = lazy (

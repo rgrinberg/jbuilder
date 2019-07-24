@@ -75,10 +75,10 @@ type 'path t =
   ; obj_dir          : 'path Obj_dir.t
   ; version          : string option
   ; synopsis         : string option
-  ; archives         : 'path list Mode.Dict.t
-  ; plugins          : 'path list Mode.Dict.t
+  ; archives         : 'path list Mode.Map.t
+  ; plugins          : 'path list Mode.Map.t
   ; foreign_objects  : 'path list Source.t
-  ; foreign_archives : 'path list Mode.Dict.t (** [.a/.lib/...] files *)
+  ; foreign_archives : 'path list Mode.Map.t (** [.a/.lib/...] files *)
   ; jsoo_runtime     : 'path list
   ; jsoo_archive     : 'path option
   ; requires         : Deps.t
@@ -95,7 +95,7 @@ type 'path t =
   ; default_implementation  : (Loc.t * Lib_name.t) option
   ; wrapped          : Wrapped.t Dune_file.Library.Inherited.t option
   ; main_module_name : Dune_file.Library.Main_module_name.t
-  ; modes            : Mode.Dict.Set.t
+  ; modes            : Mode.Map.Set.t
   ; special_builtin_support : Dune_file.Library.Special_builtin_support.t option
   }
 
@@ -145,7 +145,7 @@ let of_library_stanza ~dir
     Path.Build.relative dir (Lib_name.Local.to_string lib_name ^ ext) in
   let archive_file = gen_archive_file ~dir in
   let archive_files ~f_ext =
-    Mode.Dict.of_func (fun ~mode -> [archive_file (f_ext mode)])
+    Mode.Map.of_func (fun ~mode -> [archive_file (f_ext mode)])
   in
   let jsoo_runtime =
     List.map conf.buildable.js_of_ocaml.javascript_files
@@ -164,7 +164,7 @@ let of_library_stanza ~dir
       else
         []
     in
-    { Mode.Dict.
+    { Mode.Map.
        byte   = stubs
      ; native =
          Path.Build.relative dir
@@ -177,7 +177,7 @@ let of_library_stanza ~dir
     | Some { exit_module = Some m; _ } ->
       let obj_name =
         Path.Build.relative dir (Module.Name.uncapitalize m) in
-      { Mode.Dict.
+      { Mode.Map.
         byte =
           Path.Build.extend_basename obj_name ~suffix:(Cm_kind.ext Cmo) ::
           foreign_archives.byte
@@ -194,8 +194,8 @@ let of_library_stanza ~dir
   let foreign_objects = Source.Local in
   let (archives, plugins) =
     if virtual_library then
-      ( Mode.Dict.make_both []
-      , Mode.Dict.make_both []
+      ( Mode.Map.make_both []
+      , Mode.Map.make_both []
       )
     else
       ( archive_files ~f_ext:Mode.compiled_lib_ext
@@ -314,7 +314,7 @@ type local = Path.Build.t t
 let map t ~f_path ~f_obj_dir =
   let f = f_path in
   let list = List.map ~f in
-  let mode_list = Mode.Dict.map ~f:list in
+  let mode_list = Mode.Map.map ~f:list in
   { t with
     src_dir = f t.src_dir
   ; orig_src_dir = Option.map ~f t.orig_src_dir

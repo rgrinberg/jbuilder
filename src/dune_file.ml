@@ -836,7 +836,7 @@ module Mode_conf = struct
       let has_best = mem t Best in
       let byte = mem t Byte || (has_best && (not has_native)) in
       let native = has_native && (mem t Native || has_best) in
-      { Mode.Dict.byte; native }
+      { Mode.Map.byte; native }
   end
 end
 
@@ -1007,7 +1007,7 @@ module Library = struct
     ; ppx_runtime_libraries    : (Loc.t * Lib_name.t) list
     ; modes                    : Mode_conf.Set.t
     ; kind                     : Lib_kind.t
-    ; c_flags                  : Ordered_set_lang.Unexpanded.t C.Kind.Dict.t
+    ; c_flags                  : Ordered_set_lang.Unexpanded.t C.Kind.Map.t
     ; c_names                  : Ordered_set_lang.t option
     ; cxx_names                : Ordered_set_lang.t option
     ; library_flags            : Ordered_set_lang.Unexpanded.t

@@ -38,7 +38,7 @@ module Eval = struct
 end
 
 let load_sources ~dune_version ~dir ~files =
-  let init = C.Kind.Dict.make_both String.Map.empty in
+  let init = C.Kind.Map.make_both String.Map.empty in
   String.Set.fold files ~init ~f:(fun fn acc ->
     match C.Kind.split_extension fn ~dune_version with
     | Unrecognized -> acc
@@ -53,12 +53,12 @@ let load_sources ~dune_version ~dir ~files =
       acc
     | Recognized (obj, kind) ->
       let path = Path.Build.relative dir fn in
-      C.Kind.Dict.update acc kind ~f:(fun v ->
+      C.Kind.Map.update acc kind ~f:(fun v ->
         String.Map.set v obj (C.Source.make ~kind ~path)
       ))
 
 let make (d : _ Dir_with_dune.t)
-      ~(c_sources : C.Source.t String.Map.t C.Kind.Dict.t) =
+      ~(c_sources : C.Source.t String.Map.t C.Kind.Map.t) =
   let libs =
     List.filter_map d.data ~f:(fun stanza ->
       match (stanza : Stanza.t) with

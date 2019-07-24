@@ -93,7 +93,7 @@ module External_env = Env
 module Env : sig
   type t = Env_context.t
   val ocaml_flags : t -> dir:Path.Build.t -> Ocaml_flags.t
-  val c_flags : t -> dir:Path.Build.t -> (unit, string list) Build.t C.Kind.Dict.t
+  val c_flags : t -> dir:Path.Build.t -> (unit, string list) Build.t C.Kind.Map.t
   val external_ : t -> dir:Path.Build.t -> External_env.t
   val bin_artifacts_host : t -> dir:Path.Build.t -> Artifacts.Bin.t
   val expander : t -> dir:Path.Build.t -> Expander.t
@@ -205,7 +205,7 @@ end = struct
     let cxx =
       List.filter ctx.ocamlc_cflags
         ~f:(fun s -> not (String.is_prefix s ~prefix:"-std=")) in
-    C.Kind.Dict.make ~c ~cxx
+    C.Kind.Map.make ~c ~cxx
 
   let c_flags t ~dir =
     let default_context_flags = default_context_flags t.context in
@@ -318,11 +318,11 @@ let c_flags t ~dir ~expander ~flags =
   let t = t.env_context in
   let ccg = Context.cc_g t.context in
   let default = Env.c_flags t ~dir in
-  C.Kind.Dict.mapi flags ~f:(fun ~kind flags ->
+  C.Kind.Map.mapi flags ~f:(fun ~kind flags ->
     let name = C.Kind.to_string kind in
     Build.memoize (sprintf "%s flags" name)
       begin
-        let default = C.Kind.Dict.get default kind in
+        let default = C.Kind.Map.get default kind in
         let c = Expander.expand_and_eval_set expander
                   flags ~standard:default in
         let open Build.O in (c >>^ fun l -> l @ ccg)

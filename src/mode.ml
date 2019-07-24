@@ -37,7 +37,7 @@ let of_cm_kind : Cm_kind.t -> t = function
   | Cmi | Cmo -> Byte
   | Cmx -> Native
 
-module Dict = struct
+module Map = struct
   type 'a t =
     { byte   : 'a
     ; native : 'a

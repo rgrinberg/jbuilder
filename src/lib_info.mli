@@ -49,10 +49,10 @@ type 'path t
 
 val name : _ t -> Lib_name.t
 val loc : _ t -> Loc.t
-val archives : 'path t -> 'path list Mode.Dict.t
-val foreign_archives : 'path t -> 'path list Mode.Dict.t
+val archives : 'path t -> 'path list Mode.Map.t
+val foreign_archives : 'path t -> 'path list Mode.Map.t
 val foreign_objects : 'path t -> 'path list Source.t
-val plugins : 'path t -> 'path list Mode.Dict.t
+val plugins : 'path t -> 'path list Mode.Map.t
 val src_dir : 'path t -> 'path
 val status : _ t -> Status.t
 val variant : _ t -> Variant.t option
@@ -66,7 +66,7 @@ val virtual_ : _ t -> Modules.t Source.t option
 val main_module_name : _ t -> Dune_file.Library.Main_module_name.t
 val wrapped : _ t -> Wrapped.t Dune_file.Library.Inherited.t option
 val special_builtin_support : _ t -> Dune_file.Library.Special_builtin_support.t option
-val modes : _ t -> Mode.Dict.Set.t
+val modes : _ t -> Mode.Map.Set.t
 val implements : _ t -> (Loc.t * Lib_name.t) option
 val known_implementations : _ t -> (Loc.t * Lib_name.t) Variant.Map.t
 val requires : _ t -> Deps.t

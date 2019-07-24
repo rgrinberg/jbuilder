@@ -20,7 +20,7 @@ val top_closed_implementations
   -> (unit, Module.t list) Build.t
 
 module Ml_kind : sig
-  type nonrec t = t Ml_kind.Dict.t
+  type nonrec t = t Ml_kind.Map.t
 
   val dummy : Module.t -> t
 end

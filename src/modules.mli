@@ -65,7 +65,7 @@ module Sourced_module : sig
   type t =
     | Normal of Module.t
     | Imported_from_vlib of Module.t
-    | Impl_of_virtual_module of Module.t Ml_kind.Dict.t
+    | Impl_of_virtual_module of Module.t Ml_kind.Map.t
 end
 
 val obj_map : t -> f:(Sourced_module.t -> 'a) -> 'a Module.Obj_map.t

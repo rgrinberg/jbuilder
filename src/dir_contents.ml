@@ -562,7 +562,7 @@ end = struct
       let c_sources = Memo.lazy_ (fun () ->
         check_no_qualified Loc.none qualif_mode;
         let dune_version = d.dune_version in
-        let init = C.Kind.Dict.make_both String.Map.empty in
+        let init = C.Kind.Map.make_both String.Map.empty in
         let c_sources =
           List.fold_left ((dir, [], files) :: subdirs) ~init
             ~f:(fun acc (dir, _local, files) ->
@@ -590,7 +590,7 @@ end = struct
                     ; Pp.text "This is not allowed, please rename one of them."
                     ])
               in
-              C.Kind.Dict.merge acc sources ~f)
+              C.Kind.Map.merge acc sources ~f)
         in
         C_sources.make d ~c_sources
       ) in

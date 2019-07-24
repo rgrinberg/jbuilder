@@ -21,7 +21,7 @@ let cmt_ext = function
   | Impl -> ".cmt"
   | Intf -> ".cmti"
 
-module Dict = struct
+module Map = struct
   type 'a t =
     { impl : 'a
     ; intf : 'a

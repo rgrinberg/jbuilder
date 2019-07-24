@@ -108,14 +108,14 @@ end
 module Source = struct
   type t =
     { name : Name.t
-    ; files : File.t option Ml_kind.Dict.t
+    ; files : File.t option Ml_kind.Map.t
     }
 
   let to_dyn { name; files } =
     let open Dyn.Encoder in
     record
       [ "name", Name.to_dyn name
-      ; "files", Ml_kind.Dict.to_dyn (option File.to_dyn) files
+      ; "files", Ml_kind.Map.to_dyn (option File.to_dyn) files
       ]
 
   let make ?impl ?intf name =
@@ -127,13 +127,13 @@ module Source = struct
     | Some _, _
     | _, Some _ -> ()
     end;
-    let files = Ml_kind.Dict.make ~impl ~intf in
+    let files = Ml_kind.Map.make ~impl ~intf in
     { name
     ; files
     }
 
   let has t ~ml_kind =
-    Ml_kind.Dict.get t.files ml_kind
+    Ml_kind.Map.get t.files ml_kind
     |> Option.is_some
 
   let name t = t.name
@@ -148,7 +148,7 @@ module Source = struct
   let src_dir t = Path.parent_exn (choose_file t).path
 
   let map_files t ~f =
-    let files = Ml_kind.Dict.mapi ~f t.files in
+    let files = Ml_kind.Map.mapi ~f t.files in
     { t with files }
 end
 
@@ -215,7 +215,7 @@ let has t ~ml_kind =
   | Intf -> Option.is_some t.source.files.intf
 
 let source t ~(ml_kind : Ml_kind.t) =
-  Ml_kind.Dict.get t.source.files ml_kind
+  Ml_kind.Map.get t.source.files ml_kind
 
 let file t ~(ml_kind : Ml_kind.t) =
   source t ~ml_kind
@@ -224,7 +224,7 @@ let file t ~(ml_kind : Ml_kind.t) =
 let obj_name t = t.obj_name
 
 let iter t ~f =
-  Ml_kind.Dict.iteri t.source.files
+  Ml_kind.Map.iteri t.source.files
     ~f:(fun kind -> Option.iter ~f:(f kind))
 
 let with_wrapper t ~main_module_name =

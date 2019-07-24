@@ -4,12 +4,12 @@ open Import
 module SC = Super_context
 
 module Includes = struct
-  type t = Command.Args.dynamic Command.Args.t Cm_kind.Dict.t
+  type t = Command.Args.dynamic Command.Args.t Cm_kind.Map.t
 
-  let make ~opaque ~requires : _ Cm_kind.Dict.t =
+  let make ~opaque ~requires : _ Cm_kind.Map.t =
     match requires with
     | Error exn ->
-      Cm_kind.Dict.make_all (Command.Args.Fail {fail = fun () -> raise exn})
+      Cm_kind.Map.make_all (Command.Args.Fail {fail = fun () -> raise exn})
     | Ok libs ->
       let iflags = Lib.L.include_flags libs in
       let cmi_includes =
@@ -39,7 +39,7 @@ module Includes = struct
       }
 
   let empty =
-    Cm_kind.Dict.make_all (Command.Args.As [])
+    Cm_kind.Map.make_all (Command.Args.As [])
 end
 
 type t =

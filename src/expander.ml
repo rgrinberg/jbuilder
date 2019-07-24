@@ -231,9 +231,9 @@ type expansion_kind =
   | Dynamic of dynamic
   | Static
 
-let cc_of_c_flags t (cc : (unit, string list) Build.t C.Kind.Dict.t) =
+let cc_of_c_flags t (cc : (unit, string list) Build.t C.Kind.Map.t) =
   let open Build.O in
-  C.Kind.Dict.map cc ~f:(fun cc ->
+  C.Kind.Map.map cc ~f:(fun cc ->
     cc >>^ fun flags ->
     Value.L.strings (t.c_compiler :: flags))
 
@@ -245,7 +245,7 @@ let resolve_binary t ~loc ~prog =
 
 let expand_and_record acc ~map_exe ~dep_kind ~scope
       ~expansion_kind ~(dir : Path.Build.t) ~pform t expansion
-      ~(cc : dir:Path.Build.t -> (unit, Value.t list) Build.t C.Kind.Dict.t) =
+      ~(cc : dir:Path.Build.t -> (unit, Value.t list) Build.t C.Kind.Map.t) =
   let key = String_with_vars.Var.full_name pform in
   let loc = String_with_vars.Var.loc pform in
   let relative d s =
@@ -449,7 +449,7 @@ let expand_no_ddeps acc ~dir ~dep_kind ~map_exe ~expand_var
 
 let gen_with_record_deps ~expand t resolved_forms ~dep_kind ~map_exe
       ~(c_flags : dir:Path.Build.t
-        -> (unit, string list) Build.t C.Kind.Dict.t) =
+        -> (unit, string list) Build.t C.Kind.Map.t) =
   let cc ~dir = cc_of_c_flags t (c_flags ~dir) in
   let expand_var =
     expand

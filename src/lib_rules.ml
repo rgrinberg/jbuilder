@@ -220,7 +220,7 @@ let build_o_files lib ~sctx ~(c_sources : C.Sources.t)
       build_x lib ~sctx ~dir ~expander ~includes (loc, src, dst)
     )
   in
-  let { C.Kind.Dict. c; cxx } = C.Sources.split_by_kind c_sources in
+  let { C.Kind.Map. c; cxx } = C.Sources.split_by_kind c_sources in
   build_x_files build_c_file c
   @ build_x_files build_cxx_file cxx
   |> List.map ~f:Path.build
@@ -305,7 +305,7 @@ let setup_build_archives (lib : Dune_file.Library.t)
   let modes = Mode_conf.Set.eval lib.modes ~has_native in
   (let cm_files =
      Cm_files.make ~obj_dir ~ext_obj ~modules ~top_sorted_modules in
-   Mode.Dict.Set.iter modes ~f:(fun mode ->
+   Mode.Map.Set.iter modes ~f:(fun mode ->
      build_lib lib ~sctx ~expander ~flags ~dir ~mode ~cm_files));
   (* Build *.cma.js *)
   if modes.byte then

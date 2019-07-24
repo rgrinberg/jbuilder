@@ -1,7 +1,7 @@
 (** Parse ocamlobjinfo output *)
 open Stdune
 
-type t = Module.Name.Set.t Ml_kind.Dict.t
+type t = Module.Name.Set.t Ml_kind.Map.t
 
 val to_dyn : t -> Dyn.t
 

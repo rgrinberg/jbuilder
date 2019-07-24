@@ -179,7 +179,7 @@ module Mode_conf : sig
     (** Both Byte and Native *)
     val default : t
 
-    val eval : t -> has_native:bool -> Mode.Dict.Set.t
+    val eval : t -> has_native:bool -> Mode.Map.Set.t
   end
 end
 
@@ -244,7 +244,7 @@ module Library : sig
     ; ppx_runtime_libraries    : (Loc.t * Lib_name.t) list
     ; modes                    : Mode_conf.Set.t
     ; kind                     : Lib_kind.t
-    ; c_flags                  : Ordered_set_lang.Unexpanded.t C.Kind.Dict.t
+    ; c_flags                  : Ordered_set_lang.Unexpanded.t C.Kind.Map.t
     ; c_names                  : Ordered_set_lang.t option
     ; cxx_names                : Ordered_set_lang.t option
     ; library_flags            : Ordered_set_lang.Unexpanded.t

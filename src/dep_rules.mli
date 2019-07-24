@@ -4,4 +4,4 @@
 val rules
   : Compilation_context.t
   -> modules:Modules.t
-  -> Dep_graph.t Ml_kind.Dict.t
+  -> Dep_graph.t Ml_kind.Map.t

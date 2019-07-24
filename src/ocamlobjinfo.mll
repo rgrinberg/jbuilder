@@ -1,12 +1,12 @@
 {
 open Stdune
 
-type t = Module.Name.Set.t Ml_kind.Dict.t
+type t = Module.Name.Set.t Ml_kind.Map.t
 
-let to_dyn = Ml_kind.Dict.to_dyn Module.Name.Set.to_dyn
+let to_dyn = Ml_kind.Map.to_dyn Module.Name.Set.to_dyn
 
 let empty =
-  { Ml_kind.Dict.
+  { Ml_kind.Map.
     intf = Module.Name.Set.empty
   ; impl = Module.Name.Set.empty
   }

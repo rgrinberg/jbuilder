@@ -24,8 +24,8 @@ val c_flags
   : t
   -> profile:string
   -> expander:Expander.t
-  -> default_context_flags:string list C.Kind.Dict.t
-  -> (unit, string list) Build.t C.Kind.Dict.t
+  -> default_context_flags:string list C.Kind.Map.t
+  -> (unit, string list) Build.t C.Kind.Map.t
 
 val local_binaries
   :  t

@@ -445,7 +445,7 @@ module L = struct
       (c_include_flags ts ::
        List.map ts ~f:(fun t ->
          let archives = Lib_info.archives t.info in
-         Command.Args.Deps (Mode.Dict.get archives mode)))
+         Command.Args.Deps (Mode.Map.get archives mode)))
 
   let compile_and_link_flags ~compile ~link ~mode =
     let dirs =
@@ -457,7 +457,7 @@ module L = struct
       (to_iflags dirs ::
        List.map link ~f:(fun t ->
          let archives = Lib_info.archives t.info in
-         Command.Args.Deps (Mode.Dict.get archives mode)))
+         Command.Args.Deps (Mode.Map.get archives mode)))
 
   let jsoo_runtime_files ts =
     List.concat_map ts ~f:(fun t -> Lib_info.jsoo_runtime t.info)
@@ -466,8 +466,8 @@ module L = struct
     List.concat_map ts ~f:(fun t ->
       let archives = Lib_info.archives t.info in
       let foreign_archives = Lib_info.foreign_archives t.info in
-      Mode.Dict.get archives mode @
-      Mode.Dict.get foreign_archives mode)
+      Mode.Map.get archives mode @
+      Mode.Map.get foreign_archives mode)
 
   let remove_dups l =
     let rec loop acc l seen =
@@ -504,7 +504,7 @@ module Lib_and_module = struct
          List.map ts ~f:(function
            | Lib t ->
              let archives = Lib_info.archives t.info in
-             Command.Args.Deps (Mode.Dict.get archives mode)
+             Command.Args.Deps (Mode.Map.get archives mode)
            | Module (obj_dir, m) ->
              Dep (Obj_dir.Module.cm_file_unsafe obj_dir m
                     ~kind:(Mode.cm_kind mode))

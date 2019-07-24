@@ -127,7 +127,7 @@ let setup_ml_deps ~lib_db libs =
     let plugins =
       let info = Lib.info lib in
       let plugins = Lib_info.plugins info in
-      Mode.Dict.get plugins Mode.Native
+      Mode.Map.get plugins Mode.Native
     in
     let to_mlpack file =
       [ Path.set_extension file ~ext:".mlpack"
@@ -190,7 +190,7 @@ let coq_plugins_install_rules ~scope ~package ~dst_dir (s : Dune_file.Coq.t) =
     then
       let info = Lib.info lib in
       let plugins = Lib_info.plugins info in
-      Mode.Dict.get plugins Mode.Native
+      Mode.Map.get plugins Mode.Native
       |> List.map ~f:(fun plugin_file ->
         let plugin_file = Path.as_in_build_dir_exn plugin_file in
         let plugin_file_basename = Path.Build.basename plugin_file in

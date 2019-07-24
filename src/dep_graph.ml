@@ -50,8 +50,8 @@ let dummy (m : Module.t) =
   }
 
 module Ml_kind = struct
-  type nonrec t = t Ml_kind.Dict.t
+  type nonrec t = t Ml_kind.Map.t
 
   let dummy m =
-    Ml_kind.Dict.make_both (dummy m)
+    Ml_kind.Map.make_both (dummy m)
 end
