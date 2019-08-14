@@ -205,13 +205,6 @@ let eval_loc t ~parse ~eq ~standard =
 
 let standard = { ast = Ast.Standard; loc = None; context = Univ_map.empty }
 
-let dune_kind t =
-  match Univ_map.find t.context (Syntax.key Stanza.syntax) with
-  | Some (0, _) ->
-    Dune_lang.File_syntax.Jbuild
-  | None | Some (_, _) ->
-    Dune
-
 let field ?(default = standard) ?check name =
   let decode =
     match check with
@@ -280,11 +273,7 @@ module Unexpanded = struct
       [ loop ast ]
 
   let upgrade_to_dune t =
-    match dune_kind t with
-    | Dune ->
-      t
-    | Jbuild ->
-      map t ~f:(String_with_vars.upgrade_to_dune ~allow_first_dep_var:false)
+    map t ~f:(String_with_vars.upgrade_to_dune ~allow_first_dep_var:false)
 
   let encode_and_upgrade t = encode (upgrade_to_dune t)
 
