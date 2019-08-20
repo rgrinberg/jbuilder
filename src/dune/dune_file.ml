@@ -943,7 +943,7 @@ module Library = struct
     ; implements : (Loc.t * Lib_name.t) option
     ; variant : Variant.t option
     ; default_implementation : (Loc.t * Lib_name.t) option
-    ; private_modules : Ordered_set_lang.t option
+    ; private_modules : Ordered_set_lang.t
     ; stdlib : Stdlib.t option
     ; special_builtin_support : Special_builtin_support.t option
     ; enabled_if : Blang.t
@@ -996,9 +996,9 @@ module Library = struct
          field_o "default_implementation"
            (Syntax.since library_variants (0, 1) >>> located Lib_name.decode)
        and+ private_modules =
-         field_o "private_modules"
-           (let* () = Syntax.since Stanza.syntax (1, 2) in
-            Ordered_set_lang.decode)
+         Ordered_set_lang.field
+           ~check:(Syntax.since Stanza.syntax (1, 2))
+           "private_modules"
        and+ stdlib =
          field_o "stdlib" (Syntax.since Stdlib.syntax (0, 1) >>> Stdlib.decode)
        and+ special_builtin_support =
@@ -1166,7 +1166,8 @@ module Library = struct
 
   let obj_dir ~dir t =
     Obj_dir.make_lib ~dir
-      ~has_private_modules:(t.private_modules <> None)
+      ~has_private_modules:(
+        Ordered_set_lang.is_standard t.private_modules)
       (snd t.name)
 
   module Main_module_name = struct

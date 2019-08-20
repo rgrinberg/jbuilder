@@ -262,7 +262,7 @@ module Library : sig
     ; implements : (Loc.t * Lib_name.t) option
     ; variant : Variant.t option
     ; default_implementation : (Loc.t * Lib_name.t) option
-    ; private_modules : Ordered_set_lang.t option
+    ; private_modules : Ordered_set_lang.t
     ; stdlib : Stdlib.t option
     ; special_builtin_support : Special_builtin_support.t option
     ; enabled_if : Blang.t

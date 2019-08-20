@@ -271,9 +271,7 @@ end = struct
           let modules =
             Modules_field_evaluator.eval ~modules ~buildable:lib.buildable
               ~kind
-              ~private_modules:
-                (Option.value ~default:Ordered_set_lang.standard
-                  lib.private_modules)
+              ~private_modules:lib.private_modules
           in
           Left
             (lib, Modules.lib ~lib ~src_dir ~modules ~main_module_name ~wrapped)
