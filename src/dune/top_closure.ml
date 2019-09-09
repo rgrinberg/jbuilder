@@ -24,7 +24,9 @@ module type S = sig
     -> ('a list, 'a list) result monad
 end
 
-module Make (Keys : Keys) (Monad : Monad.S) = struct
+module Make (Keys : Keys) (M : Monad.S) = struct
+  open M
+  module Monad = Monad.Make (M)
   open Monad
 
   let top_closure ~key ~deps elements =
@@ -46,9 +48,7 @@ module Make (Keys : Keys) (Monad : Monad.S) = struct
         | Error l -> return (Error (elt :: l))
       ) else
         return (Ok ())
-    and iter_elts elts ~temporarily_marked =
-      return elts
-      >>= function
+    and iter_elts ~temporarily_marked = function
       | [] -> return (Ok ())
       | elt :: elts -> (
         loop elt ~temporarily_marked
@@ -56,10 +56,8 @@ module Make (Keys : Keys) (Monad : Monad.S) = struct
         | Error _ as result -> return result
         | Ok () -> iter_elts elts ~temporarily_marked )
     in
-    iter_elts elements ~temporarily_marked:Keys.empty
-    >>= function
-    | Ok () -> return (Ok (List.rev !res))
-    | Error elts -> return (Error elts)
+    let+ iter = iter_elts elements ~temporarily_marked:Keys.empty in
+    Result.map iter ~f:(fun () -> List.rev !res)
 end
 [@@inlined always]
 
