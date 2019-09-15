@@ -50,7 +50,16 @@ module Make(Keys : Keys)(Monad : Monad.S) = struct
     in
     iter_elts elements ~temporarily_marked:Keys.empty
     >>= function
-    | Ok () -> return (Ok (List.rev !res))
+    | Ok () ->
+      let res =
+        List.map !res ~f:(fun candidate ->
+          let candidate_set = Keys.add Keys.empty (key candidate) in
+          List.find_map elements ~f:(fun elem ->
+            let elem_key = key elem in
+            Option.some_if (Keys.mem candidate_set elem_key) elem)
+          |> Option.value ~default:candidate)
+      in
+      return (Ok (List.rev res))
     | Error elts -> return (Error elts)
 end [@@inlined always]
 
