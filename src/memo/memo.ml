@@ -5,41 +5,6 @@ module Function = Function
 
 let on_already_reported = ref Exn_with_backtrace.reraise
 
-module Code_error_with_memo_backtrace = struct
-  (* A single memo frame and the OCaml frames it called which lead to the error *)
-  type frame =
-    { ocaml : string
-    ; memo : Dyn.t
-    }
-
-  type t =
-    { exn : Code_error.t
-    ; reverse_backtrace : frame list
-    ; (* [outer_call_stack] is a trick to capture some of the information
-         that's lost by the async memo error handler. It can be safely ignored
-         by the sync error handler. *)
-      outer_call_stack : Dyn.t
-    }
-
-  type exn += E of t
-
-  let frame_to_dyn { ocaml; memo } =
-    Dyn.Record [ ("ocaml", Dyn.String ocaml); ("memo", memo) ]
-
-  let to_dyn { exn; reverse_backtrace; outer_call_stack } =
-    Dyn.Record
-      [ ("exn", Code_error.to_dyn exn)
-      ; ( "backtrace"
-        , Dyn.Encoder.list frame_to_dyn (List.rev reverse_backtrace) )
-      ; ("outer_call_stack", outer_call_stack)
-      ]
-
-  let () =
-    Printexc.register_printer (function
-      | E t -> Some (Dyn.to_string (to_dyn t))
-      | _ -> None)
-end
-
 let already_reported exn = Nothing.unreachable_code (!on_already_reported exn)
 
 module Witness : sig
@@ -539,10 +504,7 @@ module Exec_sync = struct
         | Code_error.E exn ->
           raise
             (code_error
-               { Code_error_with_memo_backtrace.exn
-               ; reverse_backtrace = []
-               ; outer_call_stack = Dyn.String "<n/a>"
-               })
+               (Code_error_with_memo_backtrace.without_outer_callstack exn))
         | Code_error_with_memo_backtrace.E e -> raise (code_error e)
         | _exn -> Exn_with_backtrace.reraise exn )
       | Ok res -> res
