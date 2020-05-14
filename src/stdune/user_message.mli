@@ -59,6 +59,8 @@ val make :
   -> Style.t Pp.t list
   -> t
 
+val set_sanitizer : (string -> string) -> unit
+
 (** Print to [stdout] (not thread safe) *)
 val print : ?config:Print_config.t -> t -> unit
 

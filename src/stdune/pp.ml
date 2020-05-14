@@ -166,3 +166,21 @@ let chain l ~f =
 module O = struct
   let ( ++ ) = seq
 end
+
+let rec map_string t ~f =
+  match t with
+  | Nop
+  | Char _
+  | Break _
+  | Newline ->
+    t
+  | Seq (x, y) -> Seq (map_string x ~f, map_string y ~f)
+  | Concat (x, xs) -> Concat (map_string x ~f, List.map xs ~f:(map_string ~f))
+  | Box (i, pp) -> Box (i, map_string pp ~f)
+  | Vbox (i, pp) -> Vbox (i, map_string pp ~f)
+  | Hbox pp -> Hbox (map_string pp ~f)
+  | Hvbox (i, pp) -> Hvbox (i, map_string pp ~f)
+  | Hovbox (i, pp) -> Hovbox (i, map_string pp ~f)
+  | Verbatim s -> Verbatim (f s)
+  | Text s -> Text (f s)
+  | Tag (t, pp) -> Tag (t, map_string pp ~f)

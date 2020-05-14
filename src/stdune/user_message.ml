@@ -47,6 +47,10 @@ let make ?loc ?prefix ?(hints = []) paragraphs =
   in
   { loc; hints; paragraphs }
 
+let sanitizer = ref None
+
+let set_sanitizer f = sanitizer := Some f
+
 let pp { loc; paragraphs; hints } =
   let open Pp.O in
   let paragraphs =
@@ -68,7 +72,13 @@ let pp { loc; paragraphs; hints } =
            start.pos_lnum start_c stop_c)
       :: paragraphs
   in
-  Pp.vbox (Pp.concat_map paragraphs ~sep:Pp.nop ~f:(fun pp -> Pp.seq pp Pp.cut))
+  let pp =
+    Pp.vbox
+      (Pp.concat_map paragraphs ~sep:Pp.nop ~f:(fun pp -> Pp.seq pp Pp.cut))
+  in
+  match !sanitizer with
+  | None -> pp
+  | Some f -> Pp.map_string pp ~f
 
 let print ?(config = Print_config.default) t =
   Ansi_color.print (Pp.map_tags (pp t) ~f:config)

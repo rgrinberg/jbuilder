@@ -97,6 +97,7 @@ let set_common_other ?log_file c ~targets =
       ];
   Clflags.always_show_command_line := c.always_show_command_line;
   Clflags.ignore_promoted_rules := c.ignore_promoted_rules;
+  Stdune.User_message.set_sanitizer Dune.Sanitizer.bleach;
   Option.iter ~f:Dune.Stats.enable c.stats_trace_file
 
 let set_common ?log_file ?external_lib_deps_mode c ~targets =

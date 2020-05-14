@@ -112,3 +112,5 @@ val render :
   -> unit
 
 val render_ignore_tags : Format.formatter -> 'a t -> unit
+
+val map_string : 'a t -> f:(string -> string) -> 'a t
