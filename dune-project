@@ -1,4 +1,4 @@
-(lang dune 2.5)
+(lang dune 2.6)
 ;          ^^^
 ; When changing the version, don't forget to regenerate *.opam files
 ; by running [dune build].
@@ -8,6 +8,8 @@
 
 ; Reserved for Dune itself. This is to help with the bootstrap
 (using dune-bootstrap-info 0.1)
+
+(using bisect_ppx 1.0)
 
 (license MIT)
 (maintainers "Jane Street Group, LLC <opensource@janestreet.com>")

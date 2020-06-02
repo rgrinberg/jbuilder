@@ -50,6 +50,9 @@ dev-switch:
 test: $(BIN)
 	$(BIN) runtest
 
+coverage: $(BIN)
+	$(BIN) runtest --workspace bisect.dev
+
 test-js: $(BIN)
 	$(BIN) build @runtest-js
 

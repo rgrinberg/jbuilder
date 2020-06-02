@@ -1,6 +1,7 @@
 let executables = [ "main" ]
 
-let external_libraries = [ "unix"; "threads.posix" ]
+let external_libraries =
+  [ "unix"; "bisect_ppx.common"; "bisect_ppx.runtime"; "threads.posix" ]
 
 let local_libraries =
   [ ("vendor/csexp/src", Some "Dune_csexp", false, None)

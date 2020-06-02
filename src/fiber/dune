@@ -1,5 +1,6 @@
 (library
  (name fiber)
  (libraries stdune)
- (preprocess future_syntax)
+ ; (preprocess future_syntax)
+ (bisect_ppx)
  (synopsis "Monadic concurrency library"))
