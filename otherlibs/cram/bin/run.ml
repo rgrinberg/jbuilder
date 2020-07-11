@@ -249,7 +249,7 @@ let create_sh_script cram_stanzas ~temp_dir : sh_script =
 let display_with_bars s =
   List.iter (String.split_lines s) ~f:(Printf.eprintf "| %s\n")
 
-let run ~sanitizer ~file lexbuf =
+let run ~file lexbuf =
   let temp_dir =
     let suffix = Filename.basename file in
     Temp.create Dir ~prefix:"dune.cram." ~suffix
@@ -294,19 +294,7 @@ let run ~sanitizer ~file lexbuf =
   let output =
     let raw = read_and_attach_exit_codes sh_script in
     let sanitized =
-      let prog, argv =
-        match sanitizer with
-        | None -> (Sys.executable_name, [ "sanitize" ])
-        | Some prog ->
-          let prog =
-            if Filename.is_relative prog then
-              Filename.concat (Sys.getcwd ()) prog
-            else
-              prog
-          in
-          (prog, [])
-      in
-      sanitize ~temp_dir ~prog ~argv raw
+      sanitize ~temp_dir ~prog:Sys.executable_name ~argv:[ "sanitize" ] raw
     in
     compose_cram_output sanitized
   in
@@ -322,15 +310,9 @@ let run ~sanitizer ~file lexbuf =
   output
 
 let term =
-  let+ sanitizer =
-    Arg.(
-      value
-      & opt (some string) None
-      & info [ "sanitizer" ] ~docv:"PROG"
-          ~doc:"Program used to sanitize the output of shell commands.")
-  and+ file =
+  let+ file =
     Arg.(required & pos 0 (some string) None (Arg.info [] ~docv:"FILE"))
   in
-  run_expect_test file ~f:(fun lexbuf -> run ~sanitizer ~file lexbuf)
+  run_expect_test file ~f:(fun lexbuf -> run ~file lexbuf)
 
 let command = (term, Term.info "run" ~doc:"Run a cram script.")
