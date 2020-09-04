@@ -35,9 +35,9 @@ let setup_copy_rules_for_impl ~sctx ~dir vimpl =
   let impl = Vimpl.impl vimpl in
   let impl_obj_dir = Dune_file.Library.obj_dir ~dir impl in
   let vlib_obj_dir = Lib.obj_dir vlib in
-  let add_rule = Super_context.add_rule sctx ~dir in
   let copy_to_obj_dir ~src ~dst =
-    add_rule ~loc:(Loc.of_pos __POS__) (Build.symlink ~src ~dst)
+    Super_context.add_rule sctx ~dir ~loc:(Loc.of_pos __POS__)
+      (Build.symlink ~src ~dst)
   in
   let { Lib_config.has_native; ext_obj; _ } = ctx.lib_config in
   let { Mode.Dict.byte; native } =
@@ -74,7 +74,7 @@ let setup_copy_rules_for_impl ~sctx ~dir vimpl =
     )
   in
   let vlib_modules = Vimpl.vlib_modules vimpl in
-  Modules.iter_no_vlib vlib_modules ~f:(fun m -> copy_objs m)
+  Modules.iter_no_vlib vlib_modules ~f:copy_objs
 
 let impl sctx ~(lib : Dune_file.Library.t) ~scope =
   Option.map lib.implements ~f:(fun (loc, implements) ->
