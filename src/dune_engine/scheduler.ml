@@ -64,6 +64,7 @@ module Event : sig
     | Files_changed
     | Job_completed of job * Unix.process_status
     | Signal of Signal.t
+    | Rpc of Fiber.fill
 
   (** Return the next event. File changes event are always flattened and
       returned first. *)
@@ -86,6 +87,10 @@ module Event : sig
 
   val send_job_completed : job -> Unix.process_status -> unit
 
+  val send_rpc_completed : Fiber.fill -> unit
+
+  val register_rpc_started : unit -> unit
+
   val send_signal : Signal.t -> unit
 
   val send_dedup : Cache.caching -> Cache.File.t -> unit
@@ -94,10 +99,13 @@ end = struct
     | Files_changed
     | Job_completed of job * Unix.process_status
     | Signal of Signal.t
+    | Rpc of Fiber.fill
 
   let jobs_completed = Queue.create ()
 
   let dedup_pending = Queue.create ()
+
+  let rpc_completed = Queue.create ()
 
   let files_changed = ref []
 
@@ -117,7 +125,11 @@ end = struct
 
   let pending_jobs = ref 0
 
+  let pending_rpc = ref 0
+
   let register_job_started () = incr pending_jobs
+
+  let register_rpc_started () = incr pending_rpc
 
   let ignore_next_file_change_event path =
     assert (Path.is_in_source_tree path);
@@ -128,7 +140,8 @@ end = struct
       ( List.is_empty !files_changed
       && Queue.is_empty jobs_completed
       && Signal.Set.is_empty !signals
-      && Queue.is_empty dedup_pending )
+      && Queue.is_empty dedup_pending
+      && Queue.is_empty rpc_completed )
 
   let dedup () =
     match Queue.pop dedup_pending with
@@ -196,6 +209,13 @@ end = struct
     Mutex.lock mutex;
     let avail = available () in
     Queue.push jobs_completed (job, status);
+    if not avail then Condition.signal cond;
+    Mutex.unlock mutex
+
+  let send_rpc_completed event =
+    Mutex.lock mutex;
+    let avail = available () in
+    Queue.push rpc_completed event;
     if not avail then Condition.signal cond;
     Mutex.unlock mutex
 
@@ -569,6 +589,42 @@ end = struct
   let init () = Lazy.force init
 end
 
+module Rpc = struct
+  type t =
+    | Client
+    | Server of
+        { server : Csexp_rpc.Server.t
+        ; handler : Dune_rpc.Handler.t
+        }
+
+  module Run = Dune_rpc.Make (Csexp_rpc.Session)
+
+  let _run t =
+    match t with
+    | Client -> Fiber.return ()
+    | Server t ->
+      let open Fiber.O in
+      let* sessions = Csexp_rpc.Server.serve t.server in
+      Run.run sessions t.handler
+
+  let scheduler =
+    { Csexp_rpc.Scheduler.on_event = Event.send_rpc_completed
+    ; register_pending_ivar = Event.register_rpc_started
+    ; thread = Thread.create
+    }
+
+  let of_config : Config.Rpc.t -> t option =
+    Option.map ~f:(function
+      | Config.Rpc.Client -> Client
+      | Config.Rpc.Server { dir; handler; backlog } ->
+        let name =
+          String.init 6 ~f:(fun _ -> Char.chr (48 + Random.int 10)) ^ ".dune"
+        in
+        let path = Path.relative dir name in
+        let server = Csexp_rpc.Server.create path ~backlog scheduler in
+        Server { server; handler })
+end
+
 type status =
   (* Waiting for file changes to start a new a build *)
   | Waiting_for_file_changes of unit Fiber.Ivar.t
@@ -580,6 +636,7 @@ type status =
 type t =
   { original_cwd : string
   ; polling : bool
+  ; rpc : Rpc.t option
   ; mutable status : status
   ; job_throttle : Fiber.Throttle.t
   }
@@ -670,6 +727,7 @@ let prepare ?(config = Config.default) ~polling () =
                 loop (Filename.concat acc "..") (Filename.dirname dir)
             in
             loop ".." (Filename.dirname s) ) ) );
+  let rpc = Rpc.of_config config.rpc in
   let t =
     { original_cwd = cwd
     ; status = Building
@@ -679,6 +737,7 @@ let prepare ?(config = Config.default) ~polling () =
           | Auto -> 1
           | Fixed n -> n )
     ; polling
+    ; rpc
     }
   in
   t
@@ -739,6 +798,7 @@ end = struct
           Process_watcher.killall Sys.sigkill;
           iter t
         | Waiting_for_file_changes ivar -> Fill (ivar, ()) )
+      | Rpc fill -> fill
       | Signal signal ->
         got_signal signal;
         raise (Abort Got_signal)
@@ -847,3 +907,14 @@ let poll ?config ~once ~finally () =
   | Some bt -> Exn.raise_with_backtrace exn bt
 
 let send_dedup = Event.send_dedup
+
+let rpc_client ?config p f =
+  let t = prepare ?config ~polling:false () in
+  let client = Csexp_rpc.Client.create p Rpc.scheduler in
+  let res = Run_once.run_and_cleanup t (fun () -> f client) in
+  match res with
+  | Error (Exn exn) -> Exn_with_backtrace.reraise exn
+  | Ok res -> res
+  | Error (Got_signal | Never) -> raise Dune_util.Report_error.Already_reported
+
+let connect_rpc in_ out = Csexp_rpc.Session.create in_ out Rpc.scheduler

@@ -1,0 +1,5 @@
+(library
+ (name dune_rpc)
+ (synopsis
+  "A library to implement clients & servers for dune's rpc protocol")
+ (libraries fiber stdune))

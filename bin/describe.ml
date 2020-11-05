@@ -125,7 +125,8 @@ module Crawl = struct
                 ]
             ] ))
 
-  let workspace { Dune_rules.Main.workspace; scontexts } (context : Context.t) =
+  let workspace { Dune_rules.Main.workspace; scontexts; rpc = _ }
+      (context : Context.t) =
     let sctx = Context_name.Map.find_exn scontexts context.name in
     let libs =
       List.fold_left workspace.conf.projects ~init:Lib.Set.empty

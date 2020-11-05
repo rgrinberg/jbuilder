@@ -1,11 +1,18 @@
 open! Stdune
 open Import
 
-let run_build_command ~common ~targets =
+let run_build_command ~(common : Common.t) ~targets =
+  let rpc =
+    match (Common.config common).rpc with
+    | Some (Server _) -> Some (Fiber.Mutex.create ())
+    | Some Client
+    | None ->
+      None
+  in
   let once () =
     let open Fiber.O in
-    let* setup = Main.setup common in
-    do_build (targets setup)
+    let* setup = Main.setup ?rpc common in
+    do_build setup (targets setup)
   in
   if Common.watch common then
     let once () =
@@ -194,6 +201,7 @@ let all =
   ; Upgrade.command
   ; Caching.command
   ; Describe.command
+  ; Rpc.command
   ; Top.command
   ; Ocaml_merlin.command
   ]

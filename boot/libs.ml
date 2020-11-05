@@ -26,6 +26,8 @@ let local_libraries =
   ; ("src/section", Some "Dune_section", false, None)
   ; ("vendor/build_path_prefix_map/src", Some "Build_path_prefix_map", false,
     None)
+  ; ("src/dune_rpc", Some "Dune_rpc", false, None)
+  ; ("src/csexp_rpc", Some "Csexp_rpc", false, None)
   ; ("src/dune_engine", Some "Dune_engine", false, None)
   ; ("src/dune_rules", Some "Dune_rules", true, None)
   ; ("vendor/cmdliner/src", None, false, None)

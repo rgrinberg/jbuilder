@@ -42,3 +42,8 @@ val with_chdir : dir:Path.t -> f:(unit -> 'a) -> 'a
 
 (** Notify the scheduler of a file to deduplicate from another thread *)
 val send_dedup : Cache.caching -> Cache.File.t -> unit
+
+val rpc_client :
+  ?config:Config.t -> Path.t -> (Csexp_rpc.Client.t -> 'a Fiber.t) -> 'a
+
+val connect_rpc : in_channel -> out_channel -> Csexp_rpc.Session.t

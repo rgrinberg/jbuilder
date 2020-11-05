@@ -83,7 +83,7 @@ let term =
       match Lazy.force targets with
       | [] -> ()
       | targets ->
-        Scheduler.go ~common (fun () -> do_build targets);
+        Scheduler.go ~common (fun () -> Import.do_build setup targets);
         Hooks.End_of_build.run () );
     match prog_where with
     | `Search prog ->

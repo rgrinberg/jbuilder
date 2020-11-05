@@ -14,6 +14,7 @@ type workspace =
 type build_system =
   { workspace : workspace
   ; scontexts : Super_context.t Context_name.Map.t
+  ; rpc : (Fiber.Mutex.t * unit Fiber.t) option
   }
 
 let package_install_file w pkg =
@@ -71,14 +72,21 @@ let scan_workspace ?workspace_file ?x ?(capture_outputs = true) ?profile
         ]);
   { contexts; conf; env }
 
-let init_build_system ?only_packages ~sandboxing_preference ?caching w =
+let init_build_system ?only_packages ~sandboxing_preference ?caching ?rpc w =
   Build_system.reset ();
   Build_system.init ~sandboxing_preference
     ~contexts:(List.map ~f:Context.to_build_context w.contexts)
     ?caching ();
   List.iter w.contexts ~f:Context.init_configurator;
   let+ scontexts = Gen_rules.gen w.conf ~contexts:w.contexts ?only_packages in
-  { workspace = w; scontexts }
+  let rpc =
+    match rpc with
+    | None -> None
+    | Some lock ->
+      let rpc = Dune_rpc_server.start lock in
+      Some (lock, rpc)
+  in
+  { workspace = w; scontexts; rpc }
 
 let auto_concurrency =
   let v = ref None in
@@ -149,3 +157,9 @@ let find_scontext_exn t ~name =
   | None ->
     User_error.raise
       [ Pp.textf "Context %S not found!" (Context_name.to_string name) ]
+
+let do_build bs request =
+  match bs.rpc with
+  | None -> Build_system.do_build ~request
+  | Some (lock, _) ->
+    Fiber.Mutex.with_lock lock (fun () -> Build_system.do_build ~request)

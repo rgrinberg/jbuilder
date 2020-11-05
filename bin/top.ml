@@ -49,7 +49,9 @@ let term =
       in
       let include_paths = Dune_rules.Lib.L.include_paths requires in
       let files = link_deps requires in
-      let* () = do_build (List.map files ~f:(fun f -> Target.File f)) in
+      let* () =
+        Import.do_build setup (List.map files ~f:(fun f -> Target.File f))
+      in
       let files_to_load =
         List.filter files ~f:(fun p ->
             let ext = Path.extension p in

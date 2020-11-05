@@ -11,6 +11,7 @@ type workspace =
 type build_system =
   { workspace : workspace
   ; scontexts : Super_context.t Context_name.Map.t
+  ; rpc : (Fiber.Mutex.t * unit Fiber.t) option
   }
 
 (* Returns [Error ()] if [pkg] is unknown *)
@@ -33,6 +34,7 @@ val init_build_system :
      ?only_packages:Package.t Package.Name.Map.t
   -> sandboxing_preference:Sandbox_mode.t list
   -> ?caching:Build_system.caching
+  -> ?rpc:Fiber.Mutex.t
   -> workspace
   -> build_system Fiber.t
 
@@ -45,3 +47,5 @@ val setup_env : capture_outputs:bool -> Env.t
 
 (** Set the concurrency level according to the user configuration *)
 val set_concurrency : Config.t -> unit Fiber.t
+
+val do_build : build_system -> 'a Build.t -> 'a Fiber.t

@@ -109,6 +109,20 @@ module Caching : sig
   end
 end
 
+module Rpc : sig
+  type on =
+    | Client
+    | Server of
+        { dir : Path.t
+        ; handler : Dune_rpc.Handler.t
+              (** there's only one handler, but we want to avoid the scheduler
+                  depending on it directly. It will create cycles *)
+        ; backlog : int
+        }
+
+  type t = on option
+end
+
 module type S = sig
   type 'a field
 
@@ -123,6 +137,7 @@ module type S = sig
     ; cache_duplication : Caching.Duplication.t field
     ; cache_trim_period : int field
     ; cache_trim_size : int64 field
+    ; rpc : Rpc.t field
     }
 end
 

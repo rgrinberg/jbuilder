@@ -82,7 +82,7 @@ module Main = struct
     scan_workspace ?workspace_file ?x ?profile ?instrument_with ~capture_outputs
       ~ancestor_vcs ()
 
-  let setup common =
+  let setup ?rpc common =
     let open Fiber.O in
     let* caching = make_cache (Common.config common) in
     let* workspace = scan_workspace common in
@@ -126,7 +126,7 @@ module Main = struct
     in
     init_build_system workspace
       ~sandboxing_preference:(Common.config common).sandboxing_preference
-      ?caching ?only_packages
+      ?caching ?rpc ?only_packages
 end
 
 module Scheduler = struct
@@ -157,4 +157,6 @@ let restore_cwd_and_execve (common : Common.t) prog argv env =
   in
   Proc.restore_cwd_and_execve prog argv ~env
 
-let do_build targets = Build_system.do_build ~request:(Target.request targets)
+let do_build build_system targets =
+  let request = Target.request targets in
+  Main.do_build build_system request

@@ -64,6 +64,8 @@ let root t = t.root
 
 let config t = t.config
 
+let set_config t config = { t with config }
+
 let only_packages t = t.only_packages
 
 let watch t = t.watch
@@ -669,6 +671,7 @@ let term =
       ; cache_duplication
       ; cache_trim_period = None
       ; cache_trim_size = None
+      ; rpc = None
       }
   in
   let config =

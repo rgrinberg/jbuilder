@@ -186,6 +186,18 @@ module Caching = struct
   end
 end
 
+module Rpc = struct
+  type on =
+    | Client
+    | Server of
+        { dir : Path.t
+        ; handler : Dune_rpc.Handler.t
+        ; backlog : int
+        }
+
+  type t = on option
+end
+
 module type S = sig
   type 'a field
 
@@ -200,6 +212,7 @@ module type S = sig
     ; cache_duplication : Caching.Duplication.t field
     ; cache_trim_period : int field
     ; cache_trim_size : int64 field
+    ; rpc : Rpc.t field
     }
 end
 
@@ -224,6 +237,7 @@ let merge t (partial : Partial.t) =
   ; cache_duplication = field t.cache_duplication partial.cache_duplication
   ; cache_trim_period = field t.cache_trim_period partial.cache_trim_period
   ; cache_trim_size = field t.cache_trim_size partial.cache_trim_size
+  ; rpc = field t.rpc partial.rpc
   }
 
 let default =
@@ -245,6 +259,7 @@ let default =
   ; cache_trim_period = 10 * 60
   ; cache_trim_size = 10_000_000_000L
   ; cache_duplication = None
+  ; rpc = None
   }
 
 let decode =
@@ -291,6 +306,7 @@ let decode =
   ; cache_duplication
   ; cache_trim_period
   ; cache_trim_size
+  ; rpc = None
   }
 
 let decode = fields decode
