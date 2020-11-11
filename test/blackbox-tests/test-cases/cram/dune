@@ -1,0 +1,10 @@
+(env
+ (_
+  (env-vars
+   (CRAM_ENV_TEST_HIDDEN invisible)
+   (CRAM_ENV_TEST_VISIBLE visible))))
+
+(cram
+ (applies_to env.t)
+ (deps
+  (env_var CRAM_ENV_TEST_VISIBLE)))
