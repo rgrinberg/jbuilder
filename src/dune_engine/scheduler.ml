@@ -599,7 +599,7 @@ module Rpc = struct
 
   module Run = Dune_rpc.Make (Csexp_rpc.Session)
 
-  let _run t =
+  let run t =
     match t with
     | Client -> Fiber.return ()
     | Server t ->
@@ -850,7 +850,7 @@ let maybe_clear_screen ~config =
 let poll ?config ~once ~finally () =
   let t = prepare ?config ~polling:true () in
   let watcher = File_watcher.create () in
-  let rec loop () : Nothing.t Fiber.t =
+  let rec loop () : unit Fiber.t =
     t.status <- Building;
     let open Fiber.O in
     let* res =
@@ -891,11 +891,17 @@ let poll ?config ~once ~finally () =
       maybe_clear_screen ~config;
       loop ()
   in
+  let run =
+    match t.rpc with
+    | None -> loop
+    | Some rpc ->
+      fun () -> Fiber.fork_and_join_unit loop (fun () -> Rpc.run rpc)
+  in
   let exn, bt =
-    match Run_once.run_and_cleanup t loop with
-    | Ok (_ : Nothing.t) ->
+    match Run_once.run_and_cleanup t run with
+    | Ok () ->
       (* Polling mode is an infinite loop. We aren't going to terminate *)
-      .
+      assert false
     | Error (Got_signal | Never) ->
       (Dune_util.Report_error.Already_reported, None)
     | Error (Exn exn_with_bt) -> (exn_with_bt.exn, Some exn_with_bt.backtrace)
