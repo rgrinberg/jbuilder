@@ -197,6 +197,7 @@ module Server = struct
       let fd = Unix.socket Unix.PF_UNIX Unix.SOCK_STREAM 0 in
       Path.unlink_no_err sock;
       Unix.setsockopt fd Unix.SO_REUSEADDR true;
+      Path.mkdir_p (Path.parent_exn sock);
       Unix.bind fd (Unix.ADDR_UNIX (Path.to_absolute_filename sock));
       Unix.listen fd backlog;
       { fd; sock }
