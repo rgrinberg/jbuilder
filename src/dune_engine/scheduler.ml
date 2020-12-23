@@ -82,6 +82,9 @@ module Event : sig
   (** Number of jobs for which the status hasn't been reported yet .*)
   val pending_jobs : unit -> int
 
+  (** Pending rpc events *)
+  val pending_rpc : unit -> int
+
   (** Send an event to the main thread. *)
   val send_files_changed : Path.t list -> unit
 
@@ -172,11 +175,13 @@ end = struct
           Signal signal
         | None -> (
           match !files_changed with
-          | [] ->
-            let job, status = Queue.pop_exn jobs_completed in
-            decr pending_jobs;
-            assert (!pending_jobs >= 0);
-            Job_completed (job, status)
+          | [] -> (
+            match Queue.pop jobs_completed with
+            | None -> Rpc (Queue.pop_exn rpc_completed)
+            | Some (job, status) ->
+              decr pending_jobs;
+              assert (!pending_jobs >= 0);
+              Job_completed (job, status) )
           | fns ->
             files_changed := [];
             let only_ignored_files =
@@ -237,6 +242,8 @@ end = struct
     Mutex.unlock mutex
 
   let pending_jobs () = !pending_jobs
+
+  let pending_rpc () = !pending_rpc
 end
 
 let running_jobs_count = Event.pending_jobs
@@ -773,6 +780,7 @@ end = struct
         false
       | _ -> true )
       && Event.pending_jobs () = 0
+      && Event.pending_rpc () = 0
     then
       raise (Abort Never)
     else (
