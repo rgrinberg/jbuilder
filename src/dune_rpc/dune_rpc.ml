@@ -69,6 +69,7 @@ module Conv = struct
     | Sexp : (Sexp.t, values) t
     | List : ('a, values) t -> ('a list, values) t
     | Field : string * 'a field -> ('a, fields) t
+    | Enum : (string * ('a, values) t) list * ('a -> string) -> ('a, values) t
     | Either :
         (* Invariant: field names must be different *)
         ('a, fields) t
@@ -88,6 +89,8 @@ module Conv = struct
     [@@@ocaml.warning "-32"]
 
     let list x = List x
+
+    let enum x y = Enum (x, y)
   end
 
   let discard_values ((a, x) : _ * values ret) =
@@ -128,6 +131,11 @@ module Conv = struct
         match a with
         | Left a -> loop x a
         | Right a -> loop y a )
+      | Enum (constrs, constr) ->
+        let name = constr a in
+        let constr = Option.value_exn (List.assoc constrs name) in
+        let arg = loop constr a in
+        Sexp.List [ Atom name; arg ]
     in
     loop t a
 
@@ -178,7 +186,18 @@ module Conv = struct
          let a, Fields k = loop x ctx in
          let b, k = loop y k in
          ((a, b), k)
+       | Enum (constrs, _) -> (
+         match ctx with
+         | List [ Atom head; args ] ->
+           let constr =
+             match List.assoc constrs head with
+             | None -> raise Of_sexp
+             | Some p -> p
+           in
+           loop constr args
+         | _ -> raise Of_sexp )
     in
+
     discard_values (loop t sexp)
 
   let record r = Record r
