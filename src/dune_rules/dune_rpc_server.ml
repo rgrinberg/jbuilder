@@ -36,17 +36,6 @@ let handler lock : Dune_rpc.Handler.t =
     ~on_notification:(fun _ _ -> Fiber.return ())
     ~on_init:(fun _ -> Fiber.return ())
 
-type session
-
-module Run = Dune_rpc.Make (struct
-  type t = session
-
-  let write _ _ = Fiber.return ()
-
-  let read _ = Fiber.never
-
-  let close _ = Fiber.return ()
-end)
 
 let start build_lock =
   let handler = handler build_lock in
