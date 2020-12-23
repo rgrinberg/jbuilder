@@ -47,3 +47,5 @@ val rpc_client :
   ?config:Config.t -> Path.t -> (Csexp_rpc.Client.t -> 'a Fiber.t) -> 'a
 
 val connect_rpc : in_channel -> out_channel -> Csexp_rpc.Session.t
+
+val add_rpc_to_env : Env.t -> Env.t

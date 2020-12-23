@@ -303,12 +303,14 @@ let rpc_dir = lazy Path.Build.(relative root "rpc")
 
 let fname = "conn"
 
+let _DUNE_RPC = "DUNE_RPC"
+
 let default_socket =
   let s = lazy (Path.build (Path.Build.relative (Lazy.force rpc_dir) fname)) in
   fun () -> Lazy.force s
 
 let where () : Path.t option =
-  match Sys.getenv_opt "DUNE_RPC" with
+  match Sys.getenv_opt _DUNE_RPC with
   | Some d -> Some (Path.external_ (Path.External.of_string d))
   | None -> (
     match Path.readdir_unsorted (Path.build (Lazy.force rpc_dir)) with
@@ -318,6 +320,9 @@ let where () : Path.t option =
         Some (default_socket ())
       else
         None )
+
+let add_rpc_to_env env path =
+  Env.add env ~var:_DUNE_RPC ~value:(Path.to_absolute_filename path)
 
 module Make (S : sig
   type t

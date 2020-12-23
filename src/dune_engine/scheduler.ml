@@ -940,3 +940,10 @@ let rpc_client ?config p f =
   | Error (Got_signal | Never) -> raise Dune_util.Report_error.Already_reported
 
 let connect_rpc in_ out = Csexp_rpc.Session.create in_ out Rpc.scheduler
+
+let add_rpc_to_env env =
+  let t = Fiber.Var.get_exn t_var in
+  match t.rpc with
+  | None -> env
+  | Some Client -> env
+  | Some (Server server) -> Dune_rpc.add_rpc_to_env env server.socket

@@ -58,6 +58,8 @@ val default_socket : unit -> Path.t
 (** Where to connect if there's an active server running *)
 val where : unit -> Path.t option
 
+val add_rpc_to_env : Env.t -> Path.t -> Env.t
+
 (** Functor to create a server implementation
 
     TODO: client implementation *)
