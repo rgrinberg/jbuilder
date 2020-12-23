@@ -1,4 +1,4 @@
-open Stdune
+open! Stdune
 open Dune_engine
 open! Fiber.O
 open! Dune_tests_common
@@ -6,8 +6,11 @@ open! Dune_tests_common
 let () = init ()
 
 let config handler =
-  let dir = Path.build Path.Build.root in
-  let rpc = Some (Config.Rpc.Server { dir; handler; backlog = 10 }) in
+  let rpc =
+    Some
+      (Config.Rpc.Server
+         { handler; backlog = 10; mutex = Fiber.Mutex.create () })
+  in
   { Config.default with rpc }
 
 let%expect_test "initialize scheduler with rpc" =

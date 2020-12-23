@@ -4,7 +4,7 @@ open Import
 let run_build_command ~(common : Common.t) ~targets =
   let rpc =
     match (Common.config common).rpc with
-    | Some (Server _) -> Some (Fiber.Mutex.create ())
+    | Some (Server s) -> Some s.mutex
     | Some Client
     | None ->
       None

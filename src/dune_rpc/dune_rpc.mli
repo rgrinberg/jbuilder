@@ -53,6 +53,8 @@ module Handler : sig
     -> t
 end
 
+val default_socket : unit -> Path.t
+
 (** Where to connect if there's an active server running *)
 val where : unit -> Path.t option
 

@@ -550,6 +550,7 @@ let term =
           ~doc:
             "Instead of terminating build after completion, wait continuously \
              for file changes.")
+  and+ rpc = Arg.(value & flag & info [ "rpc" ] ~doc:"listen to rpc")
   and+ { Options_implied_by_dash_p.root
        ; only_packages
        ; ignore_promoted_rules
@@ -658,6 +659,11 @@ let term =
   let build_dir = Option.value ~default:default_build_dir build_dir in
   let root = Workspace_root.create ~specified_by_user:root in
   let config = config_of_file config_file in
+  let rpc =
+    match rpc with
+    | false -> None
+    | true -> Some (Some (Dune_rules.Dune_rpc_server.config ()))
+  in
   let config =
     Config.merge config
       { display
@@ -671,7 +677,7 @@ let term =
       ; cache_duplication
       ; cache_trim_period = None
       ; cache_trim_size = None
-      ; rpc = None
+      ; rpc
       }
   in
   let config =

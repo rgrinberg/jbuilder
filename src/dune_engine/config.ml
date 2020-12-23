@@ -190,8 +190,8 @@ module Rpc = struct
   type on =
     | Client
     | Server of
-        { dir : Path.t
-        ; handler : Dune_rpc.Handler.t
+        { handler : Dune_rpc.Handler.t
+        ; mutex : Fiber.Mutex.t
         ; backlog : int
         }
 

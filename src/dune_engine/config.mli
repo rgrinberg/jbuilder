@@ -113,10 +113,10 @@ module Rpc : sig
   type on =
     | Client
     | Server of
-        { dir : Path.t
-        ; handler : Dune_rpc.Handler.t
+        { handler : Dune_rpc.Handler.t
               (** there's only one handler, but we want to avoid the scheduler
                   depending on it directly. It will create cycles *)
+        ; mutex : Fiber.Mutex.t
         ; backlog : int
         }
 

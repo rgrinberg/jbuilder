@@ -14,7 +14,7 @@ type workspace =
 type build_system =
   { workspace : workspace
   ; scontexts : Super_context.t Context_name.Map.t
-  ; rpc : (Fiber.Mutex.t * unit Fiber.t) option
+  ; rpc : Fiber.Mutex.t option
   }
 
 let package_install_file w pkg =
@@ -79,13 +79,6 @@ let init_build_system ?only_packages ~sandboxing_preference ?caching ?rpc w =
     ?caching ();
   List.iter w.contexts ~f:Context.init_configurator;
   let+ scontexts = Gen_rules.gen w.conf ~contexts:w.contexts ?only_packages in
-  let rpc =
-    match rpc with
-    | None -> None
-    | Some lock ->
-      let rpc = Dune_rpc_server.start lock in
-      Some (lock, rpc)
-  in
   { workspace = w; scontexts; rpc }
 
 let auto_concurrency =
@@ -161,5 +154,5 @@ let find_scontext_exn t ~name =
 let do_build bs request =
   match bs.rpc with
   | None -> Build_system.do_build ~request
-  | Some (lock, _) ->
+  | Some lock ->
     Fiber.Mutex.with_lock lock (fun () -> Build_system.do_build ~request)

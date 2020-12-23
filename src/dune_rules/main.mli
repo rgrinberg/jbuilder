@@ -11,7 +11,7 @@ type workspace =
 type build_system =
   { workspace : workspace
   ; scontexts : Super_context.t Context_name.Map.t
-  ; rpc : (Fiber.Mutex.t * unit Fiber.t) option
+  ; rpc : Fiber.Mutex.t option
   }
 
 (* Returns [Error ()] if [pkg] is unknown *)

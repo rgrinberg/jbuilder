@@ -36,8 +36,7 @@ let handler lock : Dune_rpc.Handler.t =
     ~on_notification:(fun _ _ -> Fiber.return ())
     ~on_init:(fun _ -> Fiber.return ())
 
-
-let start build_lock =
-  let handler = handler build_lock in
-  let sessions = Fiber.return Fiber.Sequence.Nil in
-  Run.run sessions handler
+let config () =
+  let mutex = Fiber.Mutex.create () in
+  let handler = handler mutex in
+  Dune_engine.Config.Rpc.Server { handler; backlog = 10; mutex }

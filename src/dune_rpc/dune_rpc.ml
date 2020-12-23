@@ -299,17 +299,23 @@ module Handler = struct
           session.send (Some (Response (id, response))))
 end
 
+let rpc_dir = lazy Path.Build.(relative root "rpc")
+
+let fname = "conn"
+
+let default_socket =
+  let s = lazy (Path.build (Path.Build.relative (Lazy.force rpc_dir) fname)) in
+  fun () -> Lazy.force s
+
 let where () : Path.t option =
   match Sys.getenv_opt "DUNE_RPC" with
   | Some d -> Some (Path.external_ (Path.External.of_string d))
   | None -> (
-    let rpc_dir = Path.Build.(relative root ".rpc") in
-    match Path.readdir_unsorted (Path.build rpc_dir) with
+    match Path.readdir_unsorted (Path.build (Lazy.force rpc_dir)) with
     | Error _ -> None
     | Ok set ->
-      let fname = ".conn" in
-      if List.mem fname ~set then
-        Some (Path.build (Path.Build.relative rpc_dir fname))
+      if List.mem ~set fname then
+        Some (default_socket ())
       else
         None )
 

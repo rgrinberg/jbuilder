@@ -602,6 +602,7 @@ module Rpc = struct
     | Server of
         { server : Csexp_rpc.Server.t
         ; handler : Dune_rpc.Handler.t
+        ; socket : Path.t
         }
 
   module Run = Dune_rpc.Make (Csexp_rpc.Session)
@@ -623,13 +624,10 @@ module Rpc = struct
   let of_config : Config.Rpc.t -> t option =
     Option.map ~f:(function
       | Config.Rpc.Client -> Client
-      | Config.Rpc.Server { dir; handler; backlog } ->
-        let name =
-          String.init 6 ~f:(fun _ -> Char.chr (48 + Random.int 10)) ^ ".dune"
-        in
-        let path = Path.relative dir name in
-        let server = Csexp_rpc.Server.create path ~backlog scheduler in
-        Server { server; handler })
+      | Config.Rpc.Server { handler; backlog; mutex = _ } ->
+        let socket = Dune_rpc.default_socket () in
+        let server = Csexp_rpc.Server.create socket ~backlog scheduler in
+        Server { server; handler; socket })
 end
 
 type status =
@@ -903,7 +901,15 @@ let poll ?config ~once ~finally () =
     match t.rpc with
     | None -> loop
     | Some rpc ->
-      fun () -> Fiber.fork_and_join_unit loop (fun () -> Rpc.run rpc)
+      fun () ->
+        Fiber.fork_and_join_unit loop (fun () ->
+            Fiber.finalize
+              (fun () -> Rpc.run rpc)
+              ~finally:(fun () ->
+                ( match rpc with
+                | Client -> assert false
+                | Server s -> Path.unlink_no_err s.socket );
+                Fiber.return ()))
   in
   let exn, bt =
     match Run_once.run_and_cleanup t run with
