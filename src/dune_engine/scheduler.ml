@@ -816,7 +816,9 @@ end = struct
     in
     match Fiber.run fiber ~iter:(fun () -> iter t) with
     | res ->
-      assert ((not t.polling) && Event.pending_jobs () = 0);
+      assert (
+        (not t.polling) && Event.pending_jobs () = 0 && Event.pending_rpc () = 0
+      );
       Ok res
     | exception Abort err -> Error err
     | exception exn -> Error (Exn (Exn_with_backtrace.capture exn))
