@@ -1,0 +1,7 @@
+(library
+ (name dune_named_pipe_stubs)
+ (public_name dune-private-libs.named_pipe_stubs)
+ (libraries)
+ (foreign_stubs
+  (language c)
+  (names named_pipe)))

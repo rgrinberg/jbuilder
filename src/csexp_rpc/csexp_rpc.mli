@@ -2,8 +2,7 @@
     entirely structure free and it is up to users of this library to impose some
     sort of conventions on the protocol.
 
-    On Unix/Mac, RPC uses Unix docmain sockets. On Windows, named pipes are
-    used.
+    On Unix/Mac, RPC uses Unix domain sockets. On Windows, named pipes are used.
 
     All functions reurning a fiber are non-blocking and run in their own thread. *)
 open Stdune

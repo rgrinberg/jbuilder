@@ -7,9 +7,6 @@ Rpc connection fails when dune isn't running
 Launch dune with rpc in the background
 
   $ dune build -w @all &
-  
-  ********** NEW BUILD **********
-  
 
   $ jobs
   [1]+  Running                 dune build -w @all &
@@ -27,7 +24,8 @@ Now try to connect
 
 
   $ jobs
-  [1]+  Done(1)                 dune build -w @all
+  [1]+  Running                 dune build -w @all &
   $ jobs
+  [1]+  Done(1)                 dune build -w @all
   $ jobs
   $ jobs

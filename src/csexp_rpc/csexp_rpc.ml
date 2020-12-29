@@ -176,15 +176,21 @@ module Server = struct
   end
 
   module Win : Transport = struct
-    exception Not_implemented
+    type t = Unix.file_descr
 
-    type t
+    let create path ~backlog:_ =
+      let fd =
+        Dune_named_pipe_stubs.Server.create (Path.to_absolute_filename path)
+      in
+      fd
 
-    let create _ ~backlog:_ = raise Not_implemented
+    let accept t =
+      Dune_named_pipe_stubs.Server.connect t;
+      Some t
 
-    let accept _ = raise Not_implemented
-
-    let stop _ = raise Not_implemented
+    let stop t =
+      Dune_named_pipe_stubs.Server.disconnect t;
+      Dune_named_pipe_stubs.Server.destroy t
   end
 
   module Unix : Transport = struct
@@ -223,27 +229,89 @@ module Server = struct
 end
 
 module Client = struct
-  type t =
-    { mutable fd : Unix.file_descr option
-    ; where : Path.t
-    ; async : Async.t
-    ; scheduler : Scheduler.t
-    }
+  module type S = sig
+    type t
 
-  let stop t = Option.iter t.fd ~f:Unix.close
+    val create : Path.t -> Scheduler.t -> t
 
-  let create where scheduler =
-    let async = Async.create scheduler in
-    { where; fd = None; scheduler; async }
+    val stop : t -> unit
 
-  (* TODO windows implementation *)
-  let connect (t : t) =
-    Async.task_exn t.async ~f:(fun () ->
-        let client = Unix.socket Unix.PF_UNIX Unix.SOCK_STREAM 0 in
-        let () =
-          Unix.connect client (Unix.ADDR_UNIX (Path.to_string t.where))
-        in
-        let out = Unix.out_channel_of_descr client in
-        let in_ = Unix.in_channel_of_descr client in
-        Session.create in_ out t.scheduler)
+    val connect : t -> Session.t Fiber.t
+  end
+
+  module type Transport = sig
+    type t
+
+    val create : Path.t -> t
+
+    val connect : t -> Unix.file_descr
+
+    val close : t -> unit
+  end
+
+  module Make (T : Transport) : S = struct
+    type t =
+      { mutable transport : T.t option
+      ; async : Async.t
+      ; scheduler : Scheduler.t
+      ; path : Path.t
+      }
+
+    let create path scheduler =
+      let async = Async.create scheduler in
+      { path; scheduler; async; transport = None }
+
+    let connect t =
+      Async.task_exn t.async ~f:(fun () ->
+          let transport = T.create t.path in
+          t.transport <- Some transport;
+          let client = T.connect transport in
+          let out = Unix.out_channel_of_descr client in
+          let in_ = Unix.in_channel_of_descr client in
+          Session.create in_ out t.scheduler)
+
+    let stop t = Option.iter t.transport ~f:T.close
+  end
+
+  module Win = struct
+    type t =
+      { mutable fd : Unix.file_descr option
+      ; path : Path.t
+      }
+
+    let close t = Option.iter t.fd ~f:Unix.close
+
+    let create path = { path; fd = None }
+
+    let connect t =
+      Dune_named_pipe_stubs.Client.wait (Path.to_absolute_filename t.path) (-1);
+      let fd = Dune_named_pipe_stubs.Client.openpipe (Path.to_absolute_filename t.path) in
+      t.fd <- Some fd;
+      fd
+  end
+
+  module Unix = struct
+    type t =
+      { fd : Unix.file_descr
+      ; path : Path.t
+      }
+
+    let close t = Unix.close t.fd
+
+    let create path =
+      let fd = Unix.socket Unix.PF_UNIX Unix.SOCK_STREAM 0 in
+      { path; fd }
+
+    let connect t =
+      let () = Unix.connect t.fd (Unix.ADDR_UNIX (Path.to_string t.path)) in
+      t.fd
+  end
+
+  let transport : (module Transport) =
+    if Sys.win32 then
+      (module Win)
+    else
+      (module Unix)
+
+  include (Make ((val transport)) : S)
 end
