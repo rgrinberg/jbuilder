@@ -179,7 +179,12 @@ let client scheduler where =
   client
 
 let%expect_test "csexp server life cycle" =
-  let sock = Path.of_string "/tmp/foo.sock" in
+  let sock =
+    if Sys.win32 then
+      Path.of_string ".\\\\.\\pipe\\foo"
+    else
+      Path.of_string "/tmp/foo.sock"
+  in
   let scheduler = Scheduler.create () in
   let server = server scheduler sock in
   let sessions = Server.serve server in
