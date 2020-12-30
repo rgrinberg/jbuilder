@@ -285,7 +285,9 @@ module Client = struct
 
     let connect t =
       Dune_named_pipe_stubs.Client.wait (Path.to_absolute_filename t.path) (-1);
-      let fd = Dune_named_pipe_stubs.Client.openpipe (Path.to_absolute_filename t.path) in
+      let fd =
+        Dune_named_pipe_stubs.Client.openpipe (Path.to_absolute_filename t.path)
+      in
       t.fd <- Some fd;
       fd
   end
