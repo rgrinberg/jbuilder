@@ -8,7 +8,7 @@ type severity =
   | Error
   | Warning of
       { code : int option
-      ; name : string
+      ; name : string option
       }
 
 type message =
@@ -26,5 +26,8 @@ type report =
   }
 
 val dyn_of_report : report -> Stdune.Dyn.t
+
+val parse_raw :
+  string -> [ `Loc of [ `Related | `Parent ] * loc | `Message of message ] list
 
 val parse : string -> report list

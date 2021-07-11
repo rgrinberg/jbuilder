@@ -1,11 +1,11 @@
-module Re = Dune_re
 module Dyn = Stdune.Dyn
+module List = ListLabels
 
 type severity =
   | Error
   | Warning of
       { code : int option (* codes are available starting 4.12 *)
-      ; name : string
+      ; name : string option
       }
 
 type message =
@@ -34,7 +34,7 @@ let dyn_of_severity =
   | Error -> constr "Error" []
   | Warning { code; name } ->
     constr "Warning"
-      [ record [ ("code", (option int) code); ("name", string name) ] ]
+      [ record [ ("code", (option int) code); ("name", (option string) name) ] ]
 
 let dyn_of_message =
   let open Dyn.Encoder in
@@ -121,82 +121,65 @@ let message_re =
     in
     (compile re, error_marker))
 
+let group_opt g i =
+  if Re.Group.test g i then
+    Some (Re.Group.get g i)
+  else
+    None
+
 let parse_message msg =
   let re, error_marker = Lazy.force message_re in
   match Re.exec re msg with
   | exception Not_found -> Raw msg
   | group ->
-    let file_excerpt =
-      if Re.Group.test group 1 then
-        Some (Re.Group.get group 1)
-      else
-        None
-    in
+    let file_excerpt = group_opt group 1 in
     let severity =
       if Re.Mark.test group error_marker then
         Error
       else
-        let code =
-          if Re.Group.test group 2 then
-            Some (int_of_string (Re.Group.get group 2))
-          else
-            None
-        in
-        let name = Re.Group.get group 3 in
+        let code = group_opt group 2 |> Option.map int_of_string in
+        let name = group_opt group 3 in
         Warning { code; name }
     in
     Structured { file_excerpt; severity; message = Re.Group.get group 4 }
 
-let parse s =
+let parse_raw s =
   let re, single_marker, related_marker = Lazy.force re in
-  match Re.split_full re s with
-  | [] -> []
-  | [ `Text _ ] -> []
-  | (`Delim _ :: _ as rest)
-  | `Text _ :: rest ->
-    let loc_of_group group message =
-      let str_group = Re.Group.get group in
-      let int_group i = int_of_string (str_group i) in
-      let line =
-        if Re.Mark.test group single_marker then
-          `Single (int_group 2)
-        else
-          `Range (int_group 3, int_group 4)
-      in
-      let chars =
-        if Re.Group.test group 5 then
-          Some (int_group 5, int_group 6)
-        else
-          None
-      in
-      let message = parse_message message in
-      let res = ({ path = str_group 1; line; chars }, message) in
-      if Re.Mark.test group related_marker then
-        `Related res
-      else
-        `Parent res
-    in
-    let rec loop acc = function
-      | `Text _ :: _ -> assert false
-      | `Delim _ :: `Delim _ :: _ -> assert false
-      | `Delim g :: `Text m :: rest ->
-        let loc = loc_of_group g m in
-        loop (loc :: acc) rest
-      | [ `Delim g ] ->
-        let loc = loc_of_group g "" in
-        loc :: acc
-      | [] -> acc
-    in
-    List.rev (loop [] rest)
+  Re.split_full re s
+  |> List.map ~f:(function
+       | `Text s -> `Message (parse_message s)
+       | `Delim group ->
+         let str_group = Re.Group.get group in
+         let int_group i = int_of_string (str_group i) in
+         let line =
+           if Re.Mark.test group single_marker then
+             `Single (int_group 2)
+           else
+             `Range (int_group 3, int_group 4)
+         in
+         let chars =
+           if Re.Group.test group 5 then
+             Some (int_group 5, int_group 6)
+           else
+             None
+         in
+         let loc = { path = str_group 1; line; chars } in
+         let kind =
+           if Re.Mark.test group related_marker then
+             `Related
+           else
+             `Parent
+         in
+         `Loc (kind, loc))
 
 let parse s =
   let rec loop acc current = function
     | [] -> current_to_acc acc current
-    | `Parent (loc, message) :: xs ->
+    | `Loc (`Parent, loc) :: `Message message :: xs ->
       let acc = current_to_acc acc current in
       let current = `Accumulating { related = []; loc; message } in
       loop acc current xs
-    | `Related (loc, message) :: xs ->
+    | `Loc (`Related, loc) :: `Message message :: xs ->
       let current =
         match current with
         | `None -> assert false
@@ -209,5 +192,5 @@ let parse s =
     | `None -> acc
     | `Accumulating p -> { p with related = List.rev p.related } :: acc
   in
-  let components = parse s in
+  let components = parse_raw s in
   List.rev (loop [] `None components)
