@@ -344,6 +344,12 @@ module Entry_with_site = struct
     }
 end
 
+module Metadata = struct
+  type 'src t =
+    | DefaultEntry of 'src Entry.t
+    | UserDefinedEntry of 'src Entry.t
+end
+
 let files entries =
   Path.Set.of_list_map entries ~f:(fun (entry : Path.t Entry.t) -> entry.src)
 

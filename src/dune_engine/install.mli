@@ -112,6 +112,12 @@ module Entry_with_site : sig
     }
 end
 
+module Metadata : sig
+  type 'src t =
+    | DefaultEntry of 'src Entry.t
+    | UserDefinedEntry of 'src Entry.t
+end
+
 val files : Path.t Entry.t list -> Path.Set.t
 
 val gen_install_file : Path.t Entry.t list -> string
