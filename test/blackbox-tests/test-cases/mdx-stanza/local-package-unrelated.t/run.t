@@ -2,6 +2,7 @@ Dune does not fail if the `packages` are not available at evaluation time
 (regression test fixed by ocaml/dune#3650)
 
   $ dune build -p unrelated-package
+  Warning: The package unrelated-package is empty.
 
 Dune fails if the `packages` are not available at execution time
 

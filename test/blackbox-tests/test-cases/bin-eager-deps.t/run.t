@@ -16,3 +16,4 @@ when the rule needs to be used to build a target.
   >  (action (echo "test")))
   > EOF
   $ dune build @install
+  Warning: The package randompackage is empty.

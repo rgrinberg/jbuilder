@@ -45,5 +45,7 @@ Allowed combinations
 --------------------
 
   $ dune build --release --only-packages toto
+  Warning: The package toto is empty.
 
   $ dune build --release --only-packages toto --profile foo
+  Warning: The package toto is empty.

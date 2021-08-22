@@ -52,6 +52,7 @@ Test embedding of build information
   > EOF
 
   $ dune build
+  Warning: The package d is empty.
   $ dune install --prefix _install 2> /dev/null
 
 Inside _build, we have no version information:

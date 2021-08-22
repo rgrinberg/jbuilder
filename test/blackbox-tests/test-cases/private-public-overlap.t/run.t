@@ -42,3 +42,4 @@ However, public binaries may accept private dependencies
 Private dependencies shouldn't make the library optional
   $ dune build @install --display short --root optional
   Entering directory 'optional'
+  Warning: The package publiclib is empty.

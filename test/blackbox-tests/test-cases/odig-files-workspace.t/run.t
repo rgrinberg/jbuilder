@@ -1,5 +1,6 @@
 Odig files should be detected relative to the package directory
   $ dune build @install --root .
+  Warning: The package foobar is empty.
   $ dune_cmd cat _build/default/project/foobar.install
   lib: [
     "_build/install/default/lib/foobar/META"

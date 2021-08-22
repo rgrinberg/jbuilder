@@ -20,6 +20,8 @@ doesn't verify that this is the case
   $ git tag -a 1.0 -m 1.0
 
   $ dune build @all
+  Warning: The package baz is empty.
+  Warning: The package foo is empty.
 
   $ dune subst
   File "dune-project", line 2, characters 6-9:

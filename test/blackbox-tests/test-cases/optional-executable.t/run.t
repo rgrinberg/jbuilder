@@ -20,8 +20,10 @@ Test optional executable
   $ touch x.ml
 
   $ dune build @install
+  Warning: The package x is empty.
 
   $ dune build @all
+  Warning: The package x is empty.
   File "dune", line 3, characters 12-26:
   3 |  (libraries does-not-exist)
                   ^^^^^^^^^^^^^^

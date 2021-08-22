@@ -18,3 +18,4 @@ Test when sites name which are ocaml keyword
   > EOF
 
   $ dune build
+  Warning: The package my-package is empty.

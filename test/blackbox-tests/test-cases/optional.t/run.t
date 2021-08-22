@@ -24,10 +24,12 @@ Regression test for non-wrapped optional libraries with missing
 dependencies (#1281):
 
   $ dune build @install
+  Warning: The package foo is empty.
 
 Interaction between `@all` and optional libraries:
 
   $ dune build @all
+  Warning: The package foo is empty.
 
 Reproduction case for a bug in dune < 2.4 where all libraries where
 considered as optional:

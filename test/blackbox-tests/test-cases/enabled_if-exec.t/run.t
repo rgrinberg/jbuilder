@@ -15,6 +15,7 @@ This one is enabled
 
 Installing should silently ignore disabled executables
   $ dune build @install
+  Warning: The package eif is empty.
 
 Tests for enabled_if in install stanza. Only bar.x should be installed.
   $ dune build @install --root install

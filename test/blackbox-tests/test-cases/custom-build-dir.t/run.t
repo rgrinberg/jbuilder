@@ -44,3 +44,4 @@ Test with a build directory that doesn't start with _
   $ touch pkg.opam
   $ dune build --build-dir build pkg.opam
   $ dune build --build-dir build
+  Warning: The package pkg is empty.

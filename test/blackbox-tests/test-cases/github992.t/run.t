@@ -7,6 +7,7 @@ This used to fail because dune couldn't associate a compilation
 context to the menhir files when package bar was hidden.
 
   $ (cd menhir-and-dash-p && dune build -p foo)
+  Warning: The package foo is empty.
 
 package field without public_name field
 ---------------------------------------

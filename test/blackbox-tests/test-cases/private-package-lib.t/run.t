@@ -21,6 +21,7 @@ First, we define a private library:
   >  (package foo))
   > EOF
   $ dune build @all
+  Warning: The package bar is empty.
 
 A public library may build against it:
 
@@ -35,6 +36,7 @@ A public library may build against it:
   > let foo = "from library foo " ^ Secret.secret
   > EOF
   $ dune build @install
+  Warning: The package bar is empty.
 
 The naming convention puts the artifacts of private libs under __private__:
 

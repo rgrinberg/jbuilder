@@ -46,6 +46,7 @@ tests that the "old_public_name" field is evaluated lazily
   $ (cd a
   > dune build @install --root .
   > dune install --prefix $PWD/../_install)
+  Warning: The package a is empty.
   Installing $TESTCASE_ROOT/a/../_install/lib/a/META
   Installing $TESTCASE_ROOT/a/../_install/lib/a/dune-package
 
@@ -397,3 +398,4 @@ across projects.
   > EOF
 
   $ (cd d/p && dune build --root . @all)
+  Warning: The package b is empty.

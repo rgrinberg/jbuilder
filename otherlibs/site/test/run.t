@@ -398,6 +398,7 @@ Test %{version:installed-pkg}
 
   $ OCAMLPATH=_install/lib:$OCAMLPATH dune build --root=f
   Entering directory 'f'
+  Warning: The package f is empty.
   $ cat $(pwd)/f/_build/default/test.target
   a = 0.a
   e = 
@@ -405,6 +406,7 @@ Test %{version:installed-pkg}
   $ cat f/dune | sed 's/version:a/version:a.test/' > f/dune.tmp && mv f/dune.tmp f/dune
   $ OCAMLPATH=_install/lib:$OCAMLPATH dune build --root=f
   Entering directory 'f'
+  Warning: The package f is empty.
   File "dune", line 6, characters 15-32:
   6 |     (echo "a = %{version:a.test}\n")
                      ^^^^^^^^^^^^^^^^^
@@ -438,7 +440,8 @@ Test error location
   > (generate_sites_module (module sites) (sites non-existent))
   > EOF
 
-  $ dune build
+  $ dune build -j1
+  Warning: The package f is empty.
   File "a/dune", line 4, characters 45-57:
   4 | (generate_sites_module (module sites) (sites non-existent))
                                                    ^^^^^^^^^^^^
