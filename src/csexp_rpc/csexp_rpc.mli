@@ -15,44 +15,58 @@
 
 open Stdune
 
-module Session : sig
-  (** Rpc session backed by two threads. One thread for reading, and another for
-      writing *)
+module Make (Worker : sig
+  (** A worker is a thread that runs submitted tasks *)
   type t
 
-  val create : socket:bool -> in_channel -> out_channel -> t Fiber.t
+  val create : unit -> t Fiber.t
 
-  (* [write t x] writes the s-expression when [x] is [Some sexp], and closes the
-     session if [x = None ] *)
-  val write : t -> Sexp.t list option -> unit Fiber.t
-
-  (** If [read] returns [None], the session is closed and all subsequent reads
-      will return [None] *)
-  val read : t -> Sexp.t option Fiber.t
-end
-
-module Client : sig
-  (** RPC Client *)
-  type t
-
-  val create : Unix.sockaddr -> t Fiber.t
+  val task :
+       t
+    -> f:(unit -> 'a)
+    -> ('a, [ `Exn of Exn_with_backtrace.t | `Stopped ]) result Fiber.t
 
   val stop : t -> unit
+end) : sig
+  module Session : sig
+    (** Rpc session backed by two threads. One thread for reading, and another
+        for writing *)
+    type t
 
-  val connect_exn : t -> Session.t Fiber.t
+    val create : socket:bool -> in_channel -> out_channel -> t Fiber.t
 
-  val connect : t -> (Session.t, Exn_with_backtrace.t) result Fiber.t
-end
+    (* [write t x] writes the s-expression when [x] is [Some sexp], and closes
+       the session if [x = None ] *)
+    val write : t -> Sexp.t list option -> unit Fiber.t
 
-module Server : sig
-  (** RPC Server *)
-  type t
+    (** If [read] returns [None], the session is closed and all subsequent reads
+        will return [None] *)
+    val read : t -> Sexp.t option Fiber.t
+  end
 
-  val create : Unix.sockaddr -> backlog:int -> t
+  module Client : sig
+    (** RPC Client *)
+    type t
 
-  val stop : t -> unit
+    val create : Unix.sockaddr -> t Fiber.t
 
-  val serve : t -> Session.t Fiber.Stream.In.t Fiber.t
+    val stop : t -> unit
 
-  val listening_address : t -> Unix.sockaddr
+    val connect_exn : t -> Session.t Fiber.t
+
+    val connect : t -> (Session.t, Exn_with_backtrace.t) result Fiber.t
+  end
+
+  module Server : sig
+    (** RPC Server *)
+    type t
+
+    val create : Unix.sockaddr -> backlog:int -> t
+
+    val stop : t -> unit
+
+    val serve : t -> Session.t Fiber.Stream.In.t Fiber.t
+
+    val listening_address : t -> Unix.sockaddr
+  end
 end
