@@ -1,6 +1,6 @@
 type warning =
-  { code : int
-  ; name : string
+  { code : int option
+  ; name : string option
   }
 
 type loc =
@@ -11,7 +11,7 @@ type loc =
 
 type severity =
   | Error
-  | Warning of warning option
+  | Warning of warning
 
 type message =
   | Raw of string
@@ -27,6 +27,7 @@ type report =
   ; related : (loc * message) list
   }
 
-val dyn_of_report : report -> Dyn.t
-
 val parse : string -> report list
+
+val parse_raw :
+  string -> [ `Loc of [ `Related | `Parent ] * loc | `Message of message ] list
