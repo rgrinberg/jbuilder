@@ -60,3 +60,5 @@ type rule_or_source =
   | Rule of Path.Build.t * Rule.t
 
 val get_rule_or_source : Path.t -> rule_or_source Memo.Build.t
+
+val list_dir_recursively : Path.Build.t -> Path.Build.t list Memo.Build.t

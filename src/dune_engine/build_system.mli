@@ -41,7 +41,6 @@ val package_deps :
   -> Path.Build.t list
   -> Package.Id.Set.t Memo.Build.t
 
-(** Execute an action. The execution is cached. *)
 val execute_action :
   observing_facts:Dep.Facts.t -> Rule.Anonymous_action.t -> unit Memo.Build.t
 

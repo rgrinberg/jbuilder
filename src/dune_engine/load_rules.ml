@@ -911,3 +911,22 @@ let is_target file =
           | false -> loop dir)
       in
       loop file)
+
+let list_dir_recursively dir =
+  let parent = Path.Build.parent_exn dir in
+  let* dir_targets = directory_targets_of ~dir:(Path.build parent) in
+  match Path.Set.mem dir_targets (Path.build dir) with
+  | false -> User_error.raise [ Pp.text "not a dir target" ]
+  | true ->
+    let rec loop acc dir =
+      load_dir ~dir:(Path.build dir) >>= function
+      | Non_build _ -> User_error.raise [ Pp.textf "invalid directory" ]
+      | Build { rules_here; _ } ->
+        let acc =
+          Path.Build.Map.foldi rules_here.by_file_targets ~init:acc
+            ~f:(fun file _ acc -> file :: acc)
+        in
+        Path.Build.Map.keys rules_here.by_directory_targets
+        |> Memo.Build.List.fold_left ~init:acc ~f:loop
+    in
+    loop [] dir
