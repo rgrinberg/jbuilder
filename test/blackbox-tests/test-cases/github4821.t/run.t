@@ -8,6 +8,7 @@ Ensure that a public, non-optional library can be disabled.
   > EOF
   $ dune build @install;
   > cat _build/install/default/lib/foo/dune-package;
+  Warning: The package foo is empty.
   (lang dune 3.0)
   (name foo)
   (sections
