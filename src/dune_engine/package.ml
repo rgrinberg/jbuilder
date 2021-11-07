@@ -725,6 +725,7 @@ let default name dir =
   ; tags = [ "topics"; "to describe"; "your"; "project" ]
   ; deprecated_package_names = Name.Map.empty
   ; sites = Section.Site.Map.empty
+  ; may_be_empty = false
   }
 
 let load_opam_file file name =
