@@ -917,21 +917,16 @@ let install_rules sctx (package : Package.t) =
            List.map entries
              ~f:(Install.Entry.add_install_prefix ~paths:install_paths ~prefix)
        in
-       (if not package.Package.may_be_empty then
-         let entries =
-           List.filter
-             ~f:(function
-               | _, Install.Metadata.DefaultEntry _ -> false
-               | _, Install.Metadata.UserDefinedEntry _ -> true)
-             entries_with_metadata
-         in
-         let pkgname = Package.Name.to_string package_name in
-         match List.length entries with
-         | 0 ->
+       (if not package.may_be_empty then
+         if
+           List.exists entries_with_metadata ~f:(function
+             | _, Install.Metadata.DefaultEntry _ -> false
+             | _, Install.Metadata.UserDefinedEntry _ -> true)
+         then
+           let pkgname = Package.Name.to_string package_name in
            let is_error = Dune_project.dune_version dune_project >= (3, 0) in
            User_warning.emit ~is_error
-             [ Pp.text ("The package " ^ pkgname ^ " is empty.") ]
-         | _ -> ());
+             [ Pp.text ("The package " ^ pkgname ^ " is empty.") ]);
        Install.gen_install_file entries)
   in
   Super_context.add_rule sctx ~dir:pkg_build_dir
