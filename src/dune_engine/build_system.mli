@@ -67,6 +67,8 @@ module Progress : sig
     ; number_of_rules_executed : int
     }
 
+  val equal : t -> t -> bool
+
   val complete : t -> int
 
   val remaining : t -> int
@@ -74,10 +76,18 @@ module Progress : sig
   val is_determined : t -> bool
 end
 
-val get_current_progress : unit -> Progress.t
+module State : sig
+  type t =
+    | Initializing
+    | Building of Progress.t
+    | Interrupting_current_build
+    | Build_finished_with_success_and_waiting
+    | Build_finished_with_failure_and_waiting
+
+  val equal : t -> t -> bool
+end
+
+val state : State.t Fiber.Svar.t
 
 (** The current set of active errors. *)
-val errors : unit -> Build_config.Error.t list
-
-(** Returns the last event reported to the handler. *)
-val last_event : unit -> Build_config.Handler.event option
+val errors : Build_config.Error.Set.t Fiber.Svar.t

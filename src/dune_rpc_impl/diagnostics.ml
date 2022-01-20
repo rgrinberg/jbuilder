@@ -70,7 +70,7 @@ let diagnostic_of_error : Build_config.Error.t -> Dune_rpc_private.Diagnostic.t
   ; directory = Option.map dir ~f:Path.to_absolute_filename
   }
 
-let diagnostic_event_of_error_event (e : Build_config.Handler.error) :
+let diagnostic_event_of_error_event (e : Build_config.Error.Event.t) :
     Diagnostic.Event.t =
   match e with
   | Remove e -> Remove (diagnostic_of_error e)
