@@ -176,20 +176,26 @@ module For_tests = struct
 end
 
 let process_inotify_event ~inotify
-    (event : Async_inotify_for_dune.Async_inotify.Event.t) : Event.t list =
+    (event : Async_inotify_for_dune.Async_inotify.Event.t) :
+    Event.t list * Path.t list =
   let create_event_unless_excluded ~kind ~path =
     match should_exclude path with
-    | true -> []
+    | true -> ([], [])
     | false ->
       let path = Path.of_string path in
       let inotify = Fdecl.get inotify in
       Mutex.lock inotify.mutex;
-      if Table.mem inotify.awaiting_creation path then (
-        Inotify_lib.add inotify.inotify (Path.to_string path);
-        Table.remove inotify.awaiting_creation path
-      );
+      let to_scan =
+        match Table.mem inotify.awaiting_creation path with
+        | false -> None
+        | true ->
+          Inotify_lib.add inotify.inotify (Path.to_string path);
+          Table.remove inotify.awaiting_creation path;
+          Some path
+      in
       Mutex.unlock inotify.mutex;
-      [ Event.Fs_memo_event (Fs_memo_event.create ~kind ~path) ]
+      ( [ Event.Fs_memo_event (Fs_memo_event.create ~kind ~path) ]
+      , Option.to_list to_scan )
   in
   match event with
   | Created path -> create_event_unless_excluded ~kind:Created ~path
@@ -200,9 +206,14 @@ let process_inotify_event ~inotify
     | Away path -> create_event_unless_excluded ~kind:Deleted ~path
     | Into path -> create_event_unless_excluded ~kind:Created ~path
     | Move (from, to_) ->
-      create_event_unless_excluded ~kind:Deleted ~path:from
-      @ create_event_unless_excluded ~kind:Created ~path:to_)
-  | Queue_overflow -> [ Queue_overflow ]
+      let events, to_scan =
+        create_event_unless_excluded ~kind:Deleted ~path:from
+      in
+      let events', to_scan' =
+        create_event_unless_excluded ~kind:Created ~path:to_
+      in
+      (events @ events', to_scan @ to_scan'))
+  | Queue_overflow -> ([ Queue_overflow ], [])
 
 let shutdown t =
   match t.kind with
@@ -398,6 +409,7 @@ let spawn_external_watcher ~root ~backend =
 let create_inotifylib_watcher ~inotify ~sync_table ~(scheduler : Scheduler.t) =
   Inotify_lib.create ~spawn_thread:scheduler.spawn_thread
     ~modify_event_selector:`Closed_writable_fd
+    ~log_error:(fun error -> Console.print [ Pp.text error ])
     ~send_emit_events_job_to_scheduler:(fun f ->
       scheduler.thread_safe_send_emit_events_job (fun () ->
           let events = f () in
@@ -416,12 +428,29 @@ let create_inotifylib_watcher ~inotify ~sync_table ~(scheduler : Scheduler.t) =
                   None
               in
               match is_fs_sync_event_generated_by_dune with
-              | None -> process_inotify_event ~inotify event
+              | None ->
+                let scan_dirs dirs =
+                  List.concat_map dirs ~f:(fun dir ->
+                      match Path.readdir_unsorted dir with
+                      | Error _ -> []
+                      | Ok contents ->
+                        List.map contents ~f:(fun fname ->
+                            let path = Path.relative dir fname in
+                            Inotify_lib.Event.Created (Path.to_string path)))
+                in
+                let rec loop acc = function
+                  | [] -> acc
+                  | event :: events ->
+                    let processed, to_scan =
+                      process_inotify_event ~inotify event
+                    in
+                    loop (acc @ processed) (events @ scan_dirs to_scan)
+                in
+                loop [] [ event ]
               | Some path -> (
                 match Fs_sync.consume_event sync_table path with
                 | None -> []
                 | Some id -> [ Event.Sync id ]))))
-    ~log_error:(fun error -> Console.print [ Pp.text error ])
 
 let create_no_buffering ~(scheduler : Scheduler.t) ~root ~backend =
   let sync_table = Table.create (module String) 64 in
