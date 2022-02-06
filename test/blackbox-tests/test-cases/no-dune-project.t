@@ -24,5 +24,17 @@ Test case: warning should be emitted
 
   $ mkdir nested-case && cd nested-case
   $ mkdir a && touch a/dune
-  $ dune build --root .
+  $ dune build
+  Warning: No dune-project file has been found. A default one is assumed but
+  the project might break when dune is upgraded. Please create a dune-project
+  file.
+  $ cd ..
+
+Test case: warning should not be emitted
+
+  $ mkdir another-case && cd another-case
+  $ mkdir a && touch a/dune
+  $ echo "(lang dune 3.0)" > a/dune-project
+  $ cp -R a b
+  $ dune build
   $ cd ..

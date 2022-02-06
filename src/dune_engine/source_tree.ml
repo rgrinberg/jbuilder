@@ -529,11 +529,7 @@ end = struct
     in
     Memo.Build.Option.map file ~f:(fun file ->
         let open Memo.Build.O in
-        let* () =
-          Memo.Build.when_
-            (Path.is_root (Path.source path))
-            (fun () -> Memo.exec ensure_dune_project_file_exists project)
-        in
+        let* () = Memo.exec ensure_dune_project_file_exists project in
         let file_exists = Option.is_some file_exists in
         let from_parent = Option.map from_parent ~f:snd in
         Dune_file.load file ~file_exists ~project ~from_parent)

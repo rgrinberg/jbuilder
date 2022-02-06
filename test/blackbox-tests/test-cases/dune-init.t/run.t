@@ -154,10 +154,16 @@ Can init a library and dependent executable in a combo project
 Can build the combo project
 
   $ (cd _test_lib_exe_dir && touch test_bin.opam && dune build)
+  Warning: No dune-project file has been found. A default one is assumed but
+  the project might break when dune is upgraded. Please create a dune-project
+  file.
 
 Can run the combo project
 
   $ (cd _test_lib_exe_dir && dune exec test_bin)
+  Warning: No dune-project file has been found. A default one is assumed but
+  the project might break when dune is upgraded. Please create a dune-project
+  file.
   Hello, World!
 
 Clean up the combo project
