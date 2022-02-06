@@ -19,3 +19,10 @@ This corresponds to a flag:
   Error: No dune-project file has been found. A default one is assumed but the
   project might break when dune is upgraded. Please create a dune-project file.
   [1]
+
+Test case: warning should be emitted
+
+  $ mkdir nested-case && cd nested-case
+  $ mkdir a && touch a/dune
+  $ dune build --root .
+  $ cd ..
