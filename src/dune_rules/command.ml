@@ -171,8 +171,17 @@ module Args = struct
 end
 
 module Ml_kind = struct
-  let flag t = Ml_kind.choose ~impl:(Args.A "-impl") ~intf:(A "-intf") t
-  let ppx_driver_flag t = Ml_kind.choose ~impl:(Args.A "--impl") ~intf:(A "--intf") t
+  let flag =
+    let impl = Args.A "-impl" in
+    let intf = A "-intf" in
+    fun t -> Ml_kind.choose ~impl ~intf t
+  ;;
+
+  let ppx_driver_flag =
+    let impl = Args.A "--impl" in
+    let intf = A "--intf" in
+    fun t -> Ml_kind.choose ~impl ~intf t
+  ;;
 end
 
 let expand ~dir args =
