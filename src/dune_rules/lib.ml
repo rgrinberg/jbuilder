@@ -1803,7 +1803,8 @@ end = struct
     let+ res, src_fn =
       let+ select =
         Memo.List.find_map choices ~f:(fun { required; forbidden; file } ->
-          Memo.List.exists (Lib_name.Set.to_list forbidden) ~f:(available_internal db)
+          Lib_name.Set.to_list forbidden
+          |> Memo.List.exists ~f:(available_internal db)
           >>= function
           | true -> Memo.return None
           | false ->
@@ -1814,15 +1815,18 @@ end = struct
             >>= (function
              | Error () -> Memo.return None
              | Ok ts ->
-               linking_closure_with_overlap_checks
-                 None
-                 ~forbidden_libraries:Map.empty
-                 ~for_
-                 ts
-               >>| Resolve.peek
-               >>| (function
-                | Error () -> Some ([], file)
-                | Ok _closure -> Some (List.map ts ~f:add_loc, file))))
+               let+ res =
+                 linking_closure_with_overlap_checks
+                   None
+                   ~forbidden_libraries:Map.empty
+                   ~for_
+                   ts
+                 >>| Resolve.peek
+                 >>| function
+                 | Error () -> []
+                 | Ok (_closure : lib list) -> List.map ts ~f:add_loc
+               in
+               Some (res, file)))
       in
       let get which =
         match select |> Option.map ~f:which with
