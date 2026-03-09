@@ -83,6 +83,7 @@ module Counter = Counter
 module Global_lock = Global_lock
 module At_exit = At_exit
 module Permissions = Permissions
+module Context_name = Context_name
 
 module type Top_closure = Top_closure.Top_closure
 

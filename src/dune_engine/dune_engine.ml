@@ -1,5 +1,4 @@
 module Display = Display
-module Context_name = Context_name
 module Action_builder = Action_builder
 module Dep = Dep
 module Action = Action

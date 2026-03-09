@@ -210,7 +210,7 @@ let resolve_target root ~setup target =
   | File sv as dep ->
     let f ctx =
       let sctx =
-        Dune_engine.Context_name.Map.find_exn setup.scontexts (Context.name ctx)
+        Context_name.Map.find_exn setup.scontexts (Context.name ctx)
       in
       let* path = expand_path root sctx sv in
       Action_builder.of_memo (resolve_path path ~setup)

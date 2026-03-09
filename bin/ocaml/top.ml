@@ -57,7 +57,7 @@ let term =
       let open Memo.O in
       let* setup = setup in
       let sctx =
-        Dune_engine.Context_name.Map.find setup.scontexts ctx_name |> Option.value_exn
+        Context_name.Map.find setup.scontexts ctx_name |> Option.value_exn
       in
       let context = Super_context.context sctx in
       let* libs =
@@ -236,7 +236,7 @@ module Module = struct
         let open Memo.O in
         let* setup = setup in
         let sctx =
-          Dune_engine.Context_name.Map.find setup.scontexts ctx_name |> Option.value_exn
+          Context_name.Map.find setup.scontexts ctx_name |> Option.value_exn
         in
         let+ directives =
           let module_path =

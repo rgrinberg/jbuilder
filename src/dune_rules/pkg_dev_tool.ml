@@ -5,10 +5,10 @@ let install_path_base_dir_name = ".dev-tool"
 
 let install_path_base =
   lazy
-    (let dev_tool_context_name = Dune_engine.Context_name.default in
+    (let dev_tool_context_name = Context_name.default in
      Path.Build.L.relative
        Private_context.t.build_dir
-       [ Dune_engine.Context_name.to_string dev_tool_context_name
+       [ Context_name.to_string dev_tool_context_name
        ; install_path_base_dir_name
        ])
 ;;

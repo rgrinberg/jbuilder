@@ -217,7 +217,7 @@ let term =
   let context_name =
     Super_context.context super_context
     |> Context.name
-    |> Dune_engine.Context_name.to_string
+    |> Context_name.to_string
   in
   external_resolved_libs (Super_context.context super_context)
   >>| to_dyn context_name

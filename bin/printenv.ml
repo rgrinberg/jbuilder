@@ -104,11 +104,11 @@ let term =
         (match checked with
          | In_build_dir (ctx, _) ->
            let sctx =
-             Dune_engine.Context_name.Map.find_exn setup.scontexts (Context.name ctx)
+             Context_name.Map.find_exn setup.scontexts (Context.name ctx)
            in
            [ dump sctx ~dir:(Path.as_in_build_dir_exn dir) ]
          | In_source_dir dir ->
-           Dune_engine.Context_name.Map.values setup.scontexts
+           Context_name.Map.values setup.scontexts
            |> List.map ~f:(fun sctx ->
              let dir =
                Path.Build.append_source
@@ -131,7 +131,7 @@ let term =
       List.iter l ~f:(fun (name, env) ->
         Format.printf
           "@[<v2>Environment for context %s:@,%a@]@."
-          (Dune_engine.Context_name.to_string name)
+          (Context_name.to_string name)
           (pp ~fields)
           env))
 ;;

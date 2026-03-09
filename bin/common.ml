@@ -1365,6 +1365,6 @@ let config_from_config_file = Options_implied_by_dash_p.config_term
 let context_arg ~doc =
   Arg.(
     value
-    & opt Arg.context_name Dune_engine.Context_name.default
+    & opt Arg.context_name Context_name.default
     & info [ "context" ] ~docv:"CONTEXT" ~doc)
 ;;

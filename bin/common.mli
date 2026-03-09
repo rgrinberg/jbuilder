@@ -5,7 +5,7 @@ type t
 
 (* [x t] returns the [Context_name.t] of of the cross-compilation context, if
   there is any *)
-val x : t -> Dune_engine.Context_name.t option
+val x : t -> Context_name.t option
 val capture_outputs : t -> bool
 val root : t -> Workspace_root.t
 
@@ -71,7 +71,7 @@ val envs : Cmdliner.Cmd.Env.info list
 val debug_backtraces : bool Cmdliner.Term.t
 val config_from_config_file : Dune_config.Partial.t Cmdliner.Term.t
 val display_term : Dune_config.Display.t option Cmdliner.Term.t
-val context_arg : doc:string option -> Dune_engine.Context_name.t Cmdliner.Term.t
+val context_arg : doc:string option -> Context_name.t Cmdliner.Term.t
 
 (** A [--build-info] command line argument that print build information
     (included in [term]) *)

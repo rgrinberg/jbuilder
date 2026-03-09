@@ -16,7 +16,7 @@ include struct
 end
 
 module Package = Dune_lang.Package
-module Context_name = Dune_engine.Context_name
+module Context_name = Context_name
 
 let package_name = conv Package.Name.conv
 

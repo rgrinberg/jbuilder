@@ -20,23 +20,23 @@ let ls_term (fetch_results : Path.Build.t -> string list Action_builder.t) =
         let build_dir, src_dir =
           match (dir : Path.t) with
           | In_source_tree d ->
-            Path.Build.append_source (Dune_engine.Context_name.build_dir context) d, d
+            Path.Build.append_source (Context_name.build_dir context) d, d
           | In_build_dir d ->
             let src_dir =
               (* We only drop the build context if it is correct. *)
               match Path.Build.extract_build_context d with
               | Some (dir_context_name, d) ->
                 if
-                  Dune_engine.Context_name.equal
+                  Context_name.equal
                     context
-                    (Dune_engine.Context_name.of_string dir_context_name)
+                    (Context_name.of_string dir_context_name)
                 then d
                 else
                   User_error.raise
                     [ Pp.textf
                         "Directory %s is not in context %S."
                         (Path.to_string_maybe_quoted dir)
-                        (Dune_engine.Context_name.to_string context)
+                        (Context_name.to_string context)
                     ]
               | None -> Code_error.raise "aliases_targets: build dir without context" []
             in

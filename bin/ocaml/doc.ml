@@ -32,7 +32,7 @@ let term =
     in
     let relative_toplevel_index_path =
       let toplevel_index_path =
-        let is_default ctx = ctx |> Context.name |> Dune_engine.Context_name.is_default in
+        let is_default ctx = ctx |> Context.name |> Context_name.is_default in
         let doc_ctx = List.find_exn setup.contexts ~f:is_default in
         Dune_rules.Odoc.Paths.toplevel_index doc_ctx
       in

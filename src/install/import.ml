@@ -10,5 +10,4 @@ include struct
   module Section = Section
 end
 
-module Context_name = Dune_engine.Context_name
 module Dpath = Dune_engine.Dpath

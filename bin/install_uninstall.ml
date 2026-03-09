@@ -503,19 +503,19 @@ let run
              match Context.findlib_toolchain ctx with
              | None -> false
              | Some ctx_findlib_toolchain ->
-               Dune_engine.Context_name.equal ctx_findlib_toolchain findlib_toolchain)
+               Context_name.equal ctx_findlib_toolchain findlib_toolchain)
          in
          contexts
        | None -> workspace.contexts)
     | Some name ->
       (match
          List.find workspace.contexts ~f:(fun c ->
-           Dune_engine.Context_name.equal (Context.name c) name)
+           Context_name.equal (Context.name c) name)
        with
        | Some ctx -> [ ctx ]
        | None ->
          User_error.raise
-           [ Pp.textf "Context %S not found!" (Dune_engine.Context_name.to_string name) ])
+           [ Pp.textf "Context %S not found!" (Context_name.to_string name) ])
   in
   let* pkgs =
     match pkgs with
