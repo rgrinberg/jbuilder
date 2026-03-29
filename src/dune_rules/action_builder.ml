@@ -32,11 +32,42 @@ let dyn_deps t =
   a
 ;;
 
-let path p = deps (Dep.Set.singleton (Dep.file p))
-let paths ps = deps (Dep.Set.of_files ps)
-let path_set ps = deps (Dep.Set.of_files_set ps)
-let dyn_paths paths = dyn_deps (paths >>| fun (x, paths) -> x, Dep.Set.of_files paths)
-let dyn_paths_unit paths = dyn_deps (paths >>| fun paths -> (), Dep.Set.of_files paths)
+let source_dir_deps_if_any path =
+  let open Memo.O in
+  match Path.extract_build_context_dir path with
+  | None -> Memo.return None
+  | Some (_ctx_dir, source_dir) when Path.Source.is_root source_dir -> Memo.return None
+  | Some (_ctx_dir, source_dir) ->
+    Source_tree.find_dir source_dir
+    >>= (function
+     | None -> Memo.return None
+     | Some _ ->
+       Load_rules.is_target path
+       >>| (function
+        | No -> Some (Source_deps.files path)
+        | Yes _ | Under_directory_target_so_cannot_say -> None))
+;;
+
+let path path =
+  of_memo (source_dir_deps_if_any path)
+  >>= function
+  | None -> deps (Dep.Set.singleton (Dep.file path))
+  | Some source_dir_deps ->
+    let+ (_ : Path.Set.t) = dyn_memo_deps source_dir_deps in
+    ()
+;;
+
+let path_list paths = all_unit (Stdune.List.map paths ~f:path)
+let paths = path_list
+let path_set path_set = path_list (Path.Set.to_list path_set)
+
+let dyn_paths t =
+  let* x, paths = t in
+  let+ () = path_list paths in
+  x
+;;
+
+let dyn_paths_unit t = t >>= path_list
 let contents p = of_memo (Build_system.read_file p)
 let lines_of p = contents p >>| String.split_lines
 
