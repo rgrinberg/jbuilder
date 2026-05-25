@@ -15,9 +15,7 @@ let default =
 ;;
 
 let go ?(timeout = Time.Span.of_secs 0.3) ?(config = default) f =
-  try
-    Scheduler.Run.go ~timeout config ~file_watcher:No_watcher ~on_event:(fun _ -> ()) f
-  with
+  try Scheduler.Run.go ~timeout config ~file_watcher:No_watcher f with
   | Shutdown.E Requested -> ()
 ;;
 
@@ -28,29 +26,31 @@ let%expect_test "cancelling a build" =
   let build_started = Fiber.Ivar.create () in
   let build_cancelled = Fiber.Ivar.create () in
   go (fun () ->
-    Fiber.fork_and_join_unit
-      (fun () ->
-         Build_loop.poll (fun ~run_id:_ ->
-           let* () = Fiber.Ivar.fill build_started () in
-           let* () = Fiber.Ivar.read build_cancelled in
-           let* res =
-             Fiber.collect_errors (fun () -> Scheduler.with_job_slot Fiber.return)
+    Build_loop.run (fun build_loop ->
+      Fiber.fork_and_join_unit
+        (fun () ->
+           Build_loop.poll build_loop (fun ~run_id:_ ~restart_started_at:_ ->
+             let* () = Fiber.Ivar.fill build_started () in
+             let* () = Fiber.Ivar.read build_cancelled in
+             let* res =
+               Fiber.collect_errors (fun () -> Scheduler.with_job_slot Fiber.return)
+             in
+             print_endline
+               (match res with
+                | Ok () -> "FAIL: build wasn't cancelled"
+                | Error _ -> "PASS: build was cancelled");
+             let () = Scheduler.shutdown () in
+             Fiber.never))
+        (fun () ->
+           let* () = Fiber.Ivar.read build_started in
+           let* () =
+             Build_loop.For_tests.inject_memo_invalidation
+               build_loop
+               (Memo.Cell.invalidate cell ~reason:Unknown)
            in
-           print_endline
-             (match res with
-              | Ok () -> "FAIL: build wasn't cancelled"
-              | Error _ -> "PASS: build was cancelled");
-           let () = Scheduler.shutdown () in
-           Fiber.never))
-      (fun () ->
-         let* () = Fiber.Ivar.read build_started in
-         let* () =
-           Scheduler.For_tests.inject_memo_invalidation
-             (Memo.Cell.invalidate cell ~reason:Unknown)
-         in
-         (* Wait for the scheduler to acknowledge the change *)
-         let* () = Scheduler.For_tests.wait_for_build_input_change () in
-         Fiber.Ivar.fill build_cancelled ()));
+           (* Wait for the scheduler to acknowledge the change *)
+           let* () = Build_loop.For_tests.wait_for_build_input_change build_loop in
+           Fiber.Ivar.fill build_cancelled ())));
   [%expect {| PASS: build was cancelled |}]
 ;;
 
@@ -59,24 +59,26 @@ let%expect_test "cancelling a build" =
 let%expect_test "cancelling a build: effect on other fibers" =
   let build_started = Fiber.Ivar.create () in
   go (fun () ->
-    Fiber.fork_and_join_unit
-      (fun () ->
-         Build_loop.poll (fun ~run_id:_ ->
-           let* () = Fiber.Ivar.fill build_started () in
-           Fiber.never))
-      (fun () ->
-         let* () = Fiber.Ivar.read build_started in
-         let* () =
-           Scheduler.For_tests.inject_memo_invalidation
-             (Memo.Cell.invalidate cell ~reason:Unknown)
-         in
-         let* () = Scheduler.For_tests.wait_for_build_input_change () in
-         let+ res = Fiber.collect_errors (fun () -> Fiber.return ()) in
-         print_endline
-           (match res with
-            | Ok () -> "PASS: we can still run things outside the build"
-            | Error _ -> "FAIL: other fiber got cancelled");
-         Scheduler.shutdown ()));
+    Build_loop.run (fun build_loop ->
+      Fiber.fork_and_join_unit
+        (fun () ->
+           Build_loop.poll build_loop (fun ~run_id:_ ~restart_started_at:_ ->
+             let* () = Fiber.Ivar.fill build_started () in
+             Fiber.never))
+        (fun () ->
+           let* () = Fiber.Ivar.read build_started in
+           let* () =
+             Build_loop.For_tests.inject_memo_invalidation
+               build_loop
+               (Memo.Cell.invalidate cell ~reason:Unknown)
+           in
+           let* () = Build_loop.For_tests.wait_for_build_input_change build_loop in
+           let+ res = Fiber.collect_errors (fun () -> Fiber.return ()) in
+           print_endline
+             (match res with
+              | Ok () -> "PASS: we can still run things outside the build"
+              | Error _ -> "FAIL: other fiber got cancelled");
+           Scheduler.shutdown ())));
   [%expect {| PASS: we can still run things outside the build |}]
 ;;
 

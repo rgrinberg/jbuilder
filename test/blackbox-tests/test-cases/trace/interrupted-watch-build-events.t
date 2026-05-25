@@ -50,19 +50,20 @@ own source invalidation.
   [
     {
       "args": {
-        "run_id": 2,
-        "restart": true
-      },
-      "name": "build-start"
-    },
-    {
-      "args": {
         "run_id": 3,
         "reasons": [
           "x changed"
         ]
       },
       "name": "build-restart"
+    },
+    {
+      "args": {
+        "run_id": 2,
+        "outcome": "failure",
+        "restart_duration": "number"
+      },
+      "name": "build-finish"
     },
     {
       "args": {
