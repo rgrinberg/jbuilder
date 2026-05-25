@@ -116,18 +116,12 @@ module Build_loop : sig
   val finish_build : stop:Time.t -> build_finish
   val init : unit -> t Fiber.t
   val pending_invalidation : t -> Memo.Invalidation.t
+  val file_watcher : t -> File_watcher.t option
+  val request_restart : t -> Memo.Invalidation.t -> unit Fiber.t
   val start_iteration : t -> unit
   val finish_iteration : t -> [ `Done | `Restart ]
   val wait_for_build_input_change : t -> unit Fiber.t
 end
-
-(** [set_fs_memo_impl] registers the file system memoization callbacks.
-    This must be called by dune_engine at initialization before starting
-    the scheduler to enable proper file system event handling. *)
-val set_fs_memo_impl
-  :  handle_fs_event:(Event.Fs_memo_event.t -> Memo.Invalidation.t)
-  -> init:(dune_file_watcher:File_watcher.t option -> Memo.Invalidation.t)
-  -> unit
 
 module For_tests : sig
   (** Wait for a build input to change. If a build input change was seen but

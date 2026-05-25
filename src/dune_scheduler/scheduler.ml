@@ -1,21 +1,6 @@
 open Import
 open Fiber.O
 
-module Fs_memo = struct
-  let handle_fs_event = Fdecl.create Dyn.opaque
-  let init = Fdecl.create Dyn.opaque
-  let initialized = ref false
-
-  let set_impl ~handle_fs_event:handle_fs_event' ~init:init' =
-    Fdecl.set handle_fs_event handle_fs_event';
-    Fdecl.set init init';
-    initialized := true
-  ;;
-
-  let handle_fs_event event = Fdecl.get handle_fs_event event
-  let init ~dune_file_watcher = Fdecl.get init ~dune_file_watcher
-end
-
 module Config = struct
   type t =
     { concurrency : int
@@ -115,10 +100,6 @@ let got_shutdown reason =
       Log.info "Shutdown" [ "reason", Dyn.variant "Signal" [ Signal.to_dyn signal ] ])
 ;;
 
-let filesystem_watcher_terminated () =
-  Log.info "Shutdown" [ "reason", Dyn.string "Filesystem watcher terminated" ]
-;;
-
 type saw_shutdown =
   | Ok
   | Got_shutdown
@@ -216,7 +197,6 @@ let prepare (config : Config.t) ~(handler : Handler.t) ~events ~file_watcher =
     ; process_watcher
     ; events
     ; file_watcher
-    ; fs_syncs = Table.create (module Event.Sync_id) 64
     ; thread_pool = lazy (Thread_pool.create ~min_workers:4 ~max_workers:50)
     ; signal_watcher
     ; async_io
@@ -224,6 +204,26 @@ let prepare (config : Config.t) ~(handler : Handler.t) ~events ~file_watcher =
   in
   current := Some t;
   t
+;;
+
+let request_build_restart (build_loop : Types.Scheduler.Build_loop.t) invalidation =
+  if Memo.Invalidation.is_empty invalidation
+  then []
+  else (
+    let now = Time.now () in
+    if Option.is_none build_loop.watch_restart_started_at
+    then build_loop.watch_restart_started_at <- Some now;
+    build_loop.invalidation
+    <- Memo.Invalidation.combine build_loop.invalidation invalidation;
+    let fills =
+      match build_loop.status with
+      | Restarting_build | Standing_by -> []
+      | Building cancellation ->
+        build_loop.handler Build_interrupted;
+        build_loop.status <- Restarting_build;
+        Fiber.Cancel.fire' cancellation
+    in
+    Trigger.trigger build_loop.build_inputs_changed @ fills)
 ;;
 
 module Run_once = struct
@@ -234,18 +234,6 @@ module Run_once = struct
 
   exception Abort of run_error
 
-  let handle_invalidation_events =
-    let handle_event event =
-      match (event : Event.build_input_change) with
-      | Invalidation invalidation -> invalidation
-      | Fs_event event -> Fs_memo.handle_fs_event event
-    in
-    fun events ->
-      let events = Nonempty_list.to_list events in
-      List.fold_left events ~init:Memo.Invalidation.empty ~f:(fun acc event ->
-        Memo.Invalidation.combine acc (handle_event event))
-  ;;
-
   (** This function is the heart of the scheduler. It makes progress in
       executing fibers by doing the following:
 
@@ -255,16 +243,6 @@ module Run_once = struct
   let rec iter (t : t) : Fiber.fill list =
     Console.Status_line.refresh ();
     match Event.Queue.next t.events with
-    | File_system_sync id ->
-      (match Table.find t.fs_syncs id with
-       | None -> iter t
-       | Some ivar ->
-         Table.remove t.fs_syncs id;
-         [ Fill (ivar, ()) ])
-    | Build_inputs_changed events -> build_input_change t events
-    | File_system_watcher_terminated ->
-      filesystem_watcher_terminated ();
-      raise (Abort Already_reported)
     | Job_complete_ready ->
       (match Process_watcher.wait_unix t.process_watcher with
        | [] -> iter t
@@ -273,30 +251,6 @@ module Run_once = struct
     | Shutdown reason ->
       got_shutdown reason;
       raise @@ Abort (Shutdown_requested reason)
-
-  and build_input_change (t : t) events =
-    let invalidation = handle_invalidation_events events in
-    if Memo.Invalidation.is_empty invalidation
-    then iter t
-    else (
-      let now = Time.now () in
-      let build_loop = t.build_loop in
-      if Option.is_none build_loop.watch_restart_started_at
-      then build_loop.watch_restart_started_at <- Some now;
-      build_loop.invalidation
-      <- Memo.Invalidation.combine build_loop.invalidation invalidation;
-      let fills =
-        match build_loop.status with
-        | Restarting_build | Standing_by -> []
-        | Building cancellation ->
-          build_loop.handler Build_interrupted;
-          build_loop.status <- Restarting_build;
-          Fiber.Cancel.fire' cancellation
-      in
-      let fills = Trigger.trigger build_loop.build_inputs_changed @ fills in
-      match fills with
-      | [] -> iter t
-      | fills -> fills)
   ;;
 
   let run t f : _ result =
@@ -362,17 +316,11 @@ let async_exn f =
   | Ok e -> e
 ;;
 
-let flush_file_watcher_impl t =
-  match t.file_watcher with
+let flush_file_watcher () =
+  match (t ()).file_watcher with
   | None -> Fiber.return ()
-  | Some file_watcher ->
-    let ivar = Fiber.Ivar.create () in
-    let id = File_watcher.emit_sync file_watcher in
-    Table.set t.fs_syncs id ivar;
-    Fiber.Ivar.read ivar
+  | Some file_watcher -> File_watcher.flush file_watcher
 ;;
-
-let flush_file_watcher () = flush_file_watcher_impl (t ())
 
 module Build_loop = struct
   open Types.Scheduler.Build_loop
@@ -420,6 +368,14 @@ module Build_loop = struct
   ;;
 
   let pending_invalidation t = t.invalidation
+  let file_watcher (_ : t) = (Types.Scheduler.t ()).file_watcher
+
+  let request_restart t invalidation =
+    let* () = Fiber.return () in
+    let fills = request_build_restart t invalidation in
+    Event.Queue.send_worker_tasks_completed (Types.Scheduler.t ()).events fills;
+    Fiber.return ()
+  ;;
 
   let start_iteration t =
     t.invalidation <- Memo.Invalidation.empty;
@@ -475,22 +431,14 @@ module Run = struct
       match file_watcher with
       | No_watcher -> None
       | Automatic ->
+        let file_watcher_events = Thread_safe_channel.create events in
         Some
-          (File_watcher.create_default
-             ~event_queue:events
+          (File_watcher.create
+             ~events:file_watcher_events
              ~watch_exclusions:config.watch_exclusions
              ())
     in
     let t = prepare config ~handler:on_event ~events ~file_watcher in
-    (match file_watcher with
-     | None ->
-       if !Fs_memo.initialized
-       then ignore (Fs_memo.init ~dune_file_watcher:None : Memo.Invalidation.t)
-     | Some dune_file_watcher ->
-       let initial_invalidation =
-         Fs_memo.init ~dune_file_watcher:(Some dune_file_watcher)
-       in
-       Memo.reset initial_invalidation);
     let result =
       let run =
         match timeout with
@@ -593,8 +541,6 @@ let sleep dur =
   | Error (`Exn _) -> assert false
 ;;
 
-let set_fs_memo_impl = Fs_memo.set_impl
-
 module For_tests = struct
   let wait_for_build_input_change () =
     let* () = Fiber.return () in
@@ -605,7 +551,8 @@ module For_tests = struct
   let inject_memo_invalidation invalidation =
     let* () = Fiber.return () in
     let t = t () in
-    Event.Queue.send_invalidation_event t.events invalidation;
+    let fills = request_build_restart t.build_loop invalidation in
+    Event.Queue.send_worker_tasks_completed t.events fills;
     Fiber.return ()
   ;;
 end

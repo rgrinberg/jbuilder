@@ -24,6 +24,46 @@ let build_finish (build_result : Build_outcome.t) =
     (Constant (Pp.seq message (Pp.verbatim ", waiting for filesystem changes...")))
 ;;
 
+let invalidation_of_file_events events =
+  List.fold_left events ~init:Memo.Invalidation.empty ~f:(fun acc event ->
+    let invalidation =
+      match (event : Event.File_watcher_event.t) with
+      | Fs_memo_event event -> Fs_memo.handle_fs_event event
+      | Queue_overflow -> Memo.Invalidation.clear_caches ~reason:Event_queue_overflow
+      | Watcher_terminated ->
+        Log.info "Shutdown" [ "reason", Dyn.string "Filesystem watcher terminated" ];
+        raise Dune_util.Report_error.Already_reported
+    in
+    Memo.Invalidation.combine acc invalidation)
+;;
+
+let rec handle_file_events t file_watcher =
+  File_watcher.read file_watcher
+  >>= function
+  | None -> Fiber.return ()
+  | Some events ->
+    let* () =
+      Scheduler.Build_loop.request_restart t (invalidation_of_file_events events)
+    in
+    handle_file_events t file_watcher
+;;
+
+let run_with_file_watcher t f =
+  match Scheduler.Build_loop.file_watcher t with
+  | None ->
+    ignore (Fs_memo.init ~dune_file_watcher:None : Memo.Invalidation.t);
+    f ()
+  | Some file_watcher ->
+    let initial_invalidation = Fs_memo.init ~dune_file_watcher:(Some file_watcher) in
+    Memo.reset initial_invalidation;
+    Fiber.fork_and_join_unit
+      (fun () -> handle_file_events t file_watcher)
+      (fun () ->
+         Fiber.finalize f ~finally:(fun () ->
+           File_watcher.close file_watcher;
+           Fiber.return ()))
+;;
+
 let rec poll_iter t step =
   let run_id =
     let run_id = Run_id.Watch !next_run_id in
@@ -72,7 +112,7 @@ let poll step =
     let* () = Scheduler.Build_loop.wait_for_build_input_change t in
     loop ()
   in
-  loop ()
+  run_with_file_watcher t loop
 ;;
 
 let poll_passive ~get_build_request =
@@ -82,10 +122,14 @@ let poll_passive ~get_build_request =
     (* Flush before to make the build reproducible. The passive watch mode is
        designed for tests and We want to observe all the change made by the
        test before starting the build. *)
-    let* () = Scheduler.flush_file_watcher () in
+    let* () =
+      match Scheduler.Build_loop.file_watcher t with
+      | None -> Fiber.return ()
+      | Some file_watcher -> File_watcher.flush file_watcher
+    in
     let* res = poll_iter t step in
     let* () = Fiber.Ivar.fill response_ivar res in
     loop ()
   in
-  loop ()
+  run_with_file_watcher t loop
 ;;
