@@ -9,12 +9,6 @@ module For_tests = struct
   module Inotify = Inotify
   module Fsevents = Fsevents
   module Fswatch_win = Fswatch_win
-
-  module Thread_safe_channel = struct
-    include Thread_safe_channel
-
-    let create_for_current_scheduler () = create (Types.Scheduler.t ()).events
-  end
 end
 
 module For_benchmarks = struct
