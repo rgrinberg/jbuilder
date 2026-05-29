@@ -275,19 +275,18 @@ let emit_events events =
            `File (path, kind))))
 ;;
 
-let send_file_events events file_events =
-  if not (List.is_empty file_events)
-  then Thread_safe_channel.write_exn events (List.rev file_events)
-;;
-
 let dispatch_backend_events events backend_events =
   emit_events backend_events;
+  let send_file_events file_events =
+    if not (List.is_empty file_events)
+    then Thread_safe_channel.write_exn events (List.rev file_events)
+  in
   let rec loop file_events = function
-    | [] -> send_file_events events file_events
+    | [] -> send_file_events file_events
     | Filesystem_event event :: backend_events ->
       loop (event :: file_events) backend_events
     | Sync { ivar; _ } :: backend_events ->
-      send_file_events events file_events;
+      send_file_events file_events;
       Thread_safe_channel.write_fills_exn events [ Fiber.Fill (ivar, ()) ];
       loop [] backend_events
   in
