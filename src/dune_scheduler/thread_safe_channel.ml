@@ -22,6 +22,8 @@ let create events =
   }
 ;;
 
+let send_fills t fills = Event.Queue.send_worker_tasks_completed t.events fills
+
 let write t value =
   let status, fill =
     Mutex.protect t.mutex (fun () ->
@@ -34,8 +36,7 @@ let write t value =
           Queue.push t.items (Value value);
           `Ok, None))
   in
-  Option.iter fill ~f:(fun fill ->
-    Event.Queue.send_worker_tasks_completed t.events [ fill ]);
+  Option.iter fill ~f:(fun fill -> send_fills t [ fill ]);
   status
 ;;
 
@@ -59,7 +60,7 @@ let write_fills t fills =
         `Ok, [])
       else `Ok, fills)
   in
-  Event.Queue.send_worker_tasks_completed t.events fills;
+  send_fills t fills;
   status
 ;;
 
@@ -80,7 +81,7 @@ let rec read t =
   with
   | `Ready value -> Fiber.return value
   | `Fills fills ->
-    Event.Queue.send_worker_tasks_completed t.events fills;
+    send_fills t fills;
     read t
   | `Wait ivar -> Fiber.Ivar.read ivar
 ;;
@@ -99,5 +100,5 @@ let close t =
         in
         drain []))
   in
-  Event.Queue.send_worker_tasks_completed t.events fills
+  send_fills t fills
 ;;
