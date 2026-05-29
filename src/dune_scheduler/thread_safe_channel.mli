@@ -11,11 +11,9 @@ val write : 'a t -> 'a -> [ `Closed | `Ok ]
 (** Like [write], but raises a code error if [t] is closed. *)
 val write_exn : 'a t -> 'a -> unit
 
-(** [write_fills t fills] schedules [fills] after all values already written to
-      [t] have been read. This function is thread-safe. *)
-val write_fills : _ t -> Fiber.fill list -> [ `Closed | `Ok ]
-
-(** Like [write_fills], but raises a code error if [t] is closed. *)
+(** [write_fills_exn t fills] schedules [fills] after all values already written
+      to [t] have been read. This function is thread-safe. It raises a code
+      error if [t] is closed. *)
 val write_fills_exn : _ t -> Fiber.fill list -> unit
 
 (** [read t] waits for the next value written to [t]. It returns [None] once
