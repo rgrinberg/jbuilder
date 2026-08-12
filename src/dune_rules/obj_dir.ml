@@ -29,6 +29,22 @@ module Paths = struct
   ;;
 end
 
+let cm_public_dir
+      ~native_dir
+      ~byte_dir
+      ~public_cmi_ocaml_dir
+      ~melange_dir
+      ~public_cmi_melange_dir
+      (cm_kind : Lib_mode.Cm_kind.t)
+  =
+  match cm_kind with
+  | Ocaml Cmx -> native_dir
+  | Ocaml Cmo -> byte_dir
+  | Ocaml Cmi -> public_cmi_ocaml_dir
+  | Melange Cmj -> melange_dir
+  | Melange Cmi -> public_cmi_melange_dir
+;;
+
 module External = struct
   type t =
     { public_dir : Path.t Compilation_mode.Per_mode.t
@@ -164,13 +180,13 @@ module External = struct
       ]
   ;;
 
-  let cm_public_dir t (cm_kind : Lib_mode.Cm_kind.t) =
-    match cm_kind with
-    | Ocaml Cmx -> native_dir t
-    | Ocaml Cmo -> byte_dir t
-    | Ocaml Cmi -> public_cmi_ocaml_dir t
-    | Melange Cmj -> melange_dir t
-    | Melange Cmi -> public_cmi_melange_dir t
+  let cm_public_dir t =
+    cm_public_dir
+      ~native_dir:(native_dir t)
+      ~byte_dir:(byte_dir t)
+      ~public_cmi_ocaml_dir:(public_cmi_ocaml_dir t)
+      ~melange_dir:(melange_dir t)
+      ~public_cmi_melange_dir:(public_cmi_melange_dir t)
   ;;
 end
 
@@ -322,13 +338,13 @@ module Local = struct
     | Melange (Cmj | Cmi) -> melange_dir t
   ;;
 
-  let cm_public_dir t (cm_kind : Lib_mode.Cm_kind.t) =
-    match cm_kind with
-    | Ocaml Cmx -> native_dir t
-    | Ocaml Cmo -> byte_dir t
-    | Ocaml Cmi -> public_cmi_ocaml_dir t
-    | Melange Cmj -> melange_dir t
-    | Melange Cmi -> public_cmi_melange_dir t
+  let cm_public_dir t =
+    cm_public_dir
+      ~native_dir:(native_dir t)
+      ~byte_dir:(byte_dir t)
+      ~public_cmi_ocaml_dir:(public_cmi_ocaml_dir t)
+      ~melange_dir:(melange_dir t)
+      ~public_cmi_melange_dir:(public_cmi_melange_dir t)
   ;;
 end
 
