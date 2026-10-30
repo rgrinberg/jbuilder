@@ -2,14 +2,19 @@ open Import
 open Fiber.O
 module Trigger = Fiber.Trigger
 
+type active_build =
+  { run_id : Run_id.t
+  ; request : Build_system.Request.t
+  }
+
 type status =
   | (* We are not doing a build. Just accumulating invalidations until the next
        build starts. *)
     Standing_by
-  | (* Running a build *) Building of Run_id.t
+  | (* Running a build *) Building of active_build
   | (* Cancellation requested. Build jobs are immediately rejected in this
        state *)
-    Restarting_build of Run_id.t
+    Restarting_build of active_build
 
 module Rpc_request_id = struct
   module T = struct
@@ -57,7 +62,6 @@ type t =
        distinguish input changes from other wakeups. *)
   ; mutable next_run_id : int
   ; mutable rpc_requests : Build_system.Request.Goal.t Rpc_request_id.Map.t
-  ; mutable current_request : Build_system.Request.t option
   ; mutable state : [ `Awaiting_init | `Init ]
   }
 
@@ -141,8 +145,8 @@ let request_rebuild_due_to_rpc_request t =
   let* () =
     match t.status with
     | Restarting_build _ | Standing_by -> Fiber.return ()
-    | Building run_id ->
-      t.status <- Restarting_build run_id;
+    | Building active ->
+      t.status <- Restarting_build active;
       if Option.is_none t.pending_reset
       then t.pending_reset <- Some Memo.Invalidation.empty;
       Process.Build.cancel_current ()
@@ -160,24 +164,27 @@ let request_restart t invalidation =
     then t.watch_restart_started_at <- Some now;
     add_pending_reset t invalidation;
     t.input_change_generation <- t.input_change_generation + 1;
-    Option.iter t.current_request ~f:Build_system.Request.cancel_completion;
+    (match t.status with
+     | Building { request; _ } | Restarting_build { request; _ } ->
+       Build_system.Request.cancel_completion request
+     | Standing_by -> ());
     let* () =
       match t.status with
       | Restarting_build _ -> Fiber.return ()
       | Standing_by ->
         if not (Debouncer.is_pending t.file_event_debouncer) then clear_status_overlay t;
         Fiber.return ()
-      | Building run_id ->
+      | Building active ->
         set_status_overlay
           t
           (Live
              (fun () ->
                Pp.textf "Restarting current build... %s" (Build_timing.format_now now)));
-        t.status <- Restarting_build run_id;
+        t.status <- Restarting_build active;
         let+ () = Process.Build.cancel_current () in
         Dune_trace.emit Build (fun () ->
           Dune_trace.Event.watch_build_restart
-            ~run_id:(Run_id.to_int run_id)
+            ~run_id:(Run_id.to_int active.run_id)
             ~reasons:(Memo.Invalidation.details_hum ~max_elements:max_int invalidation)
             ~at:now)
     in
@@ -267,7 +274,6 @@ let create () =
   ; input_change_generation = 0
   ; next_run_id = 1
   ; rpc_requests = Rpc_request_id.Map.empty
-  ; current_request = None
   ; state = `Awaiting_init
   }
 ;;
@@ -322,29 +328,22 @@ let run_current_build
   (match t.status with
    | Building _ -> assert false
    | Standing_by | Restarting_build _ -> ());
-  t.status <- Building run_id;
+  t.status <- Building { run_id; request };
   let build_started_at = Time.now () in
   clear_status_overlay t;
   set_build_duration_section
     t
     (Live
        (fun () -> build_timing_status run_id (Build_timing.format_now build_started_at)));
-  t.current_request <- Some request;
   let* outcome =
-    Fiber.finalize_now
-      (fun () ->
-         let build_ctx =
-           Process.Build.create
-             ~action_runner
-             ~run_id
-             ~cancellation:(Fiber.Cancel.create ())
-         in
-         Build_system.run_build_requests
-           ?restart_started_at
-           ~build_started_at
-           ~build:build_ctx
-           request)
-      ~finally:(fun () -> t.current_request <- None)
+    let build_ctx =
+      Process.Build.create ~action_runner ~run_id ~cancellation:(Fiber.Cancel.create ())
+    in
+    Build_system.run_build_requests
+      ?restart_started_at
+      ~build_started_at
+      ~build:build_ctx
+      request
   in
   let+ () = Scheduler.cleanup_subreaper_child_processes () in
   let build_duration = Time.diff (Time.now ()) build_started_at in
