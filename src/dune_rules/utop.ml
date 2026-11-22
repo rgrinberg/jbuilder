@@ -186,51 +186,22 @@ let setup sctx ~dir =
     then Preprocess.No_preprocessing
     else Preprocess.Pps { loc = Loc.none; pps; flags = []; staged = false }
   in
-  let* preprocessing =
-    let preprocess = Module_reference.Per_item.for_all pps in
-    Pp_spec_rules.make
-      sctx
-      ~for_
-      ~dir
-      ~expander
-      ~scope
-      ~lib_name:None
-      ~lint:Lint.no_lint
-      ~preprocess
-      ~preprocessor_deps:[]
-      ~instrumentation_deps:[]
-  in
   let source = source ~dir in
-  let obj_dir = Toplevel.Source.obj_dir source in
   let loc = Toplevel.Source.loc source in
-  let* modules = Toplevel.Source.modules source preprocessing in
   let requires = requires ~loc ~db ~libs in
-  let flags =
-    let project = Scope.project scope in
-    let dune_version = Dune_project.dune_version project in
-    let profile = Super_context.context sctx |> Context.profile in
-    Ocaml_flags.append_common (Ocaml_flags.default ~dune_version ~profile) [ "-w"; "-24" ]
-  in
-  let* cctx =
-    let requires_link = Memo.lazy_ ~name:"utop-requires-link" (fun () -> requires) in
-    Compilation_context.create
-      for_
-      ~super_context:sctx
+  let requires_link = Memo.lazy_ ~name:"utop-requires-link" (fun () -> requires) in
+  let* toplevel =
+    Toplevel.make
+      ~sctx
       ~scope
-      ~obj_dir
-      ~modules
-      ~opaque:(Explicit false)
-      ~requires_link
+      ~dir
+      ~source
+      ~preprocess:pps
       ~requires_compile:requires
-      ~user_written_requires:None
-      ~flags
-      ~js_of_ocaml:(Js_of_ocaml.Mode.Pair.make None)
-      ~melange_package_name:None
-      ~package:None
-      ~preprocessing
+      ~requires_link
+      expander
   in
   let* () = findlib_conf sctx ~dir in
-  let toplevel = Toplevel.make ~cctx ~source ~preprocess:pps expander in
   Toplevel.setup_rules toplevel ~linkage:Exe.Linkage.byte
 ;;
 

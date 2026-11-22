@@ -75,7 +75,45 @@ type t =
   ; preprocess : Preprocess.Without_instrumentation.t Preprocess.t
   }
 
-let make ~cctx ~source ~preprocess expander = { cctx; source; preprocess; expander }
+let make ~sctx ~scope ~dir ~source ~preprocess ~requires_compile ~requires_link expander =
+  let* preprocessing =
+    Pp_spec_rules.make
+      sctx
+      ~for_
+      ~dir
+      ~expander
+      ~scope
+      ~lib_name:None
+      ~lint:Lint.no_lint
+      ~preprocess:(Module_reference.Per_item.for_all preprocess)
+      ~preprocessor_deps:[]
+      ~instrumentation_deps:[]
+  in
+  let* modules = Source.modules source preprocessing in
+  let flags =
+    let dune_version = Scope.project scope |> Dune_project.dune_version in
+    let profile = Super_context.context sctx |> Context.profile in
+    Ocaml_flags.append_common (Ocaml_flags.default ~dune_version ~profile) [ "-w"; "-24" ]
+  in
+  let+ cctx =
+    Compilation_context.create
+      for_
+      ~super_context:sctx
+      ~scope
+      ~obj_dir:(Source.obj_dir source)
+      ~modules
+      ~opaque:(Explicit false)
+      ~requires_compile
+      ~user_written_requires:None
+      ~requires_link
+      ~flags
+      ~js_of_ocaml:(Js_of_ocaml.Mode.Pair.make None)
+      ~melange_package_name:None
+      ~package:None
+      ~preprocessing
+  in
+  { cctx; source; preprocess; expander }
+;;
 
 let pp_flags t =
   let open Action_builder.O in
@@ -193,71 +231,42 @@ module Stanza = struct
     let* exe =
       let* scope = Scope.DB.find_by_dir dir in
       let* expander = Super_context.expander sctx ~dir in
-      let* cctx =
+      let compile_info =
         let dune_version = Scope.project scope |> Dune_project.dune_version in
-        let* preprocessing =
-          let preprocess = Module_reference.Per_item.for_all toplevel.pps in
-          Pp_spec_rules.make
-            sctx
-            ~for_
-            ~dir
-            ~expander
-            ~scope
-            ~lib_name:None
-            ~lint:Lint.no_lint
-            ~preprocess
-            ~preprocessor_deps:[]
-            ~instrumentation_deps:[]
+        let compiler_libs =
+          Lib_name.parse_string_exn (source.loc, "compiler-libs.toplevel")
         in
-        let* modules = Source.modules source preprocessing in
-        let compile_info =
-          let compiler_libs =
-            Lib_name.parse_string_exn (source.loc, "compiler-libs.toplevel")
-          in
-          let pps =
-            match toplevel.pps with
-            | Preprocess.Pps pps -> pps.pps
-            | Action _ | Future_syntax _ -> assert false (* Error in parsing *)
-            | No_preprocessing -> []
-          in
-          Lib.DB.resolve_user_written_deps
-            (Scope.libs scope)
-            (Source.exe_target source)
-            ~forbidden_libraries:[]
-            (Lib_dep.Direct (source.loc, compiler_libs)
-             :: List.map toplevel.libraries ~f:(fun d -> Lib_dep.Direct d))
-            ~allow_unused_libraries:[]
-            ~pps
-            ~dune_version
-            ~allow_overlaps:false
+        let pps =
+          match toplevel.pps with
+          | Preprocess.Pps pps -> pps.pps
+          | Action _ | Future_syntax _ -> assert false (* Error in parsing *)
+          | No_preprocessing -> []
         in
-        let flags =
-          let profile = Super_context.context sctx |> Context.profile in
-          Ocaml_flags.append_common
-            (Ocaml_flags.default ~dune_version ~profile)
-            [ "-w"; "-24" ]
-        in
-        let requires_compile = Lib.Compile.direct_requires compile_info ~for_ in
-        let requires_link = Lib.Compile.requires_link compile_info ~for_ in
-        let obj_dir = Source.obj_dir source in
-        Compilation_context.create
-          for_
-          ~super_context:sctx
-          ~scope
-          ~obj_dir
-          ~modules
-          ~opaque:(Explicit false)
-          ~requires_compile
-          ~user_written_requires:None
-          ~requires_link
-          ~flags
-          ~js_of_ocaml:(Js_of_ocaml.Mode.Pair.make None)
-          ~melange_package_name:None
-          ~package:None
-          ~preprocessing
+        Lib.DB.resolve_user_written_deps
+          (Scope.libs scope)
+          (Source.exe_target source)
+          ~forbidden_libraries:[]
+          (Lib_dep.Direct (source.loc, compiler_libs)
+           :: List.map toplevel.libraries ~f:(fun d -> Lib_dep.Direct d))
+          ~allow_unused_libraries:[]
+          ~pps
+          ~dune_version
+          ~allow_overlaps:false
       in
-      let linkage = Exe.Linkage.custom (Compilation_context.ocaml cctx).version in
-      let resolved = make ~cctx ~source ~preprocess:toplevel.pps expander in
+      let* resolved =
+        make
+          ~sctx
+          ~scope
+          ~dir
+          ~source
+          ~preprocess:toplevel.pps
+          ~requires_compile:(Lib.Compile.direct_requires compile_info ~for_)
+          ~requires_link:(Lib.Compile.requires_link compile_info ~for_)
+          expander
+      in
+      let linkage =
+        Exe.Linkage.custom (Compilation_context.ocaml resolved.cctx).version
+      in
       setup_rules_and_return_exe_path resolved ~linkage
     in
     let symlink = Path.Build.relative_fname dir (Path.Build.basename exe) in
