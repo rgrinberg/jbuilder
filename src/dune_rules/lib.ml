@@ -1137,6 +1137,33 @@ let instrumentation_backend instrument_with resolve libname =
            ])
 ;;
 
+module Resolved = struct
+  type deps =
+    { resolved : (Loc.t * lib) list Resolve.t
+    ; selects : Resolved_select.t list
+    ; re_exports : (Loc.t * lib) list Resolve.t
+    }
+
+  type t =
+    { requires : lib list Resolve.t
+    ; pps : lib list Resolve.t
+    ; selects : Resolved_select.t list
+    ; re_exports : lib list Resolve.t
+    }
+
+  let user_written { resolved; selects = _; re_exports } =
+    let open Resolve.O in
+    let+ resolved = resolved
+    and+ re_exports = re_exports in
+    resolved @ re_exports
+    |> List.map ~f:(fun (loc, lib) -> lib, loc)
+    |> Map.of_list_multi
+    |> Map.to_list_map ~f:(fun lib locs ->
+      let loc = List.hd locs in
+      loc, lib)
+  ;;
+end
+
 module Resolve_names : sig
   val find_internal : db -> Lib_name.t -> Status.t Memo.t
   val resolve_lib_id : db -> Lib_id.t -> Status.t Memo.t
@@ -1148,23 +1175,6 @@ module Resolve_names : sig
     -> (Loc.t * Lib_name.t) list
     -> private_deps:private_deps
     -> t list Resolve.Memo.t
-
-  module Resolved : sig
-    type deps =
-      { resolved : (Loc.t * t) list Resolve.t
-      ; selects : Resolved_select.t list
-      ; re_exports : (Loc.t * t) list Resolve.t
-      }
-
-    type t =
-      { requires : lib list Resolve.t
-      ; pps : lib list Resolve.t
-      ; selects : Resolved_select.t list
-      ; re_exports : lib list Resolve.t
-      }
-
-    val user_written : deps -> (Loc.t * lib) list Resolve.t
-  end
 
   val resolve_complex_deps
     :  db
@@ -1214,33 +1224,6 @@ end = struct
           name, project))
       >>| Package.Name.Map.of_list_exn)
   ;;
-
-  module Resolved = struct
-    type deps =
-      { resolved : (Loc.t * t) list Resolve.t
-      ; selects : Resolved_select.t list
-      ; re_exports : (Loc.t * t) list Resolve.t
-      }
-
-    type t =
-      { requires : lib list Resolve.t
-      ; pps : lib list Resolve.t
-      ; selects : Resolved_select.t list
-      ; re_exports : lib list Resolve.t
-      }
-
-    let user_written { resolved; selects = _; re_exports } =
-      let open Resolve.O in
-      let+ resolved = resolved
-      and+ re_exports = re_exports in
-      resolved @ re_exports
-      |> List.map ~f:(fun (loc, lib) -> lib, loc)
-      |> Map.of_list_multi
-      |> Map.to_list_map ~f:(fun lib locs ->
-        let loc = List.hd locs in
-        loc, lib)
-    ;;
-  end
 
   module Resolved_builder : sig
     type t
@@ -2589,7 +2572,7 @@ module DB = struct
             deps
             ~parameters:[]
             ~for_
-          |> Memo.map ~f:Resolve_names.Resolved.user_written)
+          |> Memo.map ~f:Resolved.user_written)
         |> Memo.Lazy.force
       in
       let init = Resolve.Memo.return [] in
