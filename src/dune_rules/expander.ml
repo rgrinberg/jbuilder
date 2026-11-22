@@ -1000,23 +1000,20 @@ let expand_pform_gen ~(context : Context.t) ~bindings ~dir ~source (pform : Pfor
 
 (* Make sure to delay exceptions *)
 let expand_pform_gen ~context ~bindings ~dir ~source pform =
+  let delay_error exn : _ Deps.t =
+    let open Memo.O in
+    Without
+      (let+ () = Memo.return () in
+       reraise exn)
+  in
   match expand_pform_gen ~context ~bindings ~source ~dir pform with
-  | exception (User_error.E _ as exn) ->
-    Direct
-      (Without
-         (let open Memo.O in
-          let+ () = Memo.return () in
-          reraise exn))
+  | exception (User_error.E _ as exn) -> Direct (delay_error exn)
   | Direct _ as x -> x
   | Need_full_expander f ->
     Need_full_expander
       (fun t ->
         try f t with
-        | User_error.E _ as exn ->
-          Without
-            (let open Memo.O in
-             let+ () = Memo.return () in
-             reraise exn))
+        | User_error.E _ as exn -> delay_error exn)
 ;;
 
 let describe_source ~source =
